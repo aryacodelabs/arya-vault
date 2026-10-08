@@ -1,0 +1,5 @@
+target/
+artifacts/
+coverage/
+# smoke is a placeholder; its auto-generated corpus is not worth committing
+corpus/smoke/

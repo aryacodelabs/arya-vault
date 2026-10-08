@@ -119,6 +119,23 @@ flowchart LR
   R[Release tag] --> FZ[Fuzz 24h] --> M[Manual matrix] --> SG[Sign + notarize + provenance]
 ```
 
+### Running locally
+Run from `core/`. Fuzzing needs nightly Rust; see `core/fuzz/README.md` for adding targets.
+```sh
+# fuzz (cargo install cargo-fuzz --locked)
+cargo +nightly fuzz list
+cargo +nightly fuzz run smoke -- -max_total_time=5
+
+# coverage (cargo install cargo-llvm-cov --locked; rustup component add llvm-tools-preview)
+cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
+cargo llvm-cov report --summary-only
+
+# supply chain (cargo install cargo-audit cargo-deny cargo-geiger --locked)
+cargo audit
+cargo deny check
+cargo geiger --all-features
+```
+
 ## 11. Definition of done
 A feature is done when: acceptance criteria met · unit/integration tests added · threat-model checklist reviewed (doc 03 §7) · docs updated · no new `unsafe` without justification · accessibility check passed · security-relevant changes approved by CODEOWNERS.
 
