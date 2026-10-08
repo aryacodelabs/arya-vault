@@ -15,13 +15,12 @@ Google Drive, iCloud and plain folders offer **no transactions, no server-side m
 
 ```
 <provider root>/AryaVault/<vault_id>/
-├─ header-000001.bin            # immutable versions; highest number wins (§7)
-├─ header-000002.bin
+├─ header-<epoch>-<version>-<device>.bin   # immutable; active = highest (epoch, version, device) per doc 04 §5
 ├─ devices/
 │  └─ <device_id>/
 │     ├─ 0000000001.seg         # immutable, written once
 │     ├─ 0000000002.seg
-│     └─ manifest.bin           # rewritten by owner only (versioned, §6)
+│     └─ manifest-<counter>.bin # immutable, monotonically numbered; owner writes a new one, deletes older (§6.2)
 └─ snapshots/
    └─ <hlc>-<device_id>.snap    # immutable
 ```
@@ -31,7 +30,7 @@ All names are opaque hex; nothing derived from item content.
 - `hlc = (physical_ms: 48 bits, counter: 16 bits)`; ordering key is `(hlc, device_id)`.
 - Local event: `pt = max(now_ms, last.pt)`; if `pt == last.pt` then counter+1 else counter=0.
 - On receiving remote hlc `r`: `pt = max(now_ms, last.pt, r.pt)`, counter updated per standard HLC rules.
-- **Skew guard:** a remote op whose `pt > now + 24 h` is accepted but flagged; user notified "device X clock is ahead". Local clock never jumps from it beyond the guard (it would otherwise let a bad device dominate LWW forever).
+- **Skew policy (review M5):** the receive rule above **always adopts** the remote `pt`. This is required: it is what lets any later edit on any device outrank a future-dated op, so a bad clock cannot dominate LWW forever. A remote op whose `pt > now + 24 h` is applied but flagged ("device X's clock is ahead"). A segment containing an op with `pt > now + 1 year` is treated as corrupt and quarantined (prevents poisoning every device's clock far into the future). Display timestamps (`created_at`, "edited on") use wall-clock fields, never HLC.
 
 ## 5. Ops and merge
 
@@ -40,7 +39,7 @@ All names are opaque hex; nothing derived from item content.
 Op { item_id, key, value | tombstone, hlc, device_id, base_hlc }
 ```
 - `base_hlc` = the hlc of the register value the author saw when editing (null if new).
-- Segment = ordered list of ops produced by one device (≤1 MiB plaintext, flushed on change with debounce ~2 s or on lock/background).
+- Segment = ordered list of ops produced by one device (≤1 MiB plaintext). Local saves are immediate; **uploads are batched ≥15 s** and flushed at once on lock/background (review L1: fewer, larger segments leak less timing and cost fewer API calls).
 
 ### 5.2 Merge rule (per register)
 ```
@@ -48,32 +47,48 @@ winner = argmax over (hlc, device_id) of {current, incoming}
 ```
 - Loser value goes to `field_history`.
 - Applying an op already applied (same `(device_id, seq, index)`) is a no-op (idempotent).
-- Delete is the register `deleted=true`: concurrent edit vs delete resolved by LWW; an edit later than a delete **resurrects** the item (data-preserving choice).
+- Delete is the register `deleted=true` with its `deleted_hlc`. **Visibility (review M6):** an item is visible iff `deleted == false` **or** any of its field registers has `hlc > deleted_hlc`. So an edit made after a delete (including on another device that had not yet seen the delete) resurrects the item, deterministically on every replica (data-preserving choice).
 
-### 5.3 Concurrent-edit detection and conflict copies
-An incoming op is *concurrent* with the current value if `incoming.base_hlc != current.hlc` and `current.hlc > incoming.base_hlc` (current is newer than what the author saw) and the authors differ.
+### 5.3 Concurrent edits are a derived view, not a merge step (review H3)
+Merge (§5.2) is a pure LWW CRDT and **never creates items**. Detecting "concurrent edit" while merging depends on arrival order (a causally later edit that arrives *before* its predecessor looks concurrent) and would create spurious copies that cannot be retracted. Instead:
 
-| Field class | Behavior on concurrent edit |
-|---|---|
-| Scalar fields (title, username, password, urls…) | LWW; loser to history; user sees a gentle "changed on another device" badge |
-| `note.body` | LWW **plus** deterministic **conflict copy**: a new item `id = H(item_id ‖ loser_hlc ‖ loser_device)` titled "<title> (conflict <date>)". Every device derives the same id, so the copy is created exactly once |
-| Collections (`tags`, `urls`) | Stored as per-element registers (add/remove-wins by LWW per element) so concurrent tag edits merge instead of overwrite |
+- Every stored version in `field_history` keeps its `base_hlc`. Together they form an ancestry graph per field.
+- A non-winning version `L` is **concurrent** with the winner `W` iff `L` is not an ancestor of `W` (following `base_hlc` links through retained versions). This is computed at read time from the full set of ops, so it is identical on every replica regardless of arrival order.
+- The UI shows an "Other versions" badge and a compare/restore screen for any field with concurrent losers. Nothing is created automatically.
+- For long text (`note.body`) the user can choose **Keep as separate note**, which creates a new item through ordinary ops (new UUIDv7 by the user's device), so there is no duplicate-creation problem.
+- Collections (`tags`, `urls`) are stored as per-element registers (add/remove-wins by LWW per element), so concurrent edits merge naturally.
+- If an ancestor version was pruned from history (limits in doc 05 §8), the loser is conservatively treated as concurrent (shown, not hidden).
 
 ### 5.4 Convergence argument
-Each register merges via a total order `(hlc, device_id)` → `max` is commutative, associative, idempotent. Element-wise application of independent registers composes. Tombstones are registers. Conflict-copy creation is deterministic. Therefore all replicas that receive the same set of ops reach the same state. Property tests verify this (doc 11).
+Each register merges via a total order `(hlc, device_id)` → `max` is commutative, associative, idempotent. Element-wise application of independent registers composes. Tombstones are registers. Conflicts are a derived read-time view and add no state to merge (§5.3). Therefore all replicas that receive the same set of ops reach the same state. Property tests verify this (doc 11).
 
 ## 6. Segments, manifests and integrity
 
-**Segment upload** (device D, next seq n):
-1. Collect local ops since last upload → plaintext CBOR list → pad → AEAD under `K_log` (envelope per doc 04 §6, `prev_hash` = hash of D's segment n-1).
-2. `put-if-absent devices/D/<n>.seg`. If it already exists with identical bytes → success (retry safe). If it exists with different bytes → **fatal integrity alarm** (should be impossible).
-3. Update `manifest.bin` (own head + `seen` map of other devices' heads) via a *new* manifest file name or in-place overwrite (provider-specific, §7). Manifest is encrypted with `K_manifest`.
+**Segment upload** (device D, next seq n), review H2:
+1. **Freeze first.** Collect pending local ops → plaintext CBOR list → pad → AEAD under `K_log` (doc 04 §6, `prev_hash` = hash of D's segment n-1). Persist the finished ciphertext bytes, the ops they contain and `n` in a local **outbox** table, in one DB transaction. New local ops after this point go into the next segment.
+2. `put_if_absent devices/D/<n>.seg` with the **outbox bytes**. If it already exists with identical bytes (crash after upload) → success; mark the outbox entry uploaded. Retries always send the identical bytes, so a random nonce can never make a retry look like tampering.
+3. If it exists with **different** bytes, another writer has used this `device_id` and `seq`. This is **not impossible**: restoring an OS/device backup, cloning a VM or disk, or a failed migration reuses the identity. Run fork recovery (§6.1). Never overwrite.
+4. After a successful upload, publish a new manifest (§6.2) subject to the rate limit there.
 
 **Segment download**:
 1. Discover new files (change feed or directory listing diff).
 2. For each device E, process segments in increasing seq: verify AEAD; verify `prev_hash` chain; apply ops in a single DB transaction; record in `segment_seen`.
 3. **Gap handling:** a missing seq in the middle → stop for that device, retry later (eventual consistency). Persisting beyond 24 h while other devices' manifests confirm the head → raise "possible deletion" warning and fall back to snapshot.
 4. **Rollback detection:** if any manifest says device E reached seq k but E's directory shows < k, or `prev_hash` mismatch, surface a **tamper/rollback warning** (don't silently overwrite local state). Local DB is never rolled back automatically.
+
+### 6.1 Fork recovery (duplicate `device_id`)
+Triggered when `put_if_absent` finds different bytes at `(device_id, n)`, or when a remote segment from *this* device's id has a hash that does not match this device's own record.
+1. Stop uploading under this `device_id`; do not delete or modify anything remote.
+2. Generate a new random `device_id` and create its directory; seq restarts at 1.
+3. Re-emit every local op not confirmed to be in some remote segment, as new ops. This is safe because merge is idempotent and ops carry their own `(hlc, device_id-of-author)`; note the original HLC values are kept, so ordering is unaffected.
+4. Download and merge everything under the old id (the other fork's segments are ordinary segments and merge normally).
+5. Show the user a notice ("This device appears to have been restored or cloned. It has been given a new identity; no data was lost.").
+
+### 6.2 Manifests: monotonic and immutable (review H5, L2)
+- A manifest is `{ counter, own_head: (seq, hash), seen: { device_id → (seq, hash) }, device_name, written_at }`, encrypted under `K_manifest`, stored as `manifest-<counter>.bin` and **never overwritten**. The owner writes counter+1 and deletes older manifests (keeping the last 2).
+- Each reader stores the highest manifest `counter` it has seen per device. If the provider serves a lower counter, or a device's manifests disappear while its segments remain, show a **rollback warning** (the provider may be withholding newer state).
+- Rate limit: publish a new manifest at most every 5 minutes, or sooner when the device's `own_head` changes or a flush on lock/background occurs.
+- Rollback detection remains best-effort against a hostile provider: it can show every device an equally stale but self-consistent view. A device that has seen newer state remembers it locally and will alarm; an entirely new device cannot.
 
 ## 7. Provider abstraction
 
@@ -121,10 +136,17 @@ Provider semantics are tested by one shared **conformance suite** that every pro
 | **Device lost offline > 90 days** | On return: if its next segment predecessor was compacted away → it **rebases**: downloads latest snapshot, re-applies its own unsent local ops on top as new ops (merge is idempotent), continues |
 | **App reinstall** | Treated as new device (new device_id). Old device directory becomes inactive and is cleaned up after compaction |
 
+### 8.1 Epoch rotation and late devices (review M4)
+After a key rotation (doc 04 §10) the rotation snapshot's `covers` map states, per device, up to which `(seq, hash)` old-epoch data is included.
+- A device that comes online and sees a higher epoch: prompt for the master password → unwrap the new VK → re-key its local DB → adopt the rotation snapshot → for its **own** segments with `seq > covers[self]` and any unsent local ops, re-emit the ops under the new epoch (idempotent).
+- Segments written in the old epoch by a revoked or late device after the snapshot cut are unreadable to new-epoch devices; they are ignored, and the late device's re-emission (above) is what brings its edits in.
+- A revoked device can still read old-epoch files it has the key for, but nothing written under the new epoch.
+
 ## 9. Compaction and retention
 - Any device may create a snapshot when: ≥ 200 segments since last snapshot or ≥ 7 days and new data.
-- Snapshot = full current state (registers + retained history + tombstones) as CBOR, AEAD-encrypted under `K_snap`, plus a `covers: { device_id → seq }` map.
+- Snapshot = full current state (registers + retained history + tombstones) as CBOR, AEAD-encrypted under `K_snap`, plus a `covers: { device_id → (seq, hash) }` map. Carrying the hash lets a device that starts from this snapshot continue verifying each device's hash chain after older segments are deleted (review M8).
 - A segment may be deleted by its **author only** once: (a) a snapshot covers it, and (b) all active devices' manifests ack that snapshot (or the device has been inactive > 90 days).
+- **Stale devices (review L6):** any device may delete segments of a device that has been inactive >90 days, provided a snapshot covers them, so storage stays bounded when a phone is lost.
 - Keep the last **3 snapshots** (rolling backup / point-in-time restore), plus on-demand "pin this snapshot" for the user.
 - Cloud footprint estimate: ~3 snapshots × (vault ≤ 10 MB typical) + active segments → well within free quota (Drive 15 GB, iCloud 5 GB).
 
@@ -145,7 +167,7 @@ Provider semantics are tested by one shared **conformance suite** that every pro
 | OAuth revoked / expired | "Needs attention" – re-auth; local vault untouched |
 | User wipes cloud folder | Local vault intact; offer "re-upload from this device" (new snapshot) |
 | Two devices create same tag/folder name | Distinct IDs → both exist; UI offers merge |
-| Header race (two devices change password concurrently) | Both write `header-(n+1)` under different device-specific suffix; **highest `(header_version, device_id)` wins**; loser's change is flagged to its user |
+| Header race (two devices change password concurrently) | Both write `header-<epoch>-<n+1>-<device>.bin` (distinct names); **highest `(epoch, header_version, device_id)` wins**; the loser's change is flagged to its user and can be re-applied |
 
 ## 12. Security properties (summary)
 - Provider cannot read (AEAD), cannot undetectably modify (AEAD+AAD), cannot undetectably reorder within a device (hash chain), can delete/withhold (detected when peers' manifests disagree; local copy preserved).

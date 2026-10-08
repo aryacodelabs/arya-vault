@@ -49,6 +49,10 @@ For arbitrary sets of ops `A`, `B`, `C`:
 | Clock skew | Per-device offsets (± hours, +days) |
 | Crashes | Device killed mid-upload / mid-apply (transaction atomicity) |
 | Offline | Device offline for > compaction window → rebase |
+| Fork | Device state restored from backup / VM cloned: duplicate `device_id` and `seq` (doc 06 §6.1) |
+| Manifest rollback | Older manifest counter served; manifests withheld (doc 06 §6.2) |
+| Key rotation | Device writes old-epoch ops after rotation snapshot; late device re-emits (doc 06 §8.1) |
+| Arrival order | Same op set delivered in every permutation; conflict view must be identical (doc 06 §5.3) |
 
 **Assertions:** (1) after quiescence all devices converge to identical state; (2) no accepted op is lost unless user-deleted; (3) tampering/rollback is **detected** and local state not overwritten; (4) cloud contains no plaintext (scan for canary strings); (5) compaction never deletes data a live device still needs.
 

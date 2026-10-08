@@ -41,7 +41,7 @@ Everything beyond the app process/OS keystore is **untrusted for confidentiality
 | 2 | Tamper with segment (T) | T1,T7 | AEAD with AAD binding (vault_id, device_id, seq, epoch, prev_hash); reject on failure | None for content |
 | 3 | Delete / truncate segments (D) | T1 | Per-device hash chain; other devices' manifests ack last seen seq → gap/rollback detected, user warned; snapshots + local copy | Cannot prevent deletion, only detect; local DB remains |
 | 4 | Roll back to older state / replay (T) | T1 | Monotonic seq + manifest acks; reject lower-seq re-uploads; device remembers highest seen | Brand-new device cannot detect rollback of the entire vault |
-| 5 | Downgrade KDF params in header (T) | T1 | Params are AAD of wrapped VK; client enforces minimum floors; new params only via user action | Attacker who has the header can brute-force at *original* params anyway |
+| 5 | Downgrade KDF params in header (T) | T1 | Params are AAD of wrapped VK; client enforces floors **and ceilings** (anti-DoS) before running the KDF; new params only via user action | Attacker who has the header can brute-force at *original* params anyway |
 | 6 | Brute-force master password (I) | T9 | Argon2id (≥64 MiB, calibrated), password-strength meter, minimum length, zxcvbn-style check, **recovery key is high entropy (≥128 bit)** | Weak chosen password remains the weakest link |
 | 7 | MITM provider traffic (T/I) | T2 | TLS via provider SDK/OS stack; payload E2E encrypted anyway | Availability only |
 | 8 | Disk image of powered-off device (I) | T3 | SQLCipher DB; keystore-wrapped biometric key; full-disk encryption recommended in onboarding | Unencrypted disk + weak password |

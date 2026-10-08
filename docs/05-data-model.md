@@ -64,12 +64,14 @@ CREATE TABLE field (
   value BLOB,                    -- CBOR-encoded value
   hlc INTEGER NOT NULL,          -- 64-bit packed HLC
   device_id BLOB NOT NULL,
+  base_hlc INTEGER,              -- hlc of the version the author saw (ancestry graph, doc 06 s5.3)
   PRIMARY KEY (item_id, key)
 );
 
 CREATE TABLE field_history (
   item_id BLOB NOT NULL, key TEXT NOT NULL,
   value BLOB, hlc INTEGER NOT NULL, device_id BLOB NOT NULL,
+  base_hlc INTEGER,              -- needed to compute concurrent versions at read time
   PRIMARY KEY (item_id, key, hlc, device_id)
 );
 
@@ -83,6 +85,14 @@ CREATE TABLE local_op (          -- ops not yet uploaded
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
   item_id BLOB NOT NULL, key TEXT NOT NULL, value BLOB,
   hlc INTEGER NOT NULL, base_hlc INTEGER
+);
+CREATE TABLE outbox (            -- frozen segments awaiting confirmed upload (doc 06 s6)
+  seq INTEGER PRIMARY KEY,       -- this device's segment number
+  bytes BLOB NOT NULL,           -- exact encrypted envelope; retries re-send identical bytes
+  uploaded INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE manifest_seen (     -- highest manifest counter seen per device (rollback detection)
+  device_id BLOB PRIMARY KEY, counter INTEGER NOT NULL
 );
 CREATE TABLE segment_seen (      -- per remote device
   device_id BLOB NOT NULL, seq INTEGER NOT NULL, hash BLOB NOT NULL,
@@ -110,7 +120,7 @@ Secrets stored outside the DB (OS keystore only): biometric-wrapped VK, OAuth re
 ## 7. Deletion semantics
 1. Delete = set `deleted=true` (tombstone op). Item moves to Trash.
 2. Trash retained **30 days**, then purge: a purge op removes field values but keeps a minimal tombstone `(id, deleted_hlc)` for 180 days so late-arriving devices don't resurrect the item.
-3. Tombstones are dropped on compaction once all known devices have acked a snapshot containing them.
+3. Tombstones are dropped on compaction only when **both** all known devices have acked a snapshot containing them **and** at least 180 days have passed since deletion (review L6).
 
 ## 8. History
 - Every overwrite of a field register moves the previous `(value, hlc, device)` into `field_history`.

@@ -16,7 +16,10 @@ Verification keys: **UT** unit test · **PT** property test · **FZ** fuzz · **
 | SEC-C07 | MUST pass published test vectors (RFC 9106, 8439/xchacha, 5869) | 6 | UT |
 | SEC-C08 | MUST open all golden vault files from previous releases | 19 | IT (CI) |
 | SEC-C09 | Password generation MUST be unbiased (rejection sampling) | 6 | PT (chi-square), UT |
-| SEC-C10 | NFKD normalization MUST be identical on all platforms | 6 | UT vectors |
+| SEC-C10 | NFKD normalization MUST be identical on all platforms; normalization library version pinned, vectors fail CI on change | 6 | UT vectors |
+| SEC-C11 | Client MUST enforce Argon2 parameter floors **and ceilings** (m 64-1024 MiB, t 3-10, p 1-8) before running the KDF | 5 | UT |
+| SEC-C12 | Wrap AADs MUST NOT include `header_version`; password change MUST succeed without the recovery key | 6 | UT, IT |
+| SEC-C13 | SQLCipher settings MUST be pinned explicitly and verified on open | 8 | UT |
 
 ## 2. Authentication, unlock, recovery
 | ID | Requirement | Threat | Verify |
@@ -51,6 +54,11 @@ Verification keys: **UT** unit test · **PT** property test · **FZ** fuzz · **
 | SEC-Y07 | HLC skew guard flags remote clocks > 24 h ahead | 20 | UT |
 | SEC-Y08 | Provider conformance suite MUST pass for every provider | 19 | IT |
 | SEC-Y09 | TLS cert validation never disabled; no custom trust stores | 7 | RV |
+| SEC-Y10 | Envelope `device_id`/`seq` MUST match the file path; mismatches quarantined | 2,3 | UT, FZ |
+| SEC-Y11 | Segments MUST be frozen in a local outbox before upload; retries send identical bytes | 19 | IT (crash injection) |
+| SEC-Y12 | Duplicate-`device_id` forks (restored backup / cloned VM) MUST be detected and recovered without data loss | 19 | sim |
+| SEC-Y13 | Manifests MUST be immutable and monotonic; counter regression MUST warn | 3,4 | sim |
+| SEC-Y14 | Conflicts MUST be a derived view and MUST NOT depend on op arrival order | 19 | PT |
 
 ## 5. Client hygiene
 | ID | Requirement | Threat | Verify |
