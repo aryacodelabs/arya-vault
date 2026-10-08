@@ -51,7 +51,7 @@ jobs:
       - run: cargo install cargo-fuzz --version 0.13.2 --locked
       - name: Fuzz ${{ matrix.target }} (10 minutes)
         run: |
-          cargo fuzz run "${TARGET}" -- -max_total_time=600 -timeout=30 -rss_limit_mb=2048
+          cargo +nightly fuzz run "${TARGET}" -- -max_total_time=600 -timeout=30 -rss_limit_mb=2048
         env:
           TARGET: ${{ matrix.target }}
       - name: Upload crash input

@@ -132,4 +132,4 @@ jobs:
         with:
           workspaces: core/fuzz
       - run: cargo install cargo-fuzz --version 0.13.2 --locked
-      - run: cargo fuzz run smoke -- -max_total_time=10
+      - run: cargo +nightly fuzz run smoke -- -max_total_time=10
