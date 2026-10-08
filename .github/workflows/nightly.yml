@@ -17,19 +17,25 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.list.outputs.matrix }}
+      has_targets: ${{ steps.list.outputs.has_targets }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - id: list
         name: List fuzz targets
+        # `smoke` is a toolchain placeholder (run by ci.yml fuzz-smoke); skip it nightly.
         run: |
-          matrix=$(ls core/fuzz/fuzz_targets/*.rs | xargs -n1 basename -s .rs | jq -R . | jq -sc '{target: .}')
+          matrix=$(ls core/fuzz/fuzz_targets/*.rs | xargs -n1 basename -s .rs | { grep -vx smoke || true; } | jq -R . | jq -sc '{target: .}')
+          has_targets=$(echo "${matrix}" | jq '.target | length > 0')
           echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+          echo "has_targets=${has_targets}" >> "$GITHUB_OUTPUT"
           echo "Targets: ${matrix}"
 
   fuzz:
     needs: targets
+    # An empty matrix fails the job, so skip it until the first real target exists.
+    if: needs.targets.outputs.has_targets == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
