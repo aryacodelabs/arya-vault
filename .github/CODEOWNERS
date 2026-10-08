@@ -1,0 +1,8 @@
+# TODO: replace @OWNER with the GitHub user(s)/team(s) who review security-critical code.
+# docs/08 SEC-R05 requires two-person review for these paths (enforce via branch protection).
+# /core/crates/crypto/      @OWNER
+# /core/crates/sync/        @OWNER
+# /core/crates/ffi/         @OWNER
+# /docs/04-crypto-spec.md   @OWNER
+# /docs/06-sync-protocol.md @OWNER
+# /.github/                 @OWNER
