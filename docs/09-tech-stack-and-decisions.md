@@ -31,7 +31,7 @@
 | 0006 | CloudKit for iCloud (not iCloud Drive) | Proposed |
 | 0007 | Mandatory recovery key | Accepted |
 | 0008 | Platform order: Windows + Android first | Accepted |
-| 0009 | Open source and license (MPL-2.0) | Proposed — needs owner confirmation |
+| 0009 | Open source and license (MPL-2.0) | Accepted |
 | 0010 | SQLCipher for local storage | Accepted |
 
 ---
@@ -83,10 +83,10 @@
 **Consequences:** Early Drive-based sync demo covers Windows↔Android — the most common cross-ecosystem pair; iCloud arrives with Apple platforms.
 
 ## ADR-0009 — Open source & license
-**Decision (proposed):** Open source under **MPL-2.0** (file-level copyleft).
+**Decision:** Open source under **MPL-2.0** (file-level copyleft).
 **Options:** Apache-2.0 (permissive; closed forks possible) · GPL-3.0/AGPL (strong copyleft; friction with app-store distribution and external contributors unless CLA) · MPL-2.0.
 **Rationale:** MPL keeps modifications to our files open, is App Store–compatible, and doesn't burden consumers of the Rust core as a library.
-**Action:** Owner to confirm license and copyright holder name; add `LICENSE`, SPDX headers, DCO sign-off (preferred over CLA).
+**Action:** `LICENSE` (MPL-2.0) added; add SPDX headers (`MPL-2.0`) to source files and DCO sign-off (preferred over CLA).
 **Also public:** security audit reports, threat model, release signing keys fingerprints.
 
 ## ADR-0010 — SQLCipher

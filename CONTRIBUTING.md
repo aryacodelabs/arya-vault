@@ -41,4 +41,4 @@ See [SECURITY.md](SECURITY.md). Do not file public issues for vulnerabilities.
 Be respectful and constructive. A `CODE_OF_CONDUCT.md` (Contributor Covenant) will be added when the repo goes public.
 
 ## License
-By contributing you agree your work is licensed under the project license (proposed MPL-2.0; see `docs/09-tech-stack-and-decisions.md` ADR-0009).
+By contributing you agree your work is licensed under the project license (MPL-2.0; see `docs/09-tech-stack-and-decisions.md` ADR-0009).

@@ -37,12 +37,11 @@ An open-source, **local-first, zero-knowledge** password and notes manager for *
 |---|---|
 | Account recovery | A forgotten master password with no recovery key means permanent data loss. A recovery key is generated at vault creation and onboarding cannot be completed without confirming it was saved. |
 | Platform order | **Windows + Android first**, then macOS, iOS, Linux. |
-| Open source | Yes (license proposed in ADR-0009, awaiting confirmation). |
+| Open source | Yes, under MPL-2.0 (ADR-0009, confirmed). |
 | Crypto | Vetted libraries and published designs only. No custom primitives or protocols. |
 | Stack | Flutter UI + shared Rust core (see [ADRs](docs/09-tech-stack-and-decisions.md)). |
 
 ## Open items (need an owner decision)
 
 - Final product name and domain / bundle identifiers.
-- License confirmation (proposed: MPL-2.0).
 - Budget for an external security audit before 1.0.
