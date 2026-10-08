@@ -72,6 +72,7 @@ Values outside the bounds are rejected with an explicit error ("vault parameters
 
 ## 4. Recovery key
 - 160 random bits → 32 characters, Crockford Base32, grouped `XXXXX-XXXXX-XXXXX-...` with a 2-char checksum group to catch typos.
+- **Checksum:** the 2-char checksum group encodes the first 10 bits of `SHA-256("aryavault/rk-check/v1" ‖ rk_bytes)` (the 20 raw key bytes) as two Crockford Base32 characters (5 bits each, most significant first). Display layout: six groups of 5 key characters, one group of the remaining 2 key characters, then the 2-character checksum group (`XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX-CC`); hyphens carry no information. The parser accepts upper/lower case, spaces and hyphens, maps the Crockford substitutions (`I`/`L` → `1`, `O` → `0`), and rejects a mismatching checksum with a typed error before any key derivation.
 - Shown once at creation; user must **re-enter** it (or specific groups) to complete onboarding. Offered as printable sheet, PDF and QR. Never stored in the cloud in plaintext; never stored on device (only the wrapped-VK copy derived from it).
 - Regenerating the recovery key: re-wrap VK under a new RK, increment `header_version`, publish the new header and delete older headers. **Honest limitation (review M3):** this does not by itself revoke the old RK against anyone who already holds a copy of an old header from the cloud; only VK rotation (§10) does. The UI offers "Regenerate and rotate keys" when compromise is suspected.
 
