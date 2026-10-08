@@ -1,0 +1,27 @@
+[package]
+name = "arya-vault-fuzz"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MPL-2.0"
+publish = false
+description = "cargo-fuzz targets (not a member of the core workspace)"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+# Later tasks add path dependencies on the crate under test here, e.g.
+# arya-vault-crypto = { path = "../crates/crypto" }
+
+# Keep this crate out of the core workspace (cargo-fuzz needs its own root).
+[workspace]
+
+[[bin]]
+name = "smoke"
+path = "fuzz_targets/smoke.rs"
+test = false
+doc = false
+bench = false

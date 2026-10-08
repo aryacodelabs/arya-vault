@@ -1,0 +1,59 @@
+name: Supply chain
+
+on:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    # RustSec advisory scan (docs/08 SEC-R01). cargo-deny in ci.yml remains the PR gate.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # v1
+        with:
+          toolchain: stable
+      - uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
+        with:
+          tool: cargo-audit
+      - run: cargo audit --deny warnings
+        working-directory: core
+      - run: cargo audit --deny warnings
+        working-directory: core/fuzz
+
+  geiger:
+    # Informational only: tracks `unsafe` usage (docs/11 §8). Never fails the run.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # v1
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: core
+      - run: cargo install cargo-geiger --version 0.13.0 --locked
+      - name: Report unsafe usage
+        working-directory: core
+        # cargo-geiger rejects virtual manifests and needs absolute paths, so run per crate.
+        run: |
+          : > geiger.txt
+          for manifest in "$PWD"/crates/*/Cargo.toml; do
+            echo "# ${manifest}" >> geiger.txt
+            cargo geiger --manifest-path "${manifest}" --all-features --output-format Ascii >> geiger.txt 2>&1 || true
+          done
+          {
+            echo '### cargo-geiger (informational)'
+            echo '```'
+            tail -n 80 geiger.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
