@@ -16,6 +16,10 @@
 
 AES-256-GCM is an acceptable fallback for hardware-accelerated paths but is **not** used in v1, to keep one AEAD.
 
+**SQLCipher pinning (review L4):** defaults differ across SQLCipher versions/platforms, so the core MUST set `cipher_page_size`, `cipher_compatibility` (4), KDF/HMAC algorithms and `cipher_plaintext_header_size = 0` explicitly, and record the values in the DB `meta` table. Opening with unexpected settings is an error, not a fallback.
+
+**AEAD key commitment (review L5):** XChaCha20-Poly1305 is not key-committing. This is acceptable because there is no online decryption oracle (no server), so partitioning-oracle attacks do not apply. Revisit if any online component is ever added.
+
 ## 2. Key hierarchy
 
 ```
@@ -43,7 +47,7 @@ KEK_rk ──unwrap──► VK                                              ▼
 - RK has ≥128 bits of entropy, so a single HKDF (no Argon2) is sufficient.
 
 ## 3. Master password handling
-1. Normalize with Unicode NFKD, encode UTF-8. (Same normalization on all platforms; test vectors for accented / CJK / emoji passwords.)
+1. Normalize with Unicode NFKD, encode UTF-8. (Same normalization on all platforms; test vectors for accented / CJK / emoji passwords.) The normalization crate and its Unicode version are **pinned**; a vector test fails CI if a dependency update changes any output, because a change would lock users out of correct passwords (review L3).
 2. Minimum length 12 characters (soft-warn below 16); strength estimator rejects very weak passwords; passphrases encouraged.
 3. Argon2id parameters stored per vault in the header:
 
@@ -55,10 +59,21 @@ KEK_rk ──unwrap──► VK                                              ▼
 
 Other devices must be able to compute the parameters: the unlock memory requirement is checked against device RAM, and the user is warned if a low-end device cannot comply (never silently reduce).
 
+**Parameter bounds (review H4).** The header is unauthenticated until after the KDF has run, so a hostile provider could set absurd costs to cause out-of-memory or a hang. Clients MUST enforce both floors and ceilings **before** running Argon2:
+
+| Parameter | Floor | Ceiling |
+|---|---|---|
+| m (MiB) | 64 | 1024 |
+| t | 3 | 10 |
+| p | 1 | 8 |
+| salt | 16 B exactly | |
+
+Values outside the bounds are rejected with an explicit error ("vault parameters are out of range or corrupted"). If the device cannot allocate `m`, the user is told to unlock on a more capable device; the app never silently lowers cost.
+
 ## 4. Recovery key
 - 160 random bits → 32 characters, Crockford Base32, grouped `XXXXX-XXXXX-XXXXX-...` with a 2-char checksum group to catch typos.
 - Shown once at creation; user must **re-enter** it (or specific groups) to complete onboarding. Offered as printable sheet, PDF and QR. Never stored in the cloud in plaintext; never stored on device (only the wrapped-VK copy derived from it).
-- Regenerating the recovery key: re-wrap VK under a new RK, increment `header_version`, invalidate the old wrap.
+- Regenerating the recovery key: re-wrap VK under a new RK, increment `header_version`, publish the new header and delete older headers. **Honest limitation (review M3):** this does not by itself revoke the old RK against anyone who already holds a copy of an old header from the cloud; only VK rotation (§10) does. The UI offers "Regenerate and rotate keys" when compromise is suspected.
 
 ## 5. Vault header (plaintext, integrity-bound)
 Stored as `header-<n>.bin` (CBOR) in the sync location and as a row in local DB.
@@ -75,7 +90,14 @@ Header {
   created_at: u64
 }
 ```
-**Wrap AEAD:** key = KEK, nonce = random 24 B, plaintext = VK, **AAD = "aryavault/wrap/v1" ‖ vault_id ‖ epoch ‖ header_version ‖ canonical_cbor(kdf)**. Tampering with KDF params or ids makes unwrap fail.
+**Wrap AEAD:** key = KEK, nonce = random 24 B, plaintext = VK, with **separate AADs per wrap** (review H1):
+
+- `wrap_pw` AAD = `"aryavault/wrap-pw/v1"` ‖ vault_id ‖ epoch ‖ canonical_cbor(kdf)
+- `wrap_rk` AAD = `"aryavault/wrap-rk/v1"` ‖ vault_id ‖ epoch
+
+`header_version` is deliberately **not** part of any AAD. Otherwise a password change (which bumps `header_version`) would invalidate `wrap_rk`, which can only be re-created with the recovery key the user does not have at that moment. Tampering with KDF params or ids still makes unwrap fail.
+
+**Header selection (reviews M4, M7).** When several headers exist, the active one is the highest `(epoch, header_version, device_id)` that is well-formed. Headers with `epoch` lower than the highest epoch this device has ever seen are rejected. A newer header is only *adopted* after it unwraps successfully with the user's credentials; an unverifiable newer header raises a warning instead of replacing the current one. Headers older than the active one are deleted promptly once all known devices have acknowledged the new header (they remain brute-force targets otherwise).
 
 ## 6. Encrypted container formats
 All containers share an envelope:
@@ -93,6 +115,7 @@ AAD = canonical_cbor(all fields except nonce/ciphertext/tag)
 - Plaintext is **padded** to a multiple of 1 KiB (ISO/IEC 7816-4 style `0x80 00…`) before encryption to limit size leakage.
 - **No compression** in v1 (avoids length-leak classes; revisit with analysis).
 - File names in the cloud are opaque: `<device_id-hex>/<seq-hex>.seg`; no item names, no titles.
+- **Path binding (review M1):** the envelope's `device_id` and `seq` MUST equal the values in the file's path. Mismatches are rejected and quarantined. (Otherwise a provider could copy a valid segment into another device's directory and confuse its hash chain.)
 
 ## 7. Integrity chain
 - `prev_hash` = SHA-256 of the previous segment *envelope bytes* from the same device (zero for seq 1).
@@ -100,14 +123,14 @@ AAD = canonical_cbor(all fields except nonce/ciphertext/tag)
 - A reader verifies: AEAD OK → `prev_hash` matches stored hash of seq-1 → seq strictly increasing → peers' manifests do not claim a higher seq than found (otherwise: **rollback / deletion warning**).
 
 ## 8. Biometric / quick unlock
-- On enable, VK is encrypted under a **hardware-backed, non-exportable key** requiring user presence: iOS/macOS Keychain `SecAccessControl` with `.biometryCurrentSet`; Android Keystore key with `setUserAuthenticationRequired(true)`, `setInvalidatedByBiometricEnrollment(true)`, StrongBox if available; Windows Hello-gated DPAPI/TPM key; Linux: Secret Service (no biometrics, optional PIN).
+- On enable, VK is encrypted under a **hardware-backed, non-exportable key** requiring user presence: iOS/macOS Keychain `SecAccessControl` with `.biometryCurrentSet`; Android Keystore key with `setUserAuthenticationRequired(true)`, `setInvalidatedByBiometricEnrollment(true)`, StrongBox if available; Windows: `KeyCredentialManager` (Hello-bound TPM key; derive the wrapping key from a deterministic signature over a fixed per-vault challenge). `UserConsentVerifier` alone and plain DPAPI are **not** acceptable: they are UI gates or session-bound, so malware running as the user could skip them (review M2); Linux: Secret Service (no biometrics, optional PIN). Linux quick-unlock is **lower assurance** (anything that can read the unlocked login keyring can read the key); it is opt-in and off by default, and the UI says so.
 - Master password required: after reboot (policy configurable), after 5 failed biometrics, after 72 h (default), or after biometrics enrollment change.
 - An optional **app PIN** is only a convenience gate on top of keystore, never a replacement for master password.
 
 ## 9. Master-password change and recovery
 - **Change password:** unwrap VK (old pw) → derive new KEK_pw with new salt/params → new `wrap_pw` → publish `header-<n+1>`. Other devices detect the new header version and re-prompt on next unlock.
 - **Reset via recovery key:** unwrap VK via RK → user sets new master password → new wrap_pw; optionally regenerate RK.
-- Old header versions are retained for 30 days locally to survive races, then purged (the old wrap_pw remains a brute-force target for anyone who copied it; this is inherent and noted for users: changing password after a suspected leak should be accompanied by **VK rotation**).
+- Old header versions are retained locally for 30 days to survive races, but **deleted from the cloud** as soon as every known device has acknowledged the newer header. Anyone who already copied an old header can still brute-force the old password against it, and an old password plus old header still yields the same VK. Changing the password does **not** revoke a compromised password; **VK rotation** does (review M3). The UI offers "Change password and rotate keys" as the recommended option after a suspected leak.
 
 ## 10. Vault key rotation (epoch bump)
 Triggered by: suspected compromise, device revocation, user request.
@@ -116,6 +139,10 @@ Triggered by: suspected compromise, device revocation, user request.
 3. Publish new header with `wrap_pw'/wrap_rk'`, new snapshot, and mark old epoch segments obsolete.
 4. Other devices on next sync see higher epoch, prompt for master password, adopt snapshot.
 5. Old-epoch cloud files are deleted after all known devices acknowledge (or after 30 days).
+
+6. **Local DB re-key:** each device re-keys its SQLCipher file (`PRAGMA rekey` with the new `K_db`) after adopting the new epoch.
+7. **Late and offline devices (review M4):** a device that wrote segments or holds unsent ops from the old epoch, which are not covered by the rotation snapshot's `covers` map, re-emits those ops under the new epoch once the user has entered the master password. Re-emitting is idempotent (ops are keyed by `(device_id, seq, index)`; see doc 06 §8.1).
+8. **Rejected inputs:** headers and segments with an epoch lower than the highest known are ignored. A revoked device keeps the old VK and can still read old-epoch files, which is unavoidable, but it cannot read anything written under the new epoch.
 
 Note: rotation cannot protect data an attacker already decrypted. It protects future data.
 
