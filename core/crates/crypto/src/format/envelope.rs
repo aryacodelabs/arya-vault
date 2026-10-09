@@ -236,7 +236,7 @@ impl Envelope {
             return Err(FormatError::TooLarge);
         }
         // Padded plaintext is a non-empty multiple of the bucket size, plus the tag.
-        if ct_len < BUCKET + TAG_LEN || (ct_len - TAG_LEN) % BUCKET != 0 {
+        if ct_len < BUCKET + TAG_LEN || !(ct_len - TAG_LEN).is_multiple_of(BUCKET) {
             return Err(FormatError::InvalidField("ct_len"));
         }
         let rest = &bytes[FIXED_LEN..];

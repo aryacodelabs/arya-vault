@@ -31,7 +31,7 @@ pub fn pad(data: &[u8]) -> Zeroizing<Vec<u8>> {
 /// Rejects: empty or non-multiple-of-1024 input, input without a `0x80` marker after the
 /// trailing zeros, and padding that is longer than the minimal form.
 pub fn unpad(padded: &[u8]) -> Result<&[u8], FormatError> {
-    if padded.is_empty() || padded.len() % BUCKET != 0 {
+    if padded.is_empty() || !padded.len().is_multiple_of(BUCKET) {
         return Err(FormatError::Padding);
     }
     let end = padded
