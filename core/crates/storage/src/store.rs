@@ -182,6 +182,12 @@ pub trait Store {
     fn get_field(&self, item_id: &Id, key: &str) -> Result<Option<FieldRow>>;
     /// All registers of an item, ordered by key.
     fn fields_for_item(&self, item_id: &Id) -> Result<Vec<FieldRow>>;
+    /// The register named exactly `key` for every item (one scan; used to list titles).
+    fn fields_with_key(&self, key: &str) -> Result<Vec<FieldRow>>;
+    /// Registers whose key starts with `prefix`, for every item (e.g. `tags.`).
+    fn fields_with_key_prefix(&self, prefix: &str) -> Result<Vec<FieldRow>>;
+    /// Number of item rows, including tombstones.
+    fn count_items(&self) -> Result<u64>;
 
     /// Add a history version (idempotent on the primary key).
     fn add_history(&self, row: &FieldHistoryRow) -> Result<()>;
@@ -247,8 +253,12 @@ pub trait Store {
     fn fts_remove(&self, item_id: &Id, old: &FtsDoc) -> Result<()>;
     /// Drop the whole index (rebuild by re-indexing every item).
     fn fts_clear(&self) -> Result<()>;
-    /// Item ids matching an FTS5 query, best first.
+    /// Item ids matching an FTS5 query, best (bm25) first. Ranking costs time proportional to the
+    /// number of *matches*, not to `limit` (about 70 ms for 3,000 matches in 20,000 items).
     fn fts_search(&self, query: &str, limit: usize) -> Result<Vec<Id>>;
+    /// Item ids matching an FTS5 query, most recently changed first (`updated_hlc` descending).
+    /// No relevance ranking, so it stays fast (a few ms) however many items match.
+    fn fts_search_recent(&self, query: &str, limit: usize) -> Result<Vec<Id>>;
 }
 
 /// A transaction handle passed to [`Db::with_tx`](crate::Db::with_tx).
@@ -313,7 +323,14 @@ impl Store for Tx<'_> {
     }
 
     fn upsert_item(&self, i: &ItemRow) -> Result<()> {
-        self.conn.prepare("INSERT OR REPLACE INTO item(id, type, folder_id, deleted, deleted_hlc, updated_hlc) VALUES (?1,?2,?3,?4,?5,?6)")?
+        // A real upsert, NOT `INSERT OR REPLACE`: replace deletes and re-inserts the row, which
+        // gives an `item` (BLOB primary key) a new rowid and silently orphans its FTS5 entry.
+        self.conn
+            .prepare(
+                "INSERT INTO item(id, type, folder_id, deleted, deleted_hlc, updated_hlc) VALUES (?1,?2,?3,?4,?5,?6)
+                 ON CONFLICT(id) DO UPDATE SET type = excluded.type, folder_id = excluded.folder_id,
+                   deleted = excluded.deleted, deleted_hlc = excluded.deleted_hlc, updated_hlc = excluded.updated_hlc",
+            )?
             .execute(params![&i.id[..], i.item_type, i.folder_id.as_ref().map(|f| &f[..]), i64::from(i.deleted), i.deleted_hlc, i.updated_hlc])?;
         Ok(())
     }
@@ -350,6 +367,25 @@ impl Store for Tx<'_> {
         let mut stmt = self.conn.prepare("SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE item_id = ?1 ORDER BY key")?;
         let rows = stmt.query_map([&item_id[..]], field_row)?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    fn fields_with_key(&self, key: &str) -> Result<Vec<FieldRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE key = ?1",
+        )?;
+        let rows = stmt.query_map([key], field_row)?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+    fn fields_with_key_prefix(&self, prefix: &str) -> Result<Vec<FieldRow>> {
+        let mut stmt = self.conn.prepare("SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE substr(key, 1, length(?1)) = ?1")?;
+        let rows = stmt.query_map([prefix], field_row)?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+    fn count_items(&self) -> Result<u64> {
+        let n: i64 = self
+            .conn
+            .query_row("SELECT count(*) FROM item", [], |r| r.get(0))?;
+        Ok(u64::try_from(n).unwrap_or(0))
     }
 
     fn add_history(&self, h: &FieldHistoryRow) -> Result<()> {
@@ -550,6 +586,13 @@ impl Store for Tx<'_> {
         self.conn
             .execute("INSERT INTO item_fts(item_fts) VALUES ('delete-all')", [])?;
         Ok(())
+    }
+    fn fts_search_recent(&self, query: &str, limit: usize) -> Result<Vec<Id>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT item.id FROM item_fts JOIN item ON item.rowid = item_fts.rowid WHERE item_fts MATCH ?1 ORDER BY item.updated_hlc DESC, item.id LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(params![query, limit_i64(limit)], |r| id_from(r.get(0)?))?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
     fn fts_search(&self, query: &str, limit: usize) -> Result<Vec<Id>> {
         let mut stmt = self.conn.prepare("SELECT item.id FROM item_fts JOIN item ON item.rowid = item_fts.rowid WHERE item_fts MATCH ?1 ORDER BY rank LIMIT ?2")?;

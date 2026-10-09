@@ -108,6 +108,18 @@ version = "0.0.0"
 [[package]]
 name = "arya-vault-vault"
 version = "0.0.0"
+dependencies = [
+ "arya-vault-crypto",
+ "arya-vault-generator",
+ "arya-vault-storage",
+ "getrandom 0.4.3",
+ "hkdf",
+ "proptest",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "zeroize",
+]
 
 [[package]]
 name = "autocfg"

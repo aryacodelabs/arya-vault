@@ -673,6 +673,74 @@ fn store_items_fields_history_folders() {
 }
 
 #[test]
+fn upserting_an_item_keeps_its_rowid_so_the_search_index_stays_attached() {
+    // Regression: `INSERT OR REPLACE` re-inserted the row with a new rowid, orphaning the FTS entry
+    // and corrupting the index on the next `fts_remove`.
+    let (_d, p) = setup();
+    let mut db = Db::create(&p, key(1), &params()).unwrap();
+    db.with_tx(|t| -> Result<()> {
+        t.upsert_item(&item(1))?;
+        t.put_field(&field(1, "title", b"x", 1))?; // a child row must survive the upsert too
+        let doc = FtsDoc {
+            title: "Findable".into(),
+            ..Default::default()
+        };
+        t.fts_index(&[1; 16], &doc)?;
+        let mut changed = item(1);
+        changed.folder_id = Some([9; 16]);
+        changed.deleted = true;
+        changed.deleted_hlc = Some(5);
+        changed.updated_hlc = 7;
+        t.upsert_item(&changed)?;
+        assert_eq!(t.get_item(&[1; 16])?.unwrap(), changed);
+        assert_eq!(
+            t.fts_search("findable", 5)?,
+            vec![[1; 16]],
+            "index still attached after the upsert"
+        );
+        assert_eq!(t.fields_for_item(&[1; 16])?.len(), 1);
+        t.fts_remove(&[1; 16], &doc)?; // would corrupt the index if the rowid had changed
+        assert!(t.fts_search("findable", 5)?.is_empty());
+        Ok(())
+    })
+    .unwrap();
+    db.integrity_check().unwrap();
+}
+
+#[test]
+fn store_bulk_field_reads_and_item_count() {
+    let (_d, p) = setup();
+    let mut db = Db::create(&p, key(1), &params()).unwrap();
+    db.with_tx(|t| -> Result<()> {
+        assert_eq!(t.count_items()?, 0);
+        for n in 1..=3u8 {
+            t.upsert_item(&item(n))?;
+            t.put_field(&field(n, "title", &[n], 1))?;
+            t.put_field(&field(n, &format!("tags.t{n}"), b"x", 1))?;
+        }
+        t.put_field(&field(1, "titlex", b"no", 1))?;
+        t.put_field(&field(1, "tags%_", b"literal wildcard chars", 1))?;
+        assert_eq!(t.count_items()?, 3);
+        assert_eq!(t.fields_with_key("title")?.len(), 3, "exact key only");
+        assert_eq!(t.fields_with_key("nothing")?.len(), 0);
+        let mut tags: Vec<String> = t
+            .fields_with_key_prefix("tags.")?
+            .into_iter()
+            .map(|f| f.key)
+            .collect();
+        tags.sort();
+        assert_eq!(
+            tags,
+            ["tags.t1", "tags.t2", "tags.t3"],
+            "prefix is literal (no LIKE wildcards)"
+        );
+        assert_eq!(t.fields_with_key_prefix("tags%")?.len(), 1);
+        Ok(())
+    })
+    .unwrap();
+}
+
+#[test]
 fn store_sync_state() {
     let (_d, p) = setup();
     let mut db = Db::create(&p, key(1), &params()).unwrap();
@@ -766,6 +834,16 @@ fn fts_index_remove_clear_search() {
         t.fts_remove(&[1; 16], &d1)?;
         assert_eq!(t.fts_search("github", 10)?, vec![[2; 16]]);
         assert!(t.fts_search("alice", 10)?.is_empty());
+        // Recency order (updated_hlc desc), independent of relevance.
+        let mut newer = item(2);
+        newer.updated_hlc = 99;
+        t.upsert_item(&newer)?;
+        assert_eq!(t.fts_search_recent("github", 10)?, vec![[2; 16]]);
+        t.fts_index(&[1; 16], &d1)?; // re-add item 1 (removed above)
+        assert_eq!(t.fts_search_recent("github", 10)?, vec![[2; 16], [1; 16]]);
+        assert_eq!(t.fts_search_recent("github", 1)?, vec![[2; 16]]);
+        assert!(t.fts_search_recent("nomatch", 10)?.is_empty());
+        t.fts_remove(&[1; 16], &d1)?;
         t.fts_clear()?;
         assert!(t.fts_search("github", 10)?.is_empty());
         assert!(matches!(
