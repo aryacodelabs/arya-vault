@@ -3,9 +3,9 @@
 //! Secrets are never taken from arguments or environment variables. With `--password-stdin`
 //! every secret the command needs is read as one line from stdin, in the order the command
 //! documents (master password first). Without it the prompt reads from the controlling
-//! terminal with echo off, and fails if there is none (it never falls back to stdin).
+//! terminal with echo off, and fails unless stdin is a terminal (it never falls back to stdin).
 
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, IsTerminal, Write};
 
 use zeroize::Zeroizing;
 
@@ -37,6 +37,14 @@ impl Secrets {
                 line.pop();
             }
             return Ok(line);
+        }
+        // The no-echo prompt is only for an interactive terminal. With a pipe or file on stdin
+        // some platforms' console APIs block forever (observed on Windows CI) or read from an
+        // unexpected place, so refuse instead of guessing: scripts must say --password-stdin.
+        if !io::stdin().is_terminal() {
+            return Err(CliError::usage(
+                "cannot prompt for a secret: stdin is not a terminal; use --password-stdin",
+            ));
         }
         let mut err = io::stderr();
         write!(err, "{prompt}: ")?;

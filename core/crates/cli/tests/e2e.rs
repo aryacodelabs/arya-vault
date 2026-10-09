@@ -5,6 +5,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use assert_cmd::Command;
 use serde_json::Value;
@@ -16,6 +17,8 @@ const ITEM_PW: &str = "CANARY-item-password-hunter2-S3CR3T";
 const CARD_NO: &str = "CANARY-card-number-4111111111111111";
 const NOTE_BODY: &str = "CANARY-note-body-the-launch-codes";
 const EXPORT_PW: &str = "CANARY-export-password-ultra-secret-55";
+/// No CLI call may hang CI: a command that blocks (for example on a prompt) fails the test.
+const CMD_TIMEOUT: Duration = Duration::from_secs(300);
 const SNAPSHOT_HEADER: &[u8] = b"SQLite format 3";
 
 /// Every canary that must never appear in plaintext on disk or in output (unless `--reveal`).
@@ -69,7 +72,8 @@ impl Harness {
     /// `--reveal`, so its output may legitimately contain secrets and is excluded from the scan.
     fn run(&mut self, args: &[&str], secrets: &[&str], reveal: bool) -> Run {
         let mut cmd = Command::cargo_bin("arya-vault").unwrap();
-        cmd.arg("--vault-dir")
+        cmd.timeout(CMD_TIMEOUT)
+            .arg("--vault-dir")
             .arg(self.vault())
             .arg("--password-stdin")
             .args(args)
@@ -607,6 +611,7 @@ fn secrets_are_never_accepted_from_arguments_or_environment() {
     ] {
         let out = Command::cargo_bin("arya-vault")
             .unwrap()
+            .timeout(CMD_TIMEOUT)
             .args([
                 "--vault-dir",
                 h.vault().to_str().unwrap(),
@@ -627,6 +632,7 @@ fn secrets_are_never_accepted_from_arguments_or_environment() {
     // flag the command fails instead of consuming it
     let out = Command::cargo_bin("arya-vault")
         .unwrap()
+        .timeout(CMD_TIMEOUT)
         .env("ARYAVAULT_PASSWORD", PW)
         .env("PASSWORD", PW)
         .args(["--vault-dir", h.vault().to_str().unwrap(), "unlock-check"])
@@ -637,6 +643,7 @@ fn secrets_are_never_accepted_from_arguments_or_environment() {
     // stdin without --password-stdin is not read either
     let out = Command::cargo_bin("arya-vault")
         .unwrap()
+        .timeout(CMD_TIMEOUT)
         .args(["--vault-dir", h.vault().to_str().unwrap(), "unlock-check"])
         .write_stdin(format!("{PW}\n"))
         .output()
@@ -705,7 +712,8 @@ fn golden_vault_v1_opens_with_the_documented_password() {
 
     let run = |args: &[&str], secrets: &[&str]| {
         let mut cmd = Command::cargo_bin("arya-vault").unwrap();
-        cmd.arg("--vault-dir")
+        cmd.timeout(CMD_TIMEOUT)
+            .arg("--vault-dir")
             .arg(&copy)
             .arg("--password-stdin")
             .args(args)
