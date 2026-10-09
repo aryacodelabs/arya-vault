@@ -1,0 +1,33 @@
+{
+  "_comment": "Machine-readable expectations for the v1 golden vault (FAKE canary data). Mirrors README.md; read by tools/crosscheck. Append-only like the rest of this directory.",
+  "format_version": 1,
+  "password": "CANARY-golden-password-v1",
+  "recovery_key": "MH365-7P3RV-640RY-YD7T8-RN1R5-65JCX-SA-65",
+  "vault_id": "b00c5e3414af91687d1befad815c084f",
+  "device_id": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+  "epoch": 1,
+  "header_version": 1,
+  "created_at": 1700000000,
+  "kdf": {"m_kib": 65536, "t": 3, "p": 1, "salt": "d558a1baab60d1b7c00b24c448b662d1"},
+  "files": {
+    "header": {
+      "path": "header-00000001-00000001-d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1.bin",
+      "sha256": "3bc58c5d74576dfe9662123e66b30d92f57648be2f8e037c6d14670a09699bb0"
+    },
+    "segment": {
+      "path": "devices/d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1/0000000000000001.seg",
+      "plaintext": "CANARY-golden-segment-plaintext-v1",
+      "sha256": "ca67341bed22fa41ee201cc1f1fc1d718b1b719f695a6286b0f44f8e170cbb96"
+    },
+    "snapshot": {
+      "path": "snapshots/0000000100000001-d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1.snap",
+      "plaintext": "CANARY-golden-snapshot-plaintext-v1",
+      "sha256": "6dafe17a51e87994395c581c4acac1a0634e516a949f640d9169b202efcf807a"
+    },
+    "manifest": {
+      "path": "devices/d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1/manifest-0000000000000001.bin",
+      "plaintext": "CANARY-golden-manifest-plaintext-v1",
+      "sha256": "981caedfdb46cc2308dfc21c74437abf897d9911f5ae1da1da035af9f5dd5a0e"
+    }
+  }
+}

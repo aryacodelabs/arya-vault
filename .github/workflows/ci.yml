@@ -133,3 +133,21 @@ jobs:
           workspaces: core/fuzz
       - run: cargo install cargo-fuzz --version 0.13.2 --locked
       - run: cargo +nightly fuzz run smoke -- -max_total_time=10
+
+  crosscheck:
+    # Independent Python decryptor (tools/crosscheck) must open every golden vault and
+    # reject tampered copies (docs/11 §2, SEC-C08). Linux only; hash-pinned dependencies.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned requirements (hashes required)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/crosscheck-venv"
+          "$RUNNER_TEMP/crosscheck-venv/bin/pip" install --require-hashes --no-deps -r tools/crosscheck/requirements.txt
+      - name: Decrypt every golden vault independently
+        run: '"$RUNNER_TEMP/crosscheck-venv/bin/python" -I tools/crosscheck/crosscheck.py core/testdata/golden'
+      - name: Tampered copies must be rejected
+        run: '"$RUNNER_TEMP/crosscheck-venv/bin/python" -I tools/crosscheck/test_negative.py core/testdata/golden'
