@@ -673,6 +673,41 @@ fn store_items_fields_history_folders() {
 }
 
 #[test]
+fn upserting_an_item_keeps_its_rowid_so_the_search_index_stays_attached() {
+    // Regression: `INSERT OR REPLACE` re-inserted the row with a new rowid, orphaning the FTS entry
+    // and corrupting the index on the next `fts_remove`.
+    let (_d, p) = setup();
+    let mut db = Db::create(&p, key(1), &params()).unwrap();
+    db.with_tx(|t| -> Result<()> {
+        t.upsert_item(&item(1))?;
+        t.put_field(&field(1, "title", b"x", 1))?; // a child row must survive the upsert too
+        let doc = FtsDoc {
+            title: "Findable".into(),
+            ..Default::default()
+        };
+        t.fts_index(&[1; 16], &doc)?;
+        let mut changed = item(1);
+        changed.folder_id = Some([9; 16]);
+        changed.deleted = true;
+        changed.deleted_hlc = Some(5);
+        changed.updated_hlc = 7;
+        t.upsert_item(&changed)?;
+        assert_eq!(t.get_item(&[1; 16])?.unwrap(), changed);
+        assert_eq!(
+            t.fts_search("findable", 5)?,
+            vec![[1; 16]],
+            "index still attached after the upsert"
+        );
+        assert_eq!(t.fields_for_item(&[1; 16])?.len(), 1);
+        t.fts_remove(&[1; 16], &doc)?; // would corrupt the index if the rowid had changed
+        assert!(t.fts_search("findable", 5)?.is_empty());
+        Ok(())
+    })
+    .unwrap();
+    db.integrity_check().unwrap();
+}
+
+#[test]
 fn store_bulk_field_reads_and_item_count() {
     let (_d, p) = setup();
     let mut db = Db::create(&p, key(1), &params()).unwrap();

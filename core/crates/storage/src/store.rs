@@ -319,7 +319,14 @@ impl Store for Tx<'_> {
     }
 
     fn upsert_item(&self, i: &ItemRow) -> Result<()> {
-        self.conn.prepare("INSERT OR REPLACE INTO item(id, type, folder_id, deleted, deleted_hlc, updated_hlc) VALUES (?1,?2,?3,?4,?5,?6)")?
+        // A real upsert, NOT `INSERT OR REPLACE`: replace deletes and re-inserts the row, which
+        // gives an `item` (BLOB primary key) a new rowid and silently orphans its FTS5 entry.
+        self.conn
+            .prepare(
+                "INSERT INTO item(id, type, folder_id, deleted, deleted_hlc, updated_hlc) VALUES (?1,?2,?3,?4,?5,?6)
+                 ON CONFLICT(id) DO UPDATE SET type = excluded.type, folder_id = excluded.folder_id,
+                   deleted = excluded.deleted, deleted_hlc = excluded.deleted_hlc, updated_hlc = excluded.updated_hlc",
+            )?
             .execute(params![&i.id[..], i.item_type, i.folder_id.as_ref().map(|f| &f[..]), i64::from(i.deleted), i.deleted_hlc, i.updated_hlc])?;
         Ok(())
     }
