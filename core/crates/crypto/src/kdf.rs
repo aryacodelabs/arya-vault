@@ -220,23 +220,44 @@ pub fn derive_master_key(password: &str, params: &KdfParams) -> Result<MasterKey
     Ok(MasterKey::from_secret(out))
 }
 
+/// What [`calibrate_measured`] chose and how long one derivation with it took on this device.
+#[derive(Debug, Clone)]
+pub struct Calibration {
+    /// The chosen parameters (fresh random salt).
+    pub params: KdfParams,
+    /// Measured wall time of one derivation with `params` (a single sample, not an average).
+    pub measured: std::time::Duration,
+}
+
 /// Picks parameters for roughly `target_ms` milliseconds per unlock **on this device**.
+///
+/// See [`calibrate_measured`]; this returns only the parameters.
+pub fn calibrate(target_ms: u64, max_m_kib: u32, rng: &mut dyn Rng) -> Result<KdfParams, KdfError> {
+    Ok(calibrate_measured(target_ms, max_m_kib, rng)?.params)
+}
+
+/// Picks parameters for roughly `target_ms` milliseconds per unlock **on this device** and
+/// reports the time it measured for them.
 ///
 /// Doc 04 §3 targets 0.5-1.0 s; pass a `target_ms` in that range. The result never goes
 /// below the floors and never exceeds `max_m_kib` (itself clamped to
 /// `M_KIB_MIN..=M_KIB_MAX`; use [`M_KIB_CALIBRATION_CAP`] for low-RAM devices) or the
 /// ceilings. Strategy: measure the floor profile, then scale memory first (doubling, up to
-/// the cap), then passes (up to [`T_MAX`]), re-measuring after each step; parallelism is
-/// kept at 1 (the doc 04 §3 default) so the cost is the same on every device.
+/// the cap), then passes (up to [`T_MAX`]), re-measuring after each step, until a step
+/// reaches the target or the ceilings. Of the steps measured, the one whose time is
+/// **closest to the target** wins (the last step below it or the first one at or above it;
+/// on a tie the cheaper one), so the result does not systematically overshoot. Parallelism
+/// is kept at 1 (the doc 04 §3 default) so the cost is the same on every device.
 ///
 /// Calibration is timing-based and therefore not reproducible; the chosen parameters are
 /// stored in the header and are what other devices use. A fresh random salt is drawn from
 /// `rng`.
-pub fn calibrate(target_ms: u64, max_m_kib: u32, rng: &mut dyn Rng) -> Result<KdfParams, KdfError> {
-    let max_m = max_m_kib.clamp(M_KIB_MIN, M_KIB_MAX);
-    let mut params = KdfParams::floor(random_array(rng)?);
-    let target = std::time::Duration::from_millis(target_ms);
-    let measure = |p: &KdfParams| -> Result<std::time::Duration, KdfError> {
+pub fn calibrate_measured(
+    target_ms: u64,
+    max_m_kib: u32,
+    rng: &mut dyn Rng,
+) -> Result<Calibration, KdfError> {
+    calibrate_with(target_ms, max_m_kib, rng, &mut |p| {
         let start = Instant::now();
         let mut sink = Secret::<32>::zeroed();
         // A fixed dummy password; the output is discarded and wiped.
@@ -249,19 +270,43 @@ pub fn calibrate(target_ms: u64, max_m_kib: u32, rng: &mut dyn Rng) -> Result<Kd
             sink.as_mut_bytes(),
         )?;
         Ok(start.elapsed())
-    };
+    })
+}
+
+/// [`calibrate_measured`] with an injectable timing source (tests use a fake).
+fn calibrate_with(
+    target_ms: u64,
+    max_m_kib: u32,
+    rng: &mut dyn Rng,
+    measure: &mut dyn FnMut(&KdfParams) -> Result<std::time::Duration, KdfError>,
+) -> Result<Calibration, KdfError> {
+    let max_m = max_m_kib.clamp(M_KIB_MIN, M_KIB_MAX);
+    let target = std::time::Duration::from_millis(target_ms);
+    let mut params = KdfParams::floor(random_array(rng)?);
 
     let mut elapsed = measure(&params)?;
+    // The best step so far: (params, time). Replaced only by a strictly closer one, so a tie
+    // keeps the cheaper step.
+    let mut best = (params.clone(), elapsed);
+    let distance = |d: std::time::Duration| d.abs_diff(target);
+    let consider = |p: &KdfParams, d: std::time::Duration, best: &mut (KdfParams, _)| {
+        if distance(d) < distance(best.1) {
+            *best = (p.clone(), d);
+        }
+    };
     while elapsed < target && params.m_kib < max_m {
         params.m_kib = params.m_kib.saturating_mul(2).min(max_m);
         elapsed = measure(&params)?;
+        consider(&params, elapsed, &mut best);
     }
     while elapsed < target && params.t < T_MAX {
         params.t += 1;
         elapsed = measure(&params)?;
+        consider(&params, elapsed, &mut best);
     }
+    let (params, measured) = best;
     params.validate()?;
-    Ok(params)
+    Ok(Calibration { params, measured })
 }
 
 #[cfg(test)]
@@ -526,6 +571,83 @@ mod tests {
         // Salt is fresh randomness.
         let q = calibrate(1, M_KIB_CALIBRATION_CAP, &mut OsRng).unwrap();
         assert_ne!(p.salt, q.salt);
+    }
+
+    /// Fake timing: `c` microseconds per (MiB x pass), so the ladder is predictable:
+    /// floor (64 MiB, t=3) = 192c, 128 MiB = 384c, 256 MiB = 768c, 512 MiB = 1536c ...
+    fn fake(c: u64) -> impl FnMut(&KdfParams) -> Result<std::time::Duration, KdfError> {
+        move |p| {
+            Ok(std::time::Duration::from_micros(
+                c * u64::from(p.m_kib / 1024) * u64::from(p.t),
+            ))
+        }
+    }
+
+    fn run(target_ms: u64, max_m_kib: u32, c: u64) -> Calibration {
+        calibrate_with(target_ms, max_m_kib, &mut OsRng, &mut fake(c)).unwrap()
+    }
+
+    #[test]
+    fn calibrate_picks_the_step_closest_to_the_target_not_the_first_above() {
+        // Steps (c = 1000 us): 192 ms, 384, 768, 1536. Target 1000 ms: 768 is 232 ms away,
+        // 1536 is 536 ms away -> the old "first at or above" rule chose 1536.
+        let c = run(1000, 512 * 1024, 1000);
+        assert_eq!((c.params.m_kib, c.params.t), (256 * 1024, 3));
+        assert_eq!(c.measured, std::time::Duration::from_millis(768));
+        // Target 750: 768 is 18 ms away, 384 is 366 ms away -> 768 (also the first above).
+        let c = run(750, 512 * 1024, 1000);
+        assert_eq!(c.params.m_kib, 256 * 1024);
+        // Target 1300: 1536 is 236 away, 768 is 532 away -> the step above wins.
+        let c = run(1300, 512 * 1024, 1000);
+        assert_eq!(c.params.m_kib, 512 * 1024);
+        assert_eq!(c.measured, std::time::Duration::from_millis(1536));
+    }
+
+    #[test]
+    fn calibrate_ties_keep_the_cheaper_step() {
+        // 384 and 768 are both 192 ms from a 576 ms target.
+        let c = run(576, 512 * 1024, 1000);
+        assert_eq!(c.params.m_kib, 128 * 1024);
+        assert_eq!(c.measured, std::time::Duration::from_millis(384));
+    }
+
+    #[test]
+    fn calibrate_never_picks_below_the_floor_and_stops_at_the_cap() {
+        // A target at or below the floor's own time: exactly the floor, nothing else measured.
+        let mut calls = 0;
+        let mut timer = |p: &KdfParams| {
+            calls += 1;
+            fake(1000)(p)
+        };
+        let c = calibrate_with(50, 512 * 1024, &mut OsRng, &mut timer).unwrap();
+        assert_eq!(
+            (c.params.m_kib, c.params.t, c.params.p),
+            (M_KIB_MIN, T_MIN, P_MIN)
+        );
+        assert_eq!(calls, 1);
+        // An unreachable target walks to the ceilings and returns the most expensive step
+        // (the closest one), never more than the caps.
+        let c = run(1_000_000, 128 * 1024, 1000);
+        assert_eq!((c.params.m_kib, c.params.t), (128 * 1024, T_MAX));
+        c.params.validate().unwrap();
+        // Memory is raised before passes: with the cap at the floor only `t` moves.
+        let c = run(500, M_KIB_MIN, 1000);
+        assert_eq!(c.params.m_kib, M_KIB_MIN);
+        assert!(c.params.t > T_MIN);
+    }
+
+    #[test]
+    fn calibrate_reports_the_measurement_of_the_chosen_step_and_fresh_salts() {
+        let a = run(750, 256 * 1024, 1000);
+        let b = run(750, 256 * 1024, 1000);
+        assert_eq!(a.measured, fake(1000)(&a.params).unwrap());
+        assert_ne!(a.params.salt, b.params.salt);
+    }
+
+    #[test]
+    fn calibrate_propagates_a_timing_failure() {
+        let mut bad = |_: &KdfParams| Err(KdfError::Internal);
+        assert!(calibrate_with(750, 256 * 1024, &mut OsRng, &mut bad).is_err());
     }
 
     #[test]
