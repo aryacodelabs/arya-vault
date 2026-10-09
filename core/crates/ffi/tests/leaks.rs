@@ -1,6 +1,8 @@
 //! Secret-leak tests: canary secrets pushed through the error paths and the DTOs must never show
 //! up in an error message, a `Debug` rendering, or (SEC-S02) a file on disk.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 mod common;
 
 use std::collections::HashMap;
@@ -39,9 +41,20 @@ fn errors_never_echo_what_the_caller_sent() {
 
     // Every credential and input path with a canary in the input.
     push(lifecycle::unlock(pw(&format!("{C}-pw"))));
-    push(lifecycle::change_password(pw(&format!("{C}-old")), pw(&format!("{C}-new")), false));
-    push(lifecycle::change_password(pw(PASSWORD), pw("CANARY-w"), false));
-    push(lifecycle::recover_with_key(pw(&format!("{C}-key")), pw(OTHER_PASSWORD)).map(|()| ()));
+    push(lifecycle::change_password(
+        pw(&format!("{C}-old")),
+        pw(&format!("{C}-new")),
+        false,
+    ));
+    push(lifecycle::change_password(
+        pw(PASSWORD),
+        pw("CANARY-w"),
+        false,
+    ));
+    push(lifecycle::recover_with_key(
+        pw(&format!("{C}-key")),
+        pw(OTHER_PASSWORD),
+    ));
     push(lifecycle::create_vault(pw(&format!("{C}-x")), KdfProfile::Low).map(|_| ()));
     push(lifecycle::create_vault(vec![0xff, b'C', b'A', b'N'], KdfProfile::Low).map(|_| ()));
     push(lifecycle::regenerate_recovery_key(pw(&format!("{C}-p")), false).map(|_| ()));
@@ -53,28 +66,54 @@ fn errors_never_echo_what_the_caller_sent() {
         }])
         .map(|_| ()),
     );
-    push(items::set_field(id.clone(), StdField::CardNumber, format!("{C}-v")));
-    push(items::set_field(id.clone(), StdField::Notes, format!("{C}{}", "x".repeat(70_000))));
+    push(items::set_field(
+        id.clone(),
+        StdField::CardNumber,
+        format!("{C}-v"),
+    ));
+    push(items::set_field(
+        id.clone(),
+        StdField::Notes,
+        format!("{C}{}", "x".repeat(70_000)),
+    ));
     push(items::add_tag(id.clone(), format!("{C}\n")));
     push(items::add_url(format!("{C}-id"), "https://x".into()).map(|_| ()));
-    push(items::set_custom_value(id.clone(), format!("{C}-eid"), format!("{C}-v")));
+    push(items::set_custom_value(
+        id.clone(),
+        format!("{C}-eid"),
+        format!("{C}-v"),
+    ));
     push(items::reveal(id.clone(), StdField::Username).map(|_| ()));
     push(items::reveal_version(id.clone(), StdField::Password, -1).map(|_| ()));
     push(items::create_folder(format!("{C}\u{7}"), None).map(|_| ()));
-    push(transfer::import_preview(ImportFormat::Csv, format!("{C}\u{0}\u{0}garbage").into_bytes()).map(|_| ()));
-    push(transfer::import_preview(ImportFormat::BitwardenJson, format!("{{\"{C}\": ").into_bytes()).map(|_| ()));
+    push(
+        transfer::import_preview(
+            ImportFormat::Csv,
+            format!("{C}\u{0}\u{0}garbage").into_bytes(),
+        )
+        .map(|_| ()),
+    );
+    push(
+        transfer::import_preview(
+            ImportFormat::BitwardenJson,
+            format!("{{\"{C}\": ").into_bytes(),
+        )
+        .map(|_| ()),
+    );
     push(transfer::import_encrypted(format!("{C}-file").into_bytes(), pw(C)).map(|_| ()));
-    push(tools::generate_password(PasswordOptions {
-        length: 1,
-        lower: true,
-        upper: false,
-        digits: false,
-        symbols: true,
-        symbol_set: C.into(),
-        exclude_ambiguous: false,
-        require_each_class: true,
-    })
-    .map(|_| ()));
+    push(
+        tools::generate_password(PasswordOptions {
+            length: 1,
+            lower: true,
+            upper: false,
+            digits: false,
+            symbols: true,
+            symbol_set: C.into(),
+            exclude_ambiguous: false,
+            require_each_class: true,
+        })
+        .map(|_| ()),
+    );
     push(tools::strength(vec![0xff, 0xfe]).map(|_| ()));
     for e in &errors {
         no_canary(e);
@@ -117,7 +156,12 @@ fn debug_output_of_secret_carrying_types_is_redacted() {
         index: 0,
         text: format!("{C}-g"),
     };
-    for s in [format!("{item:?}"), format!("{rk:?}"), format!("{ga:?}"), format!("{:#?}", item.custom)] {
+    for s in [
+        format!("{item:?}"),
+        format!("{rk:?}"),
+        format!("{ga:?}"),
+        format!("{:#?}", item.custom),
+    ] {
         assert!(!s.contains("CANARY"), "{s}");
     }
 }

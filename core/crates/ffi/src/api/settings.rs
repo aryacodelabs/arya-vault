@@ -1,7 +1,6 @@
 //! docs/14 §4.5: vault-level settings, kept in the encrypted vault and clamped by the core.
 
-use super::dto::AppSettings;
-use crate::error::ApiResult;
+use super::dto::{AppError, AppSettings};
 use crate::host;
 use crate::prefs;
 
@@ -9,7 +8,7 @@ use crate::prefs;
 ///
 /// # Errors
 /// `locked`.
-pub fn get_settings() -> ApiResult<AppSettings> {
+pub fn get_settings() -> Result<AppSettings, AppError> {
     host::call(|h| h.vault(prefs::load))
 }
 
@@ -19,6 +18,6 @@ pub fn get_settings() -> ApiResult<AppSettings> {
 ///
 /// # Errors
 /// `locked`.
-pub fn set_settings(settings: AppSettings) -> ApiResult<()> {
+pub fn set_settings(settings: AppSettings) -> Result<(), AppError> {
     host::call(|h| h.vault(|v| prefs::store(v, settings)))
 }

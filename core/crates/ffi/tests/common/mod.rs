@@ -1,7 +1,7 @@
 //! Shared helpers. The API drives one process-wide session, so every test takes `serial()` and
 //! starts from a private copy of a vault created once per test binary.
 
-#![allow(dead_code)]
+#![allow(dead_code, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};

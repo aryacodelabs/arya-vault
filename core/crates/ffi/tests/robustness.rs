@@ -1,6 +1,8 @@
 //! Concurrency, `lock()` while a call is in flight, panics, and the cross-check with the session
 //! library (what the CLI uses).
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 mod common;
 
 use std::sync::mpsc;
@@ -29,7 +31,8 @@ fn within<T: Send + 'static>(secs: u64, f: impl FnOnce() -> T + Send + 'static) 
     thread::spawn(move || {
         let _ = tx.send(f());
     });
-    rx.recv_timeout(Duration::from_secs(secs)).expect("deadlock or hang")
+    rx.recv_timeout(Duration::from_secs(secs))
+        .expect("deadlock or hang")
 }
 
 #[test]
@@ -134,7 +137,8 @@ fn a_vault_made_by_the_session_library_opens_through_the_api_and_back() {
     let dir = tempfile::tempdir().unwrap();
     {
         let mut s = Session::open_dir(dir.path()).unwrap();
-        s.create_with(PASSWORD, K::Low, RecoveryConfirmation::NotRequired).unwrap();
+        s.create_with(PASSWORD, K::Low, RecoveryConfirmation::NotRequired)
+            .unwrap();
         s.with_vault(|v| {
             v.create_item(arya_vault_vault::NewItem::new(
                 arya_vault_vault::ItemType::Login,

@@ -1,6 +1,8 @@
 //! docs/14 §4.1 and §5 through the `api` module: lifecycle, the state machine, recovery-key
 //! confirmation, password change, recovery, rotation, quick unlock.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 mod common;
 
 use arya_vault_ffi::api::dto::{
@@ -34,7 +36,10 @@ fn sec_a01_create_confirm_lock_unlock() {
     assert!(!s.exists);
 
     // Not initialised vault: every vault operation says `locked`.
-    assert_eq!(code(items::list(Default::default(), page())), AppErrorCode::Locked);
+    assert_eq!(
+        code(items::list(Default::default(), page())),
+        AppErrorCode::Locked
+    );
 
     let r = lifecycle::create_vault(pw(PASSWORD), KdfProfile::Low).unwrap();
     assert_eq!(r.groups, 8);
@@ -66,7 +71,10 @@ fn sec_a01_create_confirm_lock_unlock() {
     lifecycle::lock().unwrap();
     assert!(lifecycle::status().unwrap().locked);
     assert_eq!(code(items::item_count()), AppErrorCode::Locked);
-    assert_eq!(code(items::create_item(new_login("x"))), AppErrorCode::Locked);
+    assert_eq!(
+        code(items::create_item(new_login("x"))),
+        AppErrorCode::Locked
+    );
     assert_eq!(code(lifecycle::quick_unlock_enable()), AppErrorCode::Locked);
 
     // Unlock: wrong password, then the right one.
@@ -76,12 +84,18 @@ fn sec_a01_create_confirm_lock_unlock() {
     );
     lifecycle::unlock(pw(PASSWORD)).unwrap();
     assert_eq!(items::item_count().unwrap(), 0);
-    assert_eq!(code(lifecycle::unlock(pw(PASSWORD))), AppErrorCode::Validation);
+    assert_eq!(
+        code(lifecycle::unlock(pw(PASSWORD))),
+        AppErrorCode::Validation
+    );
     lifecycle::lock().unwrap();
 }
 
 fn page() -> arya_vault_ffi::api::dto::Page {
-    arya_vault_ffi::api::dto::Page { offset: 0, limit: 50 }
+    arya_vault_ffi::api::dto::Page {
+        offset: 0,
+        limit: 50,
+    }
 }
 
 #[test]
@@ -106,9 +120,12 @@ fn weak_and_malformed_inputs_map_to_their_codes() {
     let e = lifecycle::create_vault(vec![0xFF, 0xFE, 0xFD], KdfProfile::Low).unwrap_err();
     assert_eq!(e.code, AppErrorCode::Validation);
     assert_eq!(e.field.as_deref(), Some("password"));
-    let _f = unlocked_after_create();
+    unlocked_after_create();
     assert_eq!(
-        code(lifecycle::recover_with_key(pw("not-a-key"), pw(OTHER_PASSWORD))),
+        code(lifecycle::recover_with_key(
+            pw("not-a-key"),
+            pw(OTHER_PASSWORD)
+        )),
         AppErrorCode::RecoveryKeyMalformed
     );
 }
@@ -124,7 +141,11 @@ fn sec_a05_change_password_without_the_recovery_key() {
     let _f = unlocked();
     items::create_item(new_login("kept")).unwrap();
     assert_eq!(
-        code(lifecycle::change_password(pw(OTHER_PASSWORD), pw(OTHER_PASSWORD), false)),
+        code(lifecycle::change_password(
+            pw(OTHER_PASSWORD),
+            pw(OTHER_PASSWORD),
+            false
+        )),
         AppErrorCode::WrongCredentials
     );
     assert_eq!(
@@ -164,7 +185,10 @@ fn sec_a06_rotation_through_regenerate_and_change_password() {
     let r = lifecycle::regenerate_recovery_key(pw(PASSWORD), true).unwrap();
     assert!(!lifecycle::status().unwrap().onboarding_complete);
     assert!(lifecycle::confirm_recovery_key(answers(&r)).unwrap());
-    assert_eq!(items::get_item(id.clone()).unwrap().title, "survives rotation");
+    assert_eq!(
+        items::get_item(id.clone()).unwrap().title,
+        "survives rotation"
+    );
 
     // changePassword(rotateKeys: true): the new key stays pending; the app asks for a key to show.
     lifecycle::change_password(pw(PASSWORD), pw(OTHER_PASSWORD), true).unwrap();
@@ -172,7 +196,10 @@ fn sec_a06_rotation_through_regenerate_and_change_password() {
     let r2 = lifecycle::regenerate_recovery_key(pw(OTHER_PASSWORD), false).unwrap();
     assert!(lifecycle::confirm_recovery_key(answers(&r2)).unwrap());
     lifecycle::lock().unwrap();
-    assert_eq!(code(lifecycle::unlock(pw(PASSWORD))), AppErrorCode::WrongCredentials);
+    assert_eq!(
+        code(lifecycle::unlock(pw(PASSWORD))),
+        AppErrorCode::WrongCredentials
+    );
     lifecycle::unlock(pw(OTHER_PASSWORD)).unwrap();
     assert_eq!(items::get_item(id).unwrap().title, "survives rotation");
 }

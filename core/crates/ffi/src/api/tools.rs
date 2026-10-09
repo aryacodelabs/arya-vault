@@ -8,7 +8,6 @@ use super::dto::{
     PolicyResult, ReuseGroup, Strength, WeakPassword,
 };
 use crate::convert::hex_id;
-use crate::error::ApiResult;
 use crate::host::{self, into_bytes, secret_text};
 
 /// Passwords with a zxcvbn score up to this are reported as weak.
@@ -31,7 +30,7 @@ fn options_only(e: g::OptionsError) -> AppError {
 ///
 /// # Errors
 /// `validation` (`options`), `internal` (the OS random source failed).
-pub fn generate_password(options: PasswordOptions) -> ApiResult<Vec<u8>> {
+pub fn generate_password(options: PasswordOptions) -> Result<Vec<u8>, AppError> {
     host::guarded(|| {
         let o = options.to_core()?;
         let pw = g::generate_password(&o, &mut g::OsRandom).map_err(options_error)?;
@@ -43,7 +42,7 @@ pub fn generate_password(options: PasswordOptions) -> ApiResult<Vec<u8>> {
 ///
 /// # Errors
 /// `validation` (`options`), `internal`.
-pub fn generate_passphrase(options: PassphraseOptions) -> ApiResult<Vec<u8>> {
+pub fn generate_passphrase(options: PassphraseOptions) -> Result<Vec<u8>, AppError> {
     host::guarded(|| {
         let o = options.to_core()?;
         let pw = g::generate_passphrase(&o, &mut g::OsRandom).map_err(options_error)?;
@@ -55,7 +54,7 @@ pub fn generate_passphrase(options: PassphraseOptions) -> ApiResult<Vec<u8>> {
 ///
 /// # Errors
 /// `validation` (`options`).
-pub fn entropy_bits(options: EntropyOptions) -> ApiResult<f64> {
+pub fn entropy_bits(options: EntropyOptions) -> Result<f64, AppError> {
     host::guarded(|| match options {
         EntropyOptions::Password(o) => g::entropy_bits(&o.to_core()?).map_err(options_only),
         EntropyOptions::Passphrase(o) => {
@@ -68,7 +67,7 @@ pub fn entropy_bits(options: EntropyOptions) -> ApiResult<f64> {
 ///
 /// # Errors
 /// `validation` (not UTF-8).
-pub fn strength(password: Vec<u8>) -> ApiResult<Strength> {
+pub fn strength(password: Vec<u8>) -> Result<Strength, AppError> {
     host::guarded(|| {
         let pw = secret_text(Zeroizing::new(password), "password")?;
         let s = g::estimate_strength(&pw);
@@ -84,7 +83,7 @@ pub fn strength(password: Vec<u8>) -> ApiResult<Strength> {
 ///
 /// # Errors
 /// `validation` (not UTF-8).
-pub fn check_master_password(password: Vec<u8>) -> ApiResult<PolicyResult> {
+pub fn check_master_password(password: Vec<u8>) -> Result<PolicyResult, AppError> {
     host::guarded(|| {
         let pw = secret_text(Zeroizing::new(password), "password")?;
         Ok(match g::meets_master_password_policy(&pw) {
@@ -104,7 +103,7 @@ pub fn check_master_password(password: Vec<u8>) -> ApiResult<PolicyResult> {
 ///
 /// # Errors
 /// `locked`.
-pub fn health_report() -> ApiResult<HealthReport> {
+pub fn health_report() -> Result<HealthReport, AppError> {
     host::call(|h| {
         h.vault(|v| {
             let reused = v

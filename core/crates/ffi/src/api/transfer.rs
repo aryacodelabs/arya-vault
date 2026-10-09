@@ -69,7 +69,7 @@ fn token() -> ApiResult<String> {
 ///
 /// # Errors
 /// `locked`, `limitReached` (file too large), `validation` (`file`: unreadable).
-pub fn import_preview(format: ImportFormat, mut file: Vec<u8>) -> ApiResult<ImportPreview> {
+pub fn import_preview(format: ImportFormat, mut file: Vec<u8>) -> Result<ImportPreview, AppError> {
     let r = host::call(|h| preview_in(h, format, &file));
     file.zeroize();
     r
@@ -136,7 +136,10 @@ fn core_options(o: &ImportOptions) -> ApiResult<cv::ImportOptions> {
 ///
 /// # Errors
 /// `locked`, `validation` (`previewToken`: unknown or expired), `limitReached` (item limit).
-pub fn import_commit(preview_token: String, options: ImportOptions) -> ApiResult<ImportResult> {
+pub fn import_commit(
+    preview_token: String,
+    options: ImportOptions,
+) -> Result<ImportResult, AppError> {
     let opts = core_options(&options)?;
     host::call(|h| {
         let Some(p) = h.preview.take() else {
@@ -161,7 +164,7 @@ pub fn import_commit(preview_token: String, options: ImportOptions) -> ApiResult
 ///
 /// # Errors
 /// `locked`, `validation` (`token`: the risk was not acknowledged).
-pub fn export_csv(token: AcknowledgePlaintextRisk) -> ApiResult<Vec<u8>> {
+pub fn export_csv(token: AcknowledgePlaintextRisk) -> Result<Vec<u8>, AppError> {
     if !token.acknowledged {
         return Err(AppError::validation(
             "token",
@@ -180,7 +183,7 @@ pub fn export_csv(token: AcknowledgePlaintextRisk) -> ApiResult<Vec<u8>> {
 ///
 /// # Errors
 /// `locked`, `validation` (empty password).
-pub fn export_encrypted(export_password: Vec<u8>) -> ApiResult<Vec<u8>> {
+pub fn export_encrypted(export_password: Vec<u8>) -> Result<Vec<u8>, AppError> {
     let pw = secret_text(Zeroizing::new(export_password), "exportPassword")?;
     if pw.is_empty() {
         return Err(AppError::validation(
@@ -200,7 +203,7 @@ pub fn export_encrypted(export_password: Vec<u8>) -> ApiResult<Vec<u8>> {
 /// # Errors
 /// `locked`, `wrongCredentials` (wrong password or damaged file), `unsupportedFormat`,
 /// `validation` (`file`).
-pub fn import_encrypted(file: Vec<u8>, export_password: Vec<u8>) -> ApiResult<ImportResult> {
+pub fn import_encrypted(file: Vec<u8>, export_password: Vec<u8>) -> Result<ImportResult, AppError> {
     let export_password = Zeroizing::new(export_password);
     let pw = secret_text(export_password, "exportPassword")?;
     host::call(|h| {

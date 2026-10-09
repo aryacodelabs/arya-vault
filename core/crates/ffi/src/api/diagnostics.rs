@@ -1,6 +1,6 @@
 //! docs/14 §4.6: diagnostics.
 
-use super::dto::{InfoDto, PinnedSetting};
+use super::dto::{AppError, InfoDto, PinnedSetting};
 use crate::error::ApiResult;
 use crate::host::{self, Host};
 use crate::{API_VERSION, diag};
@@ -31,7 +31,7 @@ fn info_in(h: &mut Host) -> ApiResult<InfoDto> {
 ///
 /// # Errors
 /// `io`, `corruptVault` for a damaged vault directory.
-pub fn info() -> ApiResult<InfoDto> {
+pub fn info() -> Result<InfoDto, AppError> {
     host::call(info_in)
 }
 
@@ -40,7 +40,7 @@ pub fn info() -> ApiResult<InfoDto> {
 ///
 /// # Errors
 /// `io`, `corruptVault`.
-pub fn export_diagnostics() -> ApiResult<Vec<u8>> {
+pub fn export_diagnostics() -> Result<Vec<u8>, AppError> {
     host::call(|h| {
         let info = info_in(h)?;
         let header = h.session()?.header_info().ok();

@@ -1,6 +1,8 @@
 //! docs/14 §4.2-§4.6 through the `api` module: items, folders, history, search, trash, generator,
 //! health, import/export, settings, diagnostics.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 mod common;
 
 use std::collections::HashMap;
@@ -52,30 +54,47 @@ fn create_get_reveal_edit_and_the_view_never_holds_a_secret() {
 
     let v = items::get_item(id.clone()).unwrap();
     assert_eq!(v.title, "GitHub");
-    assert_eq!(v.fields.get(&StdField::Username), Some(&Some("octo".to_owned())));
+    assert_eq!(
+        v.fields.get(&StdField::Username),
+        Some(&Some("octo".to_owned()))
+    );
     assert!(!v.fields.contains_key(&StdField::Password));
     assert!(v.secret_fields_present.contains(&StdField::Password));
     assert_eq!(v.tags, vec!["work"]);
     assert_eq!(v.urls.len(), 1);
     assert_eq!(v.custom.len(), 2);
-    let hidden = v.custom.iter().find(|c| c.kind == CustomKind::Hidden).unwrap();
+    let hidden = v
+        .custom
+        .iter()
+        .find(|c| c.kind == CustomKind::Hidden)
+        .unwrap();
     assert_eq!(hidden.value_if_not_hidden, None);
-    let text = v.custom.iter().find(|c| c.kind == CustomKind::Text).unwrap();
+    let text = v
+        .custom
+        .iter()
+        .find(|c| c.kind == CustomKind::Text)
+        .unwrap();
     assert_eq!(text.value_if_not_hidden.as_deref(), Some("visible"));
     assert!(!v.other_versions);
     assert!(!format!("{v:?}").contains("CANARY"));
 
     assert_eq!(
-        items::reveal(id.clone(), StdField::Password).unwrap().unwrap(),
+        items::reveal(id.clone(), StdField::Password)
+            .unwrap()
+            .unwrap(),
         b"CANARY-pw-1"
     );
     assert_eq!(
-        items::reveal_custom(id.clone(), hidden.id.clone()).unwrap().unwrap(),
+        items::reveal_custom(id.clone(), hidden.id.clone())
+            .unwrap()
+            .unwrap(),
         b"CANARY-custom-hidden"
     );
     // A non-secret field is not revealed: read it from the view.
     assert_eq!(
-        items::reveal(id.clone(), StdField::Username).unwrap_err().code,
+        items::reveal(id.clone(), StdField::Username)
+            .unwrap_err()
+            .code,
         AppErrorCode::Validation
     );
 
@@ -99,10 +118,18 @@ fn create_get_reveal_edit_and_the_view_never_holds_a_secret() {
     .unwrap_err();
     assert_eq!(e.code, AppErrorCode::Validation);
     let v = items::get_item(id.clone()).unwrap();
-    assert_eq!(v.fields.get(&StdField::Username), Some(&Some("octocat".to_owned())));
+    assert_eq!(
+        v.fields.get(&StdField::Username),
+        Some(&Some("octocat".to_owned()))
+    );
 
     items::clear_field(id.clone(), StdField::Notes).unwrap();
-    assert!(!items::get_item(id.clone()).unwrap().fields.contains_key(&StdField::Notes));
+    assert!(
+        !items::get_item(id.clone())
+            .unwrap()
+            .fields
+            .contains_key(&StdField::Notes)
+    );
 
     // Element-level edits.
     let url = items::add_url(id.clone(), "https://two.test".into()).unwrap();
@@ -110,8 +137,13 @@ fn create_get_reveal_edit_and_the_view_never_holds_a_secret() {
     items::remove_url(id.clone(), url).unwrap();
     items::add_tag(id.clone(), "x".into()).unwrap();
     items::remove_tag(id.clone(), "x".into()).unwrap();
-    let c = items::add_custom_field(id.clone(), CustomKind::Hidden, "k".into(), "CANARY-v".into())
-        .unwrap();
+    let c = items::add_custom_field(
+        id.clone(),
+        CustomKind::Hidden,
+        "k".into(),
+        "CANARY-v".into(),
+    )
+    .unwrap();
     items::set_custom_value(id.clone(), c.clone(), "CANARY-v2".into()).unwrap();
     items::set_custom_label(id.clone(), c.clone(), "k2".into()).unwrap();
     items::remove_custom_field(id.clone(), c).unwrap();
@@ -124,14 +156,20 @@ fn errors_for_unknown_ids_and_bad_input() {
     let _g = serial();
     let _f = unlocked();
     let unknown = "0".repeat(32);
-    assert_eq!(items::get_item(unknown).unwrap_err().code, AppErrorCode::NotFound);
+    assert_eq!(
+        items::get_item(unknown).unwrap_err().code,
+        AppErrorCode::NotFound
+    );
     for bad in ["", "xyz", &"A".repeat(32), &"0".repeat(31)] {
         let e = items::get_item(bad.to_owned()).unwrap_err();
         assert_eq!(e.code, AppErrorCode::Validation, "{bad:?}");
         assert_eq!(e.field.as_deref(), Some("id"));
     }
     let e = items::list(ListFilter::default(), page(201)).unwrap_err();
-    assert_eq!((e.code, e.field.as_deref()), (AppErrorCode::Validation, Some("limit")));
+    assert_eq!(
+        (e.code, e.field.as_deref()),
+        (AppErrorCode::Validation, Some("limit"))
+    );
     let id = items::create_item(login("a", "u", "CANARY-p")).unwrap();
     let e = items::set_field(id.clone(), StdField::CardNumber, "x".into()).unwrap_err();
     assert_eq!(e.code, AppErrorCode::Validation);
@@ -192,8 +230,11 @@ fn list_search_filters_and_summaries_are_secret_free() {
         favorites_only: fav,
         ..Default::default()
     };
-    let two = items::list(f(Some(vec![ItemType::Login, ItemType::Card]), None, false), page(50))
-        .unwrap();
+    let two = items::list(
+        f(Some(vec![ItemType::Login, ItemType::Card]), None, false),
+        page(50),
+    )
+    .unwrap();
     assert_eq!(two.len(), 2);
     assert!(two.iter().all(|s| s.item_type != ItemType::Note));
     assert_eq!(
@@ -204,13 +245,33 @@ fn list_search_filters_and_summaries_are_secret_free() {
         titles(&items::list(f(None, None, true), page(50)).unwrap()),
         ["GitHub"]
     );
-    assert!(items::list(f(Some(vec![]), None, false), page(50)).unwrap().is_empty());
-    let p1 = items::list(ListFilter::default(), Page { offset: 1, limit: 1 }).unwrap();
+    assert!(
+        items::list(f(Some(vec![]), None, false), page(50))
+            .unwrap()
+            .is_empty()
+    );
+    let p1 = items::list(
+        ListFilter::default(),
+        Page {
+            offset: 1,
+            limit: 1,
+        },
+    )
+    .unwrap();
     assert_eq!(p1.len(), 1);
     assert_eq!(p1[0].id, all[1].id);
-    let merged =
-        items::list(f(Some(vec![ItemType::Login, ItemType::Note, ItemType::Card]), None, false), Page { offset: 1, limit: 1 })
-            .unwrap();
+    let merged = items::list(
+        f(
+            Some(vec![ItemType::Login, ItemType::Note, ItemType::Card]),
+            None,
+            false,
+        ),
+        Page {
+            offset: 1,
+            limit: 1,
+        },
+    )
+    .unwrap();
     assert_eq!(merged[0].id, all[1].id);
 
     // Search: prefix; the body is searchable but never returned; passwords are not indexed.
@@ -220,7 +281,10 @@ fn list_search_filters_and_summaries_are_secret_free() {
         page: page(50),
     };
     assert_eq!(titles(&items::search(q("gith")).unwrap()), ["GitHub"]);
-    assert_eq!(titles(&items::search(q("CANARY-p1")).unwrap()), Vec::<&str>::new());
+    assert_eq!(
+        titles(&items::search(q("CANARY-p1")).unwrap()),
+        Vec::<&str>::new()
+    );
     assert_eq!(items::search(q("")).unwrap().len(), 3);
     assert!(!format!("{:?}", items::search(q("diary")).unwrap()).contains("CANARY"));
 }
@@ -244,9 +308,16 @@ fn trash_restore_purge_and_history() {
         b"CANARY-v1"
     );
     items::restore_version(id.clone(), StdField::Password, oldest.hlc_ms).unwrap();
-    assert_eq!(items::reveal(id.clone(), StdField::Password).unwrap().unwrap(), b"CANARY-v1");
     assert_eq!(
-        items::reveal_version(id.clone(), StdField::Password, 12345).unwrap_err().code,
+        items::reveal(id.clone(), StdField::Password)
+            .unwrap()
+            .unwrap(),
+        b"CANARY-v1"
+    );
+    assert_eq!(
+        items::reveal_version(id.clone(), StdField::Password, 12345)
+            .unwrap_err()
+            .code,
         AppErrorCode::NotFound
     );
     assert!(!format!("{h:?}").contains("CANARY"));
@@ -286,10 +357,16 @@ fn folders() {
         ..login("in folder", "u", "CANARY-p")
     })
     .unwrap();
-    assert_eq!(items::get_item(id.clone()).unwrap().folder_id.as_deref(), Some(root.as_str()));
+    assert_eq!(
+        items::get_item(id.clone()).unwrap().folder_id.as_deref(),
+        Some(root.as_str())
+    );
     let list = items::list_folders().unwrap();
     assert_eq!(list.len(), 2);
-    assert!(list.iter().any(|f| f.name == "Sub2" && f.parent_id.as_deref() == Some(&root)));
+    assert!(
+        list.iter()
+            .any(|f| f.name == "Sub2" && f.parent_id.as_deref() == Some(&root))
+    );
     let filter = ListFilter {
         folder_id: Some(root.clone()),
         ..Default::default()
@@ -300,7 +377,9 @@ fn folders() {
     items::delete_folder(sub).unwrap();
     assert_eq!(items::list_folders().unwrap().len(), 1);
     assert_eq!(
-        items::create_folder("x".into(), Some("1".repeat(32))).unwrap_err().code,
+        items::create_folder("x".into(), Some("1".repeat(32)))
+            .unwrap_err()
+            .code,
         AppErrorCode::NotFound
     );
 }
@@ -328,7 +407,10 @@ fn generator_strength_policy_and_health() {
         length: 2,
         ..opts.clone()
     };
-    assert_eq!(tools::generate_password(bad).unwrap_err().code, AppErrorCode::Validation);
+    assert_eq!(
+        tools::generate_password(bad).unwrap_err().code,
+        AppErrorCode::Validation
+    );
     let words = PassphraseOptions {
         word_count: 5,
         separator: "-".into(),
@@ -341,10 +423,17 @@ fn generator_strength_policy_and_health() {
     assert!(tools::entropy_bits(EntropyOptions::Passphrase(words)).unwrap() > 50.0);
     assert!(tools::strength(pw("password123")).unwrap().score <= 1);
     assert!(tools::strength(a).unwrap().score >= 3);
-    assert!(!tools::check_master_password(pw("short")).unwrap().acceptable);
+    assert!(
+        !tools::check_master_password(pw("short"))
+            .unwrap()
+            .acceptable
+    );
     let ok = tools::check_master_password(pw(PASSWORD)).unwrap();
     assert!(ok.acceptable && ok.reasons.is_empty());
-    assert_eq!(tools::health_report().unwrap_err().code, AppErrorCode::Locked);
+    assert_eq!(
+        tools::health_report().unwrap_err().code,
+        AppErrorCode::Locked
+    );
 }
 
 #[test]
@@ -388,7 +477,10 @@ fn import_preview_commit_and_exports() {
         target_folder: None,
     };
     assert_eq!(
-        transfer::import_commit("00".repeat(16), opts.clone()).unwrap_err().field.as_deref(),
+        transfer::import_commit("00".repeat(16), opts.clone())
+            .unwrap_err()
+            .field
+            .as_deref(),
         Some("previewToken")
     );
     let r = transfer::import_commit(p.preview_token.clone(), opts.clone()).unwrap();
@@ -398,12 +490,20 @@ fn import_preview_commit_and_exports() {
     assert!(transfer::import_commit(p.preview_token, opts).is_err());
 
     // Garbage is a typed error, not a panic; limits map to limitReached.
-    let e = transfer::import_preview(ImportFormat::BitwardenJson, b"not json".to_vec()).unwrap_err();
-    assert_eq!((e.code, e.field.as_deref()), (AppErrorCode::Validation, Some("file")));
+    let e =
+        transfer::import_preview(ImportFormat::BitwardenJson, b"not json".to_vec()).unwrap_err();
+    assert_eq!(
+        (e.code, e.field.as_deref()),
+        (AppErrorCode::Validation, Some("file"))
+    );
 
     // CSV export needs the acknowledgement.
     assert_eq!(
-        transfer::export_csv(AcknowledgePlaintextRisk { acknowledged: false }).unwrap_err().code,
+        transfer::export_csv(AcknowledgePlaintextRisk {
+            acknowledged: false
+        })
+        .unwrap_err()
+        .code,
         AppErrorCode::Validation
     );
     let csv = transfer::export_csv(AcknowledgePlaintextRisk { acknowledged: true }).unwrap();
@@ -421,7 +521,9 @@ fn import_preview_commit_and_exports() {
     let k = lifecycle::create_vault(pw(PASSWORD), KdfProfile::Low).unwrap();
     assert!(lifecycle::confirm_recovery_key(answers(&k)).unwrap());
     assert_eq!(
-        transfer::import_encrypted(enc.clone(), pw("CANARY-wrong")).unwrap_err().code,
+        transfer::import_encrypted(enc.clone(), pw("CANARY-wrong"))
+            .unwrap_err()
+            .code,
         AppErrorCode::WrongCredentials
     );
     let r = transfer::import_encrypted(enc, pw("CANARY-export-password-1")).unwrap();
@@ -434,7 +536,14 @@ fn settings_are_clamped_persisted_and_apply_retention() {
     let _g = serial();
     let _f = unlocked();
     let d = settings::get_settings().unwrap();
-    assert_eq!((d.auto_lock_minutes, d.clipboard_clear_seconds, d.reveal_hide_seconds), (5, 30, 15));
+    assert_eq!(
+        (
+            d.auto_lock_minutes,
+            d.clipboard_clear_seconds,
+            d.reveal_hide_seconds
+        ),
+        (5, 30, 15)
+    );
     let hostile = AppSettings {
         auto_lock_minutes: 0,
         clipboard_clear_seconds: 100_000,
@@ -450,7 +559,12 @@ fn settings_are_clamped_persisted_and_apply_retention() {
     settings::set_settings(hostile).unwrap();
     let s = settings::get_settings().unwrap();
     assert_eq!(
-        (s.auto_lock_minutes, s.clipboard_clear_seconds, s.reveal_hide_seconds, s.vault_config.trash_days),
+        (
+            s.auto_lock_minutes,
+            s.clipboard_clear_seconds,
+            s.reveal_hide_seconds,
+            s.vault_config.trash_days
+        ),
         (1, 120, 15, 1)
     );
     assert!(!s.lock_on_sleep && !s.block_screen_capture && s.lock_on_screen_lock);
@@ -459,7 +573,10 @@ fn settings_are_clamped_persisted_and_apply_retention() {
     lifecycle::unlock(pw(PASSWORD)).unwrap();
     assert_eq!(settings::get_settings().unwrap(), s);
     lifecycle::lock().unwrap();
-    assert_eq!(settings::get_settings().unwrap_err().code, AppErrorCode::Locked);
+    assert_eq!(
+        settings::get_settings().unwrap_err().code,
+        AppErrorCode::Locked
+    );
 }
 
 #[test]
@@ -473,7 +590,11 @@ fn info_and_diagnostics_have_the_version_and_no_ids() {
     lifecycle::unlock(pw(PASSWORD)).unwrap();
     let info = diagnostics::info().unwrap();
     assert!(info.schema_version > 0);
-    assert!(info.sqlcipher_settings.iter().any(|s| s.key == "cipher.page_size"));
+    assert!(
+        info.sqlcipher_settings
+            .iter()
+            .any(|s| s.key == "cipher.page_size")
+    );
     let json = String::from_utf8(diagnostics::export_diagnostics().unwrap()).unwrap();
     assert!(json.starts_with("{\"apiVersion\":"));
     assert!(json.contains("\"header\":{"));

@@ -141,7 +141,7 @@ fn summarize_rows(
 ///
 /// # Errors
 /// `locked`, `validation` (`limit` above 200, bad ids).
-pub fn list(filter: ListFilter, page: Page) -> ApiResult<Vec<ItemSummary>> {
+pub fn list(filter: ListFilter, page: Page) -> Result<Vec<ItemSummary>, AppError> {
     host::call(|h| h.vault(|v| list_in(v, &filter, page)))
 }
 
@@ -150,7 +150,7 @@ pub fn list(filter: ListFilter, page: Page) -> ApiResult<Vec<ItemSummary>> {
 ///
 /// # Errors
 /// `locked`, `validation`.
-pub fn search(query: SearchQuery) -> ApiResult<Vec<ItemSummary>> {
+pub fn search(query: SearchQuery) -> Result<Vec<ItemSummary>, AppError> {
     host::call(|h| {
         h.vault(|v| {
             let (offset, limit) = check_page(query.page)?;
@@ -177,7 +177,7 @@ pub fn search(query: SearchQuery) -> ApiResult<Vec<ItemSummary>> {
 ///
 /// # Errors
 /// `locked`.
-pub fn item_count() -> ApiResult<u64> {
+pub fn item_count() -> Result<u64, AppError> {
     host::call(|h| {
         h.vault(|v| {
             let all = cv::Page {
@@ -193,7 +193,7 @@ pub fn item_count() -> ApiResult<u64> {
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn get_item(id: String) -> ApiResult<ItemView> {
+pub fn get_item(id: String) -> Result<ItemView, AppError> {
     let id = id_of(&id)?;
     host::call(|h| {
         h.vault(|v| {
@@ -208,7 +208,7 @@ pub fn get_item(id: String) -> ApiResult<ItemView> {
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation` (the field is not secret: read it from `getItem`).
-pub fn reveal(id: String, field: StdField) -> ApiResult<Option<Vec<u8>>> {
+pub fn reveal(id: String, field: StdField) -> Result<Option<Vec<u8>>, AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| Ok::<_, AppError>(v.reveal(&id, field.into())?.map(into_bytes))))
 }
@@ -217,7 +217,7 @@ pub fn reveal(id: String, field: StdField) -> ApiResult<Option<Vec<u8>>> {
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn reveal_custom(id: String, element_id: String) -> ApiResult<Option<Vec<u8>>> {
+pub fn reveal_custom(id: String, element_id: String) -> Result<Option<Vec<u8>>, AppError> {
     let id = id_of(&id)?;
     let eid = parse_element(&element_id, "elementId")?;
     host::call(|h| h.vault(|v| Ok::<_, AppError>(v.reveal_custom(&id, &eid)?.map(into_bytes))))
@@ -236,7 +236,7 @@ fn scrub(map: &mut std::collections::HashMap<StdField, String>) {
 ///
 /// # Errors
 /// `locked`, `validation`, `limitReached`, `notFound` (folder).
-pub fn create_item(mut new: NewItem) -> ApiResult<String> {
+pub fn create_item(mut new: NewItem) -> Result<String, AppError> {
     let result = host::call(|h| create_in(h, &new));
     scrub(&mut new.fields);
     for c in &mut new.custom {
@@ -276,7 +276,7 @@ fn create_in(h: &mut Host, new: &NewItem) -> ApiResult<String> {
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation`, `limitReached`.
-pub fn set_field(id: String, field: StdField, value: String) -> ApiResult<()> {
+pub fn set_field(id: String, field: StdField, value: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     let value = Zeroizing::new(value);
     host::call(|h| h.vault(|v| v.set_field(&id, field.into(), &value)))
@@ -286,7 +286,7 @@ pub fn set_field(id: String, field: StdField, value: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation`.
-pub fn clear_field(id: String, field: StdField) -> ApiResult<()> {
+pub fn clear_field(id: String, field: StdField) -> Result<(), AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| v.clear_field(&id, field.into())))
 }
@@ -299,7 +299,7 @@ pub fn clear_field(id: String, field: StdField) -> ApiResult<()> {
 pub fn set_fields(
     id: String,
     mut fields: std::collections::HashMap<StdField, String>,
-) -> ApiResult<()> {
+) -> Result<(), AppError> {
     let id = id_of(&id)?;
     let r = host::call(|h| h.vault(|v| set_fields_in(v, &id, &fields)));
     scrub(&mut fields);
@@ -362,7 +362,7 @@ fn set_fields_in(
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn toggle_favorite(id: String) -> ApiResult<bool> {
+pub fn toggle_favorite(id: String) -> Result<bool, AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| v.toggle_favorite(&id)))
 }
@@ -371,7 +371,7 @@ pub fn toggle_favorite(id: String) -> ApiResult<bool> {
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn move_to_folder(id: String, folder_id: Option<String>) -> ApiResult<()> {
+pub fn move_to_folder(id: String, folder_id: Option<String>) -> Result<(), AppError> {
     let id = id_of(&id)?;
     let folder = opt_id(folder_id.as_deref(), "folderId")?;
     host::call(|h| h.vault(|v| v.move_to_folder(&id, folder)))
@@ -381,7 +381,7 @@ pub fn move_to_folder(id: String, folder_id: Option<String>) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation`, `limitReached`.
-pub fn add_tag(id: String, tag: String) -> ApiResult<()> {
+pub fn add_tag(id: String, tag: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| v.add_tag(&id, &tag)))
 }
@@ -390,7 +390,7 @@ pub fn add_tag(id: String, tag: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn remove_tag(id: String, tag: String) -> ApiResult<()> {
+pub fn remove_tag(id: String, tag: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| v.remove_tag(&id, &tag)))
 }
@@ -399,7 +399,7 @@ pub fn remove_tag(id: String, tag: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation`.
-pub fn add_url(id: String, url: String) -> ApiResult<String> {
+pub fn add_url(id: String, url: String) -> Result<String, AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| v.add_url(&id, &url).map(|e| e.as_str().to_owned())))
 }
@@ -408,7 +408,7 @@ pub fn add_url(id: String, url: String) -> ApiResult<String> {
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation`.
-pub fn set_url(id: String, url_id: String, url: String) -> ApiResult<()> {
+pub fn set_url(id: String, url_id: String, url: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     let uid = parse_element(&url_id, "urlId")?;
     host::call(|h| h.vault(|v| v.set_url(&id, &uid, &url)))
@@ -418,7 +418,7 @@ pub fn set_url(id: String, url_id: String, url: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn remove_url(id: String, url_id: String) -> ApiResult<()> {
+pub fn remove_url(id: String, url_id: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     let uid = parse_element(&url_id, "urlId")?;
     host::call(|h| h.vault(|v| v.remove_url(&id, &uid)))
@@ -448,7 +448,7 @@ pub fn add_custom_field(
 ///
 /// # Errors
 /// `locked`, `notFound`, `limitReached`.
-pub fn set_custom_value(id: String, element_id: String, value: String) -> ApiResult<()> {
+pub fn set_custom_value(id: String, element_id: String, value: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     let eid = parse_element(&element_id, "elementId")?;
     let value = Zeroizing::new(value);
@@ -459,7 +459,7 @@ pub fn set_custom_value(id: String, element_id: String, value: String) -> ApiRes
 ///
 /// # Errors
 /// `locked`, `notFound`, `limitReached`.
-pub fn set_custom_label(id: String, element_id: String, label: String) -> ApiResult<()> {
+pub fn set_custom_label(id: String, element_id: String, label: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     let eid = parse_element(&element_id, "elementId")?;
     host::call(|h| h.vault(|v| v.set_custom_label(&id, &eid, &label)))
@@ -469,7 +469,7 @@ pub fn set_custom_label(id: String, element_id: String, label: String) -> ApiRes
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn remove_custom_field(id: String, element_id: String) -> ApiResult<()> {
+pub fn remove_custom_field(id: String, element_id: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     let eid = parse_element(&element_id, "elementId")?;
     host::call(|h| h.vault(|v| v.remove_custom_field(&id, &eid)))
@@ -481,7 +481,7 @@ pub fn remove_custom_field(id: String, element_id: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn delete_item(id: String) -> ApiResult<()> {
+pub fn delete_item(id: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| v.delete_item(&id)))
 }
@@ -490,7 +490,7 @@ pub fn delete_item(id: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation` (not in the trash).
-pub fn restore_item(id: String) -> ApiResult<()> {
+pub fn restore_item(id: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| v.restore_item(&id)))
 }
@@ -499,7 +499,7 @@ pub fn restore_item(id: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation` (not in the trash).
-pub fn purge_item(id: String) -> ApiResult<()> {
+pub fn purge_item(id: String) -> Result<(), AppError> {
     let id = id_of(&id)?;
     host::call(|h| h.vault(|v| v.purge_item(&id)))
 }
@@ -508,7 +508,7 @@ pub fn purge_item(id: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`.
-pub fn list_trash() -> ApiResult<Vec<TrashEntry>> {
+pub fn list_trash() -> Result<Vec<TrashEntry>, AppError> {
     host::call(|h| {
         h.vault(|v| {
             let day = u64::from(24u32 * 60 * 60 * 1000);
@@ -533,7 +533,7 @@ pub fn list_trash() -> ApiResult<Vec<TrashEntry>> {
 ///
 /// # Errors
 /// `locked`.
-pub fn empty_trash() -> ApiResult<u32> {
+pub fn empty_trash() -> Result<u32, AppError> {
     host::call(|h| {
         h.vault(|v| {
             let mut n = 0u32;
@@ -550,7 +550,7 @@ pub fn empty_trash() -> ApiResult<u32> {
 ///
 /// # Errors
 /// `locked`.
-pub fn purge_expired() -> ApiResult<u32> {
+pub fn purge_expired() -> Result<u32, AppError> {
     host::call(|h| {
         h.vault(|v| Ok::<_, AppError>(u32::try_from(v.purge_expired()?).unwrap_or(u32::MAX)))
     })
@@ -583,7 +583,7 @@ fn find_version(
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn history(id: String, field: StdField) -> ApiResult<Vec<VersionInfo>> {
+pub fn history(id: String, field: StdField) -> Result<Vec<VersionInfo>, AppError> {
     let id = id_of(&id)?;
     host::call(|h| {
         h.vault(|v| {
@@ -608,7 +608,11 @@ pub fn history(id: String, field: StdField) -> ApiResult<Vec<VersionInfo>> {
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn reveal_version(id: String, field: StdField, hlc_ms: i64) -> ApiResult<Option<Vec<u8>>> {
+pub fn reveal_version(
+    id: String,
+    field: StdField,
+    hlc_ms: i64,
+) -> Result<Option<Vec<u8>>, AppError> {
     let id = id_of(&id)?;
     host::call(|h| {
         h.vault(|v| {
@@ -626,7 +630,7 @@ pub fn reveal_version(id: String, field: StdField, hlc_ms: i64) -> ApiResult<Opt
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation` (item in the trash).
-pub fn restore_version(id: String, field: StdField, hlc_ms: i64) -> ApiResult<()> {
+pub fn restore_version(id: String, field: StdField, hlc_ms: i64) -> Result<(), AppError> {
     let id = id_of(&id)?;
     host::call(|h| {
         h.vault(|v| {
@@ -643,7 +647,7 @@ pub fn restore_version(id: String, field: StdField, hlc_ms: i64) -> ApiResult<()
 ///
 /// # Errors
 /// `locked`, `validation`, `notFound` (parent).
-pub fn create_folder(name: String, parent_id: Option<String>) -> ApiResult<String> {
+pub fn create_folder(name: String, parent_id: Option<String>) -> Result<String, AppError> {
     let parent = opt_id(parent_id.as_deref(), "parentId")?;
     host::call(|h| h.vault(|v| v.create_folder(&name, parent).map(|id| hex_id(&id))))
 }
@@ -652,7 +656,7 @@ pub fn create_folder(name: String, parent_id: Option<String>) -> ApiResult<Strin
 ///
 /// # Errors
 /// `locked`, `notFound`, `validation`.
-pub fn rename_folder(id: String, name: String) -> ApiResult<()> {
+pub fn rename_folder(id: String, name: String) -> Result<(), AppError> {
     let id = parse_id(&id, "id")?;
     host::call(|h| h.vault(|v| v.rename_folder(&id, &name)))
 }
@@ -661,7 +665,7 @@ pub fn rename_folder(id: String, name: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `notFound`.
-pub fn delete_folder(id: String) -> ApiResult<()> {
+pub fn delete_folder(id: String) -> Result<(), AppError> {
     let id = parse_id(&id, "id")?;
     host::call(|h| h.vault(|v| v.delete_folder(&id)))
 }
@@ -670,7 +674,7 @@ pub fn delete_folder(id: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`.
-pub fn list_folders() -> ApiResult<Vec<Folder>> {
+pub fn list_folders() -> Result<Vec<Folder>, AppError> {
     host::call(|h| {
         h.vault(|v| {
             Ok::<_, AppError>(

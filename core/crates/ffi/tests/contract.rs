@@ -7,6 +7,8 @@
 //! from the doc alone or misspelled). A function added to the doc and to neither the code nor
 //! this list is the one change this cannot see; the PR template asks reviewers to look.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 use std::collections::BTreeSet;
 
 use arya_vault_ffi::api::dto::{ItemSummary, ItemView, StdField};
@@ -14,25 +16,72 @@ use arya_vault_ffi::api::dto::{ItemSummary, ItemView, StdField};
 /// docs/14 §4, in camelCase.
 const EXPECTED: &[&str] = &[
     // 4.1
-    "status", "createVault", "confirmRecoveryKey", "unlock", "unlockQuick", "lock",
-    "changePassword", "recoverWithKey", "regenerateRecoveryKey", "quickUnlockEnable",
-    "quickUnlockDisable", "verifyPassword",
+    "status",
+    "createVault",
+    "confirmRecoveryKey",
+    "unlock",
+    "unlockQuick",
+    "lock",
+    "changePassword",
+    "recoverWithKey",
+    "regenerateRecoveryKey",
+    "quickUnlockEnable",
+    "quickUnlockDisable",
+    "verifyPassword",
     // 4.2
-    "list", "search", "itemCount", "getItem", "reveal", "revealCustom", "createItem", "setField",
-    "clearField", "setFields", "toggleFavorite", "moveToFolder", "addTag", "removeTag", "addUrl",
-    "setUrl", "removeUrl", "addCustomField", "setCustomValue", "setCustomLabel",
-    "removeCustomField", "deleteItem", "restoreItem", "purgeItem", "listTrash", "emptyTrash",
-    "purgeExpired", "history", "revealVersion", "restoreVersion", "createFolder", "renameFolder",
-    "deleteFolder", "listFolders",
+    "list",
+    "search",
+    "itemCount",
+    "getItem",
+    "reveal",
+    "revealCustom",
+    "createItem",
+    "setField",
+    "clearField",
+    "setFields",
+    "toggleFavorite",
+    "moveToFolder",
+    "addTag",
+    "removeTag",
+    "addUrl",
+    "setUrl",
+    "removeUrl",
+    "addCustomField",
+    "setCustomValue",
+    "setCustomLabel",
+    "removeCustomField",
+    "deleteItem",
+    "restoreItem",
+    "purgeItem",
+    "listTrash",
+    "emptyTrash",
+    "purgeExpired",
+    "history",
+    "revealVersion",
+    "restoreVersion",
+    "createFolder",
+    "renameFolder",
+    "deleteFolder",
+    "listFolders",
     // 4.3
-    "generatePassword", "generatePassphrase", "entropyBits", "strength", "checkMasterPassword",
+    "generatePassword",
+    "generatePassphrase",
+    "entropyBits",
+    "strength",
+    "checkMasterPassword",
     "healthReport",
     // 4.4
-    "importPreview", "importCommit", "exportCsv", "exportEncrypted", "importEncrypted",
+    "importPreview",
+    "importCommit",
+    "exportCsv",
+    "exportEncrypted",
+    "importEncrypted",
     // 4.5
-    "getSettings", "setSettings",
+    "getSettings",
+    "setSettings",
     // 4.6
-    "info", "exportDiagnostics",
+    "info",
+    "exportDiagnostics",
 ];
 
 /// Functions the crate adds on purpose, with the reason (PR "Spec questions").
@@ -75,12 +124,26 @@ fn api_functions() -> BTreeSet<String> {
 #[test]
 fn the_api_functions_are_exactly_the_contract() {
     let found = api_functions();
-    let want: BTreeSet<String> = EXPECTED.iter().chain(EXTRAS).map(|s| (*s).to_owned()).collect();
+    let want: BTreeSet<String> = EXPECTED
+        .iter()
+        .chain(EXTRAS)
+        .map(|s| (*s).to_owned())
+        .collect();
     let missing: Vec<_> = want.difference(&found).collect();
     let extra: Vec<_> = found.difference(&want).collect();
-    assert!(missing.is_empty(), "in docs/14 but not implemented: {missing:?}");
-    assert!(extra.is_empty(), "implemented but not in docs/14: {extra:?}");
-    assert_eq!(EXPECTED.iter().collect::<BTreeSet<_>>().len(), EXPECTED.len(), "duplicate in EXPECTED");
+    assert!(
+        missing.is_empty(),
+        "in docs/14 but not implemented: {missing:?}"
+    );
+    assert!(
+        extra.is_empty(),
+        "implemented but not in docs/14: {extra:?}"
+    );
+    assert_eq!(
+        EXPECTED.iter().collect::<BTreeSet<_>>().len(),
+        EXPECTED.len(),
+        "duplicate in EXPECTED"
+    );
 }
 
 #[test]
@@ -98,7 +161,10 @@ fn every_contract_name_occurs_in_docs_14_section_4() {
         .filter(|w| !w.is_empty())
         .collect();
     for name in EXPECTED {
-        assert!(words.contains(name), "`{name}` is not mentioned in docs/14 section 4");
+        assert!(
+            words.contains(name),
+            "`{name}` is not mentioned in docs/14 section 4"
+        );
     }
 }
 
@@ -148,9 +214,17 @@ fn summary_and_view_have_exactly_these_fields() {
 /// The names of the fields (source of truth: `dto.rs`), checked against secret-bearing names.
 #[test]
 fn no_field_of_summary_or_view_is_named_like_a_secret() {
-    let src = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/api/dto.rs")).unwrap();
+    let src =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/api/dto.rs")).unwrap();
     let mut fields = Vec::new();
-    for ty in ["ItemSummary", "ItemView", "UrlView", "CustomView", "TrashEntry", "VersionInfo"] {
+    for ty in [
+        "ItemSummary",
+        "ItemView",
+        "UrlView",
+        "CustomView",
+        "TrashEntry",
+        "VersionInfo",
+    ] {
         let start = src.find(&format!("pub struct {ty} {{")).unwrap();
         let body = &src[start..start + src[start..].find("\n}\n").unwrap()];
         for line in body.lines().skip(1) {
@@ -158,12 +232,21 @@ fn no_field_of_summary_or_view_is_named_like_a_secret() {
             if l.starts_with("///") || l.is_empty() {
                 continue;
             }
-            fields.push((ty, l.split(':').next().unwrap().trim_start_matches("pub ").to_owned()));
+            fields.push((
+                ty,
+                l.split(':')
+                    .next()
+                    .unwrap()
+                    .trim_start_matches("pub ")
+                    .to_owned(),
+            ));
         }
     }
     assert!(fields.len() > 30);
     for (ty, f) in &fields {
-        for bad in ["password", "secret", "seed", "cvv", "pin", "number", "body", "key", "value"] {
+        for bad in [
+            "password", "secret", "seed", "cvv", "pin", "number", "body", "key", "value",
+        ] {
             // `value_if_not_hidden` is the one field that holds a value: it is `None` for hidden
             // custom fields (asserted in tests/items.rs); `secret_fields_present` is a set of
             // names, not values.
@@ -179,11 +262,24 @@ fn no_field_of_summary_or_view_is_named_like_a_secret() {
 #[test]
 fn std_field_covers_the_core_set() {
     let all = [
-        StdField::Title, StdField::Username, StdField::Password, StdField::TotpSeed,
-        StdField::Notes, StdField::Body, StdField::CardHolder, StdField::CardNumber,
-        StdField::CardExpiry, StdField::CardCvv, StdField::CardPin, StdField::FirstName,
-        StdField::MiddleName, StdField::LastName, StdField::Email, StdField::Phone,
-        StdField::Address, StdField::Ids,
+        StdField::Title,
+        StdField::Username,
+        StdField::Password,
+        StdField::TotpSeed,
+        StdField::Notes,
+        StdField::Body,
+        StdField::CardHolder,
+        StdField::CardNumber,
+        StdField::CardExpiry,
+        StdField::CardCvv,
+        StdField::CardPin,
+        StdField::FirstName,
+        StdField::MiddleName,
+        StdField::LastName,
+        StdField::Email,
+        StdField::Phone,
+        StdField::Address,
+        StdField::Ids,
     ];
     let distinct: BTreeSet<_> = all.iter().collect();
     assert_eq!(distinct.len(), 18);

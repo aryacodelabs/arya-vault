@@ -1,0 +1,6 @@
+# flutter_rust_bridge codegen configuration (docs/14, task A04).
+# Run through tools/codegen.sh (or tools/codegen.ps1): they pin the codegen version.
+rust_input: crate::api
+rust_root: ../core/crates/ffi/
+dart_output: lib/src/rust
+web: false

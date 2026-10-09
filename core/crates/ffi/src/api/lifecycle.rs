@@ -18,7 +18,7 @@ use crate::prefs;
 ///
 /// # Errors
 /// `busy` if the session is unlocked and the path differs; `validation` for an empty path.
-pub fn init_core(vault_dir: String) -> ApiResult<()> {
+pub fn init_core(vault_dir: String) -> Result<(), AppError> {
     if vault_dir.is_empty() {
         return Err(AppError::validation("vaultDir", "the directory is empty"));
     }
@@ -29,7 +29,7 @@ pub fn init_core(vault_dir: String) -> ApiResult<()> {
 ///
 /// # Errors
 /// `io`, `corruptVault`, `unsupportedFormat` for a damaged or newer vault directory.
-pub fn status() -> ApiResult<VaultStatus> {
+pub fn status() -> Result<VaultStatus, AppError> {
     host::call(|h| {
         let s = h.session()?.status()?;
         Ok(VaultStatus {
@@ -63,7 +63,7 @@ fn apply_settings(h: &mut Host) -> ApiResult<()> {
 ///
 /// # Errors
 /// `weakPassword`, `alreadyExists`, `io`.
-pub fn create_vault(password: Vec<u8>, profile: KdfProfile) -> ApiResult<RecoveryKeyResult> {
+pub fn create_vault(password: Vec<u8>, profile: KdfProfile) -> Result<RecoveryKeyResult, AppError> {
     let pw = secret_text(Zeroizing::new(password), "password")?;
     host::call(|h| {
         let core_profile = profile.into();
@@ -78,7 +78,7 @@ pub fn create_vault(password: Vec<u8>, profile: KdfProfile) -> ApiResult<Recover
 ///
 /// # Errors
 /// `locked`, `validation` (no key is waiting, or the answers do not cover the asked groups).
-pub fn confirm_recovery_key(answers: Vec<GroupAnswer>) -> ApiResult<bool> {
+pub fn confirm_recovery_key(answers: Vec<GroupAnswer>) -> Result<bool, AppError> {
     let answers = answers
         .into_iter()
         .map(|a| Ok((to_usize(a.index, "answers")?, a.text)))
@@ -90,7 +90,7 @@ pub fn confirm_recovery_key(answers: Vec<GroupAnswer>) -> ApiResult<bool> {
 ///
 /// # Errors
 /// `wrongCredentials`, `busy` (delay running), `corruptVault`, `unsupportedFormat`.
-pub fn unlock(password: Vec<u8>) -> ApiResult<()> {
+pub fn unlock(password: Vec<u8>) -> Result<(), AppError> {
     let pw = secret_text(Zeroizing::new(password), "password")?;
     host::call(|h| {
         h.session()?.unlock(&pw)?;
@@ -102,7 +102,7 @@ pub fn unlock(password: Vec<u8>) -> ApiResult<()> {
 ///
 /// # Errors
 /// `quickUnlockUnavailable`, `locked` if a `lock()` raced the prompt.
-pub fn unlock_quick() -> ApiResult<()> {
+pub fn unlock_quick() -> Result<(), AppError> {
     host::call(|h| {
         h.session()?.unlock_quick()?;
         apply_settings(h)
@@ -114,7 +114,7 @@ pub fn unlock_quick() -> ApiResult<()> {
 ///
 /// # Errors
 /// `io` if the database cannot be closed cleanly (the keys are gone either way).
-pub fn lock() -> ApiResult<()> {
+pub fn lock() -> Result<(), AppError> {
     host::request_lock();
     host::call(|h| {
         h.forget_unlocked_state();
@@ -158,7 +158,7 @@ pub fn change_password(
 ///
 /// # Errors
 /// `recoveryKeyMalformed`, `wrongCredentials`, `weakPassword`, `busy`.
-pub fn recover_with_key(recovery_key: Vec<u8>, new_password: Vec<u8>) -> ApiResult<()> {
+pub fn recover_with_key(recovery_key: Vec<u8>, new_password: Vec<u8>) -> Result<(), AppError> {
     let (recovery_key, new_password) = (Zeroizing::new(recovery_key), Zeroizing::new(new_password));
     let key = secret_text(recovery_key, "recoveryKey")?;
     let new = secret_text(new_password, "newPassword")?;
@@ -183,7 +183,7 @@ pub fn recover_with_key(recovery_key: Vec<u8>, new_password: Vec<u8>) -> ApiResu
 pub fn regenerate_recovery_key(
     password: Vec<u8>,
     rotate_keys: bool,
-) -> ApiResult<RecoveryKeyResult> {
+) -> Result<RecoveryKeyResult, AppError> {
     let pw = secret_text(Zeroizing::new(password), "password")?;
     host::call(|h| {
         let s = h.session()?;
@@ -200,7 +200,7 @@ pub fn regenerate_recovery_key(
 ///
 /// # Errors
 /// `locked`, `quickUnlockUnavailable`.
-pub fn quick_unlock_enable() -> ApiResult<()> {
+pub fn quick_unlock_enable() -> Result<(), AppError> {
     host::call(|h| Ok(h.session()?.quick_unlock_enable()?))
 }
 
@@ -208,7 +208,7 @@ pub fn quick_unlock_enable() -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `io`.
-pub fn quick_unlock_disable() -> ApiResult<()> {
+pub fn quick_unlock_disable() -> Result<(), AppError> {
     host::call(|h| Ok(h.session()?.quick_unlock_disable()?))
 }
 
@@ -216,7 +216,7 @@ pub fn quick_unlock_disable() -> ApiResult<()> {
 ///
 /// # Errors
 /// `locked`, `busy`.
-pub fn verify_password(password: Vec<u8>) -> ApiResult<bool> {
+pub fn verify_password(password: Vec<u8>) -> Result<bool, AppError> {
     let pw = secret_text(Zeroizing::new(password), "password")?;
     host::call(|h| Ok(h.session()?.verify_password(&pw)?))
 }
