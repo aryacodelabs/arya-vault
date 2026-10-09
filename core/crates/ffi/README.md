@@ -76,7 +76,7 @@ appears in `code`, `message`, `field` or the `Debug` output.
 
 ## Tests
 
-`cargo test -p arya-vault-ffi` (about 2.5 minutes in debug: Argon2id at the floor profile runs
+`cargo test -p arya-vault-ffi` (about 3 minutes in debug: Argon2id at the floor profile runs
 dozens of times). Integration tests drive the contract through `api::*`:
 `tests/lifecycle.rs`, `tests/items.rs`, `tests/leaks.rs`, `tests/robustness.rs` (threads, lock
 while in flight, panic containment, vaults shared with the session library), `tests/contract.rs`
