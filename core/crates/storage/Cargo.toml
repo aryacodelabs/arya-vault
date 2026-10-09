@@ -9,6 +9,15 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+# SQLCipher compiled from source with a vendored OpenSSL: no system libcrypto needed,
+# identical cipher code on every platform (docs/04 §1, SEC-C13). `backup` = online
+# backup API for pre-migration copies; `hooks` is not used.
+rusqlite = { version = "0.40.2", default-features = false, features = ["bundled-sqlcipher-vendored-openssl", "backup"] }
+zeroize = "1.9.1"
+thiserror = "2.0.21"
+
+[dev-dependencies]
+tempfile = "3.27.0"
 
 [lints]
 workspace = true
