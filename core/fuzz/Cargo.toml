@@ -13,8 +13,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 
-# Later tasks add path dependencies on the crate under test here, e.g.
-# arya-vault-crypto = { path = "../crates/crypto" }
+# Path dependencies on the crates under test (one per fuzz target group).
+arya-vault-crypto = { path = "../crates/crypto" }
 
 # Keep this crate out of the core workspace (cargo-fuzz needs its own root).
 [workspace]
@@ -22,6 +22,13 @@ libfuzzer-sys = "0.4"
 [[bin]]
 name = "smoke"
 path = "fuzz_targets/smoke.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_recovery_key"
+path = "fuzz_targets/fuzz_recovery_key.rs"
 test = false
 doc = false
 bench = false
