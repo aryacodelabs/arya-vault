@@ -43,7 +43,7 @@ pub use model::{
     MAX_FIELD_BYTES, MAX_TAGS, SOFT_ITEM_LIMIT, StdField, VaultConfig,
 };
 pub use register::{FieldState, Merged, Register, concurrent_losers};
-pub use vault::Vault;
+pub use vault::{MAX_SETTING_BYTES, Vault};
 pub use views::{
     CustomView, Folder, ItemSummary, ItemView, ListFilter, NewItem, OldPassword, Page, ReuseGroup,
     SearchQuery, TrashEntry, UrlView, VersionInfo, WeakPassword,
