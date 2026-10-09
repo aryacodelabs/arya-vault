@@ -32,3 +32,31 @@ path = "fuzz_targets/fuzz_recovery_key.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "fuzz_cbor"
+path = "fuzz_targets/fuzz_cbor.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_header"
+path = "fuzz_targets/fuzz_header.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_envelope"
+path = "fuzz_targets/fuzz_envelope.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_path"
+path = "fuzz_targets/fuzz_path.rs"
+test = false
+doc = false
+bench = false

@@ -44,6 +44,8 @@ DerivedData/
 *.avlt
 *.seg
 *.snap
+# ...except the fake, canary-only golden test vectors (core/testdata/golden/README.md)
+!core/testdata/golden/**
 google-services.json
 GoogleService-Info.plist
 client_secret*.json

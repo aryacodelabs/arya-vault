@@ -26,7 +26,7 @@ compile_error!(
 );
 
 pub mod aead;
-mod cbor;
+pub mod format;
 pub mod hkdf;
 pub mod kdf;
 pub mod keys;
@@ -51,7 +51,12 @@ mod policy_tests {
     const CARGO_TOML: &str = include_str!("../Cargo.toml");
     const SOURCES: &[(&str, &str)] = &[
         ("aead.rs", include_str!("aead.rs")),
-        ("cbor.rs", include_str!("cbor.rs")),
+        ("format/cbor.rs", include_str!("format/cbor.rs")),
+        ("format/envelope.rs", include_str!("format/envelope.rs")),
+        ("format/header.rs", include_str!("format/header.rs")),
+        ("format/mod.rs", include_str!("format/mod.rs")),
+        ("format/padding.rs", include_str!("format/padding.rs")),
+        ("format/path.rs", include_str!("format/path.rs")),
         ("hkdf.rs", include_str!("hkdf.rs")),
         ("kdf.rs", include_str!("kdf.rs")),
         ("keys.rs", include_str!("keys.rs")),
