@@ -24,7 +24,7 @@ fn item_type(t: TypeArg) -> ItemType {
 fn open(ctx: &Ctx) -> Result<Unlocked> {
     let dir = ctx.vault_dir()?;
     let pw = ctx.master_password()?;
-    dir.unlock(&pw)
+    Unlocked::open(dir, &pw)
 }
 
 fn field_by_name(name: &str) -> Result<StdField> {
@@ -134,15 +134,15 @@ pub fn add(ctx: &Ctx, a: AddArgs) -> Result<()> {
     new.urls = a.urls;
     new.tags = a.tags;
     new.favorite = a.favorite;
-    let id = u.vault.create_item(new)?;
-    u.vault.close()?;
+    let id = u.run(|v| v.create_item(new))?;
+    u.close()?;
     ctx.out.emit(&hex(&id), &json!({ "id": hex(&id) }))
 }
 
 pub fn get(ctx: &Ctx, a: GetArgs) -> Result<()> {
     let mut u = open(ctx)?;
-    let id = resolve(&mut u.vault, &a.id)?;
-    let view = u.vault.get_item(&id)?;
+    let id = u.run(|v| resolve(v, &a.id))?;
+    let view = u.run(|v| v.get_item(&id))?;
     let mut lines = vec![
         format!("id:       {}", hex(&id)),
         format!("type:     {}", view.summary.item_type.as_str()),
@@ -157,7 +157,7 @@ pub fn get(ctx: &Ctx, a: GetArgs) -> Result<()> {
     let mut secrets = serde_json::Map::new();
     for f in &view.secret_fields {
         if a.reveal {
-            let v = u.vault.reveal(&id, *f)?;
+            let v = u.run(|v| v.reveal(&id, *f))?;
             let v = v.as_deref().map_or("", String::as_str);
             lines.push(format!("{}: {v}", f.key()));
             secrets.insert(f.key().to_owned(), json!(v));
@@ -177,8 +177,7 @@ pub fn get(ctx: &Ctx, a: GetArgs) -> Result<()> {
         let value = match (&c.value, c.has_value, a.reveal) {
             (Some(v), _, _) => Some(v.clone()),
             (None, true, true) => u
-                .vault
-                .reveal_custom(&id, &c.id)?
+                .run(|v| v.reveal_custom(&id, &c.id))?
                 .map(|z| z.as_str().to_owned()),
             _ => None,
         };
@@ -204,15 +203,14 @@ pub fn get(ctx: &Ctx, a: GetArgs) -> Result<()> {
         "tags": view.tags,
         "custom": custom,
     });
-    u.vault.close()?;
+    u.close()?;
     ctx.out.lines(&lines, &value)
 }
 
 pub fn list(ctx: &Ctx, a: ListArgs) -> Result<()> {
     let mut u = open(ctx)?;
     let rows: Vec<ItemSummary> = if a.trash {
-        u.vault
-            .list_trash()?
+        u.run(|v| v.list_trash())?
             .into_iter()
             .filter(|t| !t.purged)
             .map(|t| t.summary)
@@ -224,9 +222,9 @@ pub fn list(ctx: &Ctx, a: ListArgs) -> Result<()> {
             folder_id: None,
             favorites_only: a.favorites,
         };
-        u.vault.list(&filter, Page::ALL)?
+        u.run(|v| v.list(&filter, Page::ALL))?
     };
-    u.vault.close()?;
+    u.close()?;
     print_rows(ctx, &rows)
 }
 
@@ -240,16 +238,18 @@ fn print_rows(ctx: &Ctx, rows: &[ItemSummary]) -> Result<()> {
 
 pub fn search(ctx: &Ctx, a: SearchArgs) -> Result<()> {
     let mut u = open(ctx)?;
-    let rows = u.vault.search(&SearchQuery {
-        text: a.text,
-        filter: ListFilter {
-            item_type: a.item_type.map(item_type),
-            tag: a.tag,
-            ..ListFilter::default()
-        },
-        limit: a.limit,
+    let rows = u.run(|v| {
+        v.search(&SearchQuery {
+            text: a.text,
+            filter: ListFilter {
+                item_type: a.item_type.map(item_type),
+                tag: a.tag,
+                ..ListFilter::default()
+            },
+            limit: a.limit,
+        })
     })?;
-    u.vault.close()?;
+    u.close()?;
     print_rows(ctx, &rows)
 }
 
@@ -270,33 +270,33 @@ pub fn edit(ctx: &Ctx, a: EditArgs) -> Result<()> {
         .map(|s| field_by_name(s))
         .collect::<Result<_>>()?;
     let mut u = open(ctx)?;
-    let id = resolve(&mut u.vault, &a.id)?;
+    let id = u.run(|v| resolve(v, &a.id))?;
     if let Some(t) = &a.title {
-        u.vault.set_field(&id, StdField::Title, t)?;
+        u.run(|v| v.set_field(&id, StdField::Title, t))?;
     }
-    for (f, v) in fields {
-        u.vault.set_field(&id, f, v)?;
+    for (f, val) in fields {
+        u.run(|v| v.set_field(&id, f, val))?;
     }
     for f in secret_names {
-        let v = ctx.secrets.read(&format!("Value for {}", f.key()))?;
-        u.vault.set_field(&id, f, &v)?;
+        let val = ctx.secrets.read(&format!("Value for {}", f.key()))?;
+        u.run(|v| v.set_field(&id, f, &val))?;
     }
     for f in clears {
-        u.vault.clear_field(&id, f)?;
+        u.run(|v| v.clear_field(&id, f))?;
     }
     for t in &a.add_tags {
-        u.vault.add_tag(&id, t)?;
+        u.run(|v| v.add_tag(&id, t))?;
     }
     for t in &a.remove_tags {
-        u.vault.remove_tag(&id, t)?;
+        u.run(|v| v.remove_tag(&id, t))?;
     }
     for url in &a.add_urls {
-        u.vault.add_url(&id, url)?;
+        u.run(|v| v.add_url(&id, url))?;
     }
     if a.toggle_favorite {
-        u.vault.toggle_favorite(&id)?;
+        u.run(|v| v.toggle_favorite(&id))?;
     }
-    u.vault.close()?;
+    u.close()?;
     ctx.out.emit(
         &format!("updated {}", hex(&id)),
         &json!({ "id": hex(&id), "updated": true }),
@@ -324,9 +324,9 @@ fn mutate(
     f: impl FnOnce(&mut Vault, &Id) -> Result<()>,
 ) -> Result<()> {
     let mut u = open(ctx)?;
-    let id = resolve(&mut u.vault, id)?;
-    f(&mut u.vault, &id)?;
-    u.vault.close()?;
+    let id = u.run(|v| resolve(v, id))?;
+    u.run(|v| f(v, &id))?;
+    u.close()?;
     ctx.out.emit(
         &format!("{} {what}", hex(&id)),
         &json!({ "id": hex(&id), "status": what }),

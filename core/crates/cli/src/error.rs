@@ -76,6 +76,21 @@ impl From<std::io::Error> for CliError {
     }
 }
 
+impl From<arya_vault_session::SessionError> for CliError {
+    fn from(e: arya_vault_session::SessionError) -> Self {
+        use arya_vault_session::SessionError as E;
+        match e {
+            E::WrongCredentials => Self::auth(),
+            E::RecoveryKeyMalformed | E::WeakPassword(_) => Self::usage(e.to_string()),
+            E::NoVault => Self::vault("no readable vault header found in the vault directory"),
+            E::CorruptVault(_) | E::UnsupportedFormat { .. } => Self::vault(e.to_string()),
+            E::Storage(s) => Self::vault(s.to_string()),
+            E::Io(io) => io.into(),
+            other => Self::failure(other.to_string()),
+        }
+    }
+}
+
 impl From<arya_vault_vault::VaultError> for CliError {
     fn from(e: arya_vault_vault::VaultError) -> Self {
         Self::failure(e.to_string())
@@ -96,18 +111,6 @@ impl From<arya_vault_vault::ImportError> for CliError {
     }
 }
 
-impl From<arya_vault_storage::StorageError> for CliError {
-    fn from(e: arya_vault_storage::StorageError) -> Self {
-        Self::vault(e.to_string())
-    }
-}
-
-impl From<arya_vault_crypto::format::FormatError> for CliError {
-    fn from(e: arya_vault_crypto::format::FormatError) -> Self {
-        Self::vault(format!("unreadable vault header: {e}"))
-    }
-}
-
 impl From<arya_vault_crypto::kdf::KdfError> for CliError {
     fn from(e: arya_vault_crypto::kdf::KdfError) -> Self {
         Self::failure(e.to_string())
@@ -116,29 +119,6 @@ impl From<arya_vault_crypto::kdf::KdfError> for CliError {
 
 impl From<arya_vault_crypto::rng::RngError> for CliError {
     fn from(e: arya_vault_crypto::rng::RngError) -> Self {
-        Self::failure(e.to_string())
-    }
-}
-
-impl From<arya_vault_crypto::vault_key::VaultKeyError> for CliError {
-    fn from(e: arya_vault_crypto::vault_key::VaultKeyError) -> Self {
-        use arya_vault_crypto::vault_key::VaultKeyError as E;
-        match e {
-            E::Wrap(_) => Self::auth(),
-            other => Self::failure(other.to_string()),
-        }
-    }
-}
-
-impl From<arya_vault_crypto::wrap::WrapError> for CliError {
-    fn from(e: arya_vault_crypto::wrap::WrapError) -> Self {
-        let _ = e;
-        Self::auth()
-    }
-}
-
-impl From<arya_vault_crypto::hkdf::HkdfError> for CliError {
-    fn from(e: arya_vault_crypto::hkdf::HkdfError) -> Self {
         Self::failure(e.to_string())
     }
 }

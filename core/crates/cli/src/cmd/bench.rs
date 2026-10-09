@@ -5,13 +5,13 @@ use std::time::{Duration, Instant};
 use arya_vault_crypto::kdf::{self, KdfParams};
 use arya_vault_crypto::rng::OsRng;
 use arya_vault_generator::wordlist;
+use arya_vault_session::{RecoveryConfirmation, Session};
 use arya_vault_vault::{ItemType, ListFilter, NewItem, Page, SearchQuery, StdField};
 use serde_json::json;
 
 use super::Ctx;
 use crate::args::{BenchCmd, BenchKdfArgs, BenchSearchArgs};
 use crate::error::{CliError, Result};
-use crate::layout::VaultDir;
 
 fn ms(d: Duration) -> f64 {
     d.as_secs_f64() * 1000.0
@@ -88,16 +88,19 @@ fn search_bench(ctx: &Ctx, a: &BenchSearchArgs) -> Result<()> {
         return Err(CliError::usage("--items must be at least 1"));
     }
     let scratch = tempfile::tempdir()?;
-    let dir = VaultDir::new(scratch.path().join("bench-vault"));
+    let mut session = Session::open_dir(scratch.path().join("bench-vault"))?;
     let password = "CANARY-bench-master-password-0123456789";
     let words = wordlist();
     let word = |i: usize| words[(i.wrapping_mul(7919)) % words.len()];
 
     let t = Instant::now();
-    let _rk = dir.create(password, a.kdf_profile)?;
+    let _rk = session.create_with(
+        password,
+        a.kdf_profile.into(),
+        RecoveryConfirmation::NotRequired,
+    )?;
     let create = t.elapsed();
 
-    let mut u = dir.unlock(password)?;
     let mut writes = Vec::with_capacity(a.items);
     let populate = Instant::now();
     for i in 0..a.items {
@@ -112,30 +115,32 @@ fn search_bench(ctx: &Ctx, a: &BenchSearchArgs) -> Result<()> {
         let mut new = new;
         new.urls = vec![format!("https://{w1}.example.com/login")];
         let t = Instant::now();
-        u.vault.create_item(new)?;
+        session.with_vault(|v| v.create_item(new))??;
         writes.push(t.elapsed());
     }
     let populate = populate.elapsed();
-    u.vault.close()?;
+    session.lock()?;
 
     let (w50, w95, wmax) = percentiles(&mut writes);
 
     // Cold unlock: password -> Argon2id -> VK -> SQLCipher open -> first page of the list.
     let t = Instant::now();
-    let mut u = dir.unlock(password)?;
+    session.unlock(password)?;
     let unlocked = t.elapsed();
-    let first_page = u.vault.list(
-        &ListFilter::default(),
-        Page {
-            offset: 0,
-            limit: 50,
-        },
-    )?;
+    let first_page = session.with_vault(|v| {
+        v.list(
+            &ListFilter::default(),
+            Page {
+                offset: 0,
+                limit: 50,
+            },
+        )
+    })??;
     let cold = t.elapsed();
 
     // Header-only unlock (Argon2 + header) for the KDF share.
     let t = Instant::now();
-    let _ = dir.check_password(password)?;
+    session.check_header_password(password)?;
     let kdf_only = t.elapsed();
 
     let mut searches = Vec::with_capacity(a.queries);
@@ -150,11 +155,13 @@ fn search_bench(ctx: &Ctx, a: &BenchSearchArgs) -> Result<()> {
             w.chars().take(3).collect()
         };
         let t = Instant::now();
-        let r = u.vault.search(&SearchQuery {
-            text: text.clone(),
-            filter: ListFilter::default(),
-            limit: 100,
-        })?;
+        let r = session.with_vault(|v| {
+            v.search(&SearchQuery {
+                text: text.clone(),
+                filter: ListFilter::default(),
+                limit: 100,
+            })
+        })??;
         let took = t.elapsed();
         searches.push(took);
         hits += r.len();
@@ -162,19 +169,18 @@ fn search_bench(ctx: &Ctx, a: &BenchSearchArgs) -> Result<()> {
             slowest = (took, text, r.len(), q);
         }
     }
-    u.vault.close()?;
+    session.lock()?;
     let (s50, s95, smax) = percentiles(&mut searches);
-    let active = dir.active_header()?;
-    let k = &active.header.kdf;
+    let header = session.header_info()?;
 
     ctx.out.lines(
         &[
             format!(
                 "scratch vault: {} items, kdf argon2id m={} MiB t={} p={}",
                 a.items,
-                k.m_kib / 1024,
-                k.t,
-                k.p
+                header.kdf_m_kib / 1024,
+                header.kdf_t,
+                header.kdf_p
             ),
             format!("vault create (incl. calibration): {:.0} ms", ms(create)),
             format!(
@@ -205,7 +211,7 @@ fn search_bench(ctx: &Ctx, a: &BenchSearchArgs) -> Result<()> {
         ],
         &json!({
             "items": a.items,
-            "kdf": { "m_kib": k.m_kib, "t": k.t, "p": k.p },
+            "kdf": { "m_kib": header.kdf_m_kib, "t": header.kdf_t, "p": header.kdf_p },
             "create_ms": ms(create),
             "write_ms": { "p50": w50, "p95": w95, "max": wmax, "total_s": populate.as_secs_f64() },
             "cold_unlock_open_ms": ms(cold),
