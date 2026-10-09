@@ -81,6 +81,22 @@ pub struct RevealArgs {
 pub enum VaultCmd {
     /// Create a new vault. Prints the recovery key once (requires `--reveal`).
     Create(CreateArgs),
+    /// Rotate the vault key (docs/04 §10): new vault key and epoch, database re-keyed, **new
+    /// recovery key** printed once (requires `--reveal`); the old recovery key stops working.
+    RotateKeys(RotateKeysArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct RotateKeysArgs {
+    /// Print the new recovery key (it is shown exactly once and is required for this command).
+    #[arg(long)]
+    pub reveal: bool,
+    /// Also set a new master password ("change password and rotate keys"; reads: current, new).
+    #[arg(long)]
+    pub change_password: bool,
+    /// Argon2 profile for the new password wrap.
+    #[arg(long, value_enum, default_value_t = KdfProfile::Default)]
+    pub kdf_profile: KdfProfile,
 }
 
 #[derive(Debug, Args)]
