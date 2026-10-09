@@ -182,6 +182,12 @@ pub trait Store {
     fn get_field(&self, item_id: &Id, key: &str) -> Result<Option<FieldRow>>;
     /// All registers of an item, ordered by key.
     fn fields_for_item(&self, item_id: &Id) -> Result<Vec<FieldRow>>;
+    /// The register named exactly `key` for every item (one scan; used to list titles).
+    fn fields_with_key(&self, key: &str) -> Result<Vec<FieldRow>>;
+    /// Registers whose key starts with `prefix`, for every item (e.g. `tags.`).
+    fn fields_with_key_prefix(&self, prefix: &str) -> Result<Vec<FieldRow>>;
+    /// Number of item rows, including tombstones.
+    fn count_items(&self) -> Result<u64>;
 
     /// Add a history version (idempotent on the primary key).
     fn add_history(&self, row: &FieldHistoryRow) -> Result<()>;
@@ -350,6 +356,25 @@ impl Store for Tx<'_> {
         let mut stmt = self.conn.prepare("SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE item_id = ?1 ORDER BY key")?;
         let rows = stmt.query_map([&item_id[..]], field_row)?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    fn fields_with_key(&self, key: &str) -> Result<Vec<FieldRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE key = ?1",
+        )?;
+        let rows = stmt.query_map([key], field_row)?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+    fn fields_with_key_prefix(&self, prefix: &str) -> Result<Vec<FieldRow>> {
+        let mut stmt = self.conn.prepare("SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE substr(key, 1, length(?1)) = ?1")?;
+        let rows = stmt.query_map([prefix], field_row)?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+    fn count_items(&self) -> Result<u64> {
+        let n: i64 = self
+            .conn
+            .query_row("SELECT count(*) FROM item", [], |r| r.get(0))?;
+        Ok(u64::try_from(n).unwrap_or(0))
     }
 
     fn add_history(&self, h: &FieldHistoryRow) -> Result<()> {

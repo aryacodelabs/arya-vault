@@ -673,6 +673,39 @@ fn store_items_fields_history_folders() {
 }
 
 #[test]
+fn store_bulk_field_reads_and_item_count() {
+    let (_d, p) = setup();
+    let mut db = Db::create(&p, key(1), &params()).unwrap();
+    db.with_tx(|t| -> Result<()> {
+        assert_eq!(t.count_items()?, 0);
+        for n in 1..=3u8 {
+            t.upsert_item(&item(n))?;
+            t.put_field(&field(n, "title", &[n], 1))?;
+            t.put_field(&field(n, &format!("tags.t{n}"), b"x", 1))?;
+        }
+        t.put_field(&field(1, "titlex", b"no", 1))?;
+        t.put_field(&field(1, "tags%_", b"literal wildcard chars", 1))?;
+        assert_eq!(t.count_items()?, 3);
+        assert_eq!(t.fields_with_key("title")?.len(), 3, "exact key only");
+        assert_eq!(t.fields_with_key("nothing")?.len(), 0);
+        let mut tags: Vec<String> = t
+            .fields_with_key_prefix("tags.")?
+            .into_iter()
+            .map(|f| f.key)
+            .collect();
+        tags.sort();
+        assert_eq!(
+            tags,
+            ["tags.t1", "tags.t2", "tags.t3"],
+            "prefix is literal (no LIKE wildcards)"
+        );
+        assert_eq!(t.fields_with_key_prefix("tags%")?.len(), 1);
+        Ok(())
+    })
+    .unwrap();
+}
+
+#[test]
 fn store_sync_state() {
     let (_d, p) = setup();
     let mut db = Db::create(&p, key(1), &params()).unwrap();
