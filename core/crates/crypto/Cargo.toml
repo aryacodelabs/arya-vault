@@ -14,6 +14,11 @@ default = []
 # feature fail to compile (see src/lib.rs). Never enable in shipped artifacts.
 deterministic-rng = []
 
+# Regenerates core/testdata/golden/v1 (append-only; see that directory's README).
+[[example]]
+name = "gen_golden"
+required-features = ["deterministic-rng"]
+
 [dependencies]
 # RustCrypto primitives (docs/04 §1). Default features are disabled so only the
 # pieces we use are compiled; `zeroize` wipes internal state (and, for argon2, the
