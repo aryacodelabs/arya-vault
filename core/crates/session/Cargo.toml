@@ -1,6 +1,6 @@
 [package]
-name = "arya-vault-cli"
-description = "Headless test harness and scripting CLI."
+name = "arya-vault-session"
+description = "Vault lifecycle and session state machine: create, unlock, lock, password change, recovery (docs/04, docs/07, docs/14)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,24 +8,20 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
-[[bin]]
-name = "arya-vault"
-path = "src/main.rs"
-
 [dependencies]
 arya-vault-crypto = { path = "../crypto", version = "0.0.0" }
 arya-vault-storage = { path = "../storage", version = "0.0.0" }
 arya-vault-vault = { path = "../vault", version = "0.0.0" }
+# Master-password policy (SEC-A07); the same estimator the CLI used.
 arya-vault-generator = { path = "../generator", version = "0.0.0" }
-arya-vault-session = { path = "../session", version = "0.0.0" }
-clap = { version = "4.6.7", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
-rpassword = "7.5.4"
-serde_json = "1.0.151"
+# Constant-time comparison of recovery-key confirmation answers (docs/04 §1 lists `subtle`;
+# already in the dependency tree through the crypto crate).
+subtle = { version = "2.6.1", default-features = false }
 zeroize = "1.9.1"
-tempfile = "3.27.0"
+thiserror = "2.0.21"
 
 [dev-dependencies]
-assert_cmd = "2.2.2"
+tempfile = "3.27.0"
 
 [lints]
 workspace = true
