@@ -8,9 +8,10 @@ mod vault_cmd;
 
 use std::path::PathBuf;
 
+use arya_vault_session::Session;
+
 use crate::args::{Cli, Command, ItemCmd};
 use crate::error::{CliError, Result};
-use crate::layout::VaultDir;
 use crate::out::Out;
 use crate::secrets::Secrets;
 
@@ -22,11 +23,15 @@ pub struct Ctx {
 }
 
 impl Ctx {
-    pub fn vault_dir(&self) -> Result<VaultDir> {
+    pub fn vault_dir(&self) -> Result<PathBuf> {
         self.dir
             .clone()
-            .map(VaultDir::new)
             .ok_or_else(|| CliError::usage("this command needs --vault-dir <DIR>"))
+    }
+
+    /// A session over the `--vault-dir` (locked, or `NoVault` if the directory is empty).
+    pub fn session(&self) -> Result<Session> {
+        Ok(Session::open_dir(self.vault_dir()?)?)
     }
 
     pub fn master_password(&self) -> Result<zeroize::Zeroizing<String>> {

@@ -13,7 +13,7 @@ use serde_json::json;
 use super::Ctx;
 use crate::args::{ExportArgs, ExportFormat, ImportArgs, ImportFormat};
 use crate::error::{CliError, Result};
-use crate::layout::kdf_for;
+use crate::layout::Unlocked;
 
 /// Creates the output file exclusively (never overwrites), owner-only on Unix.
 fn create_new(path: &Path) -> Result<File> {
@@ -47,20 +47,17 @@ pub fn export(ctx: &Ctx, a: ExportArgs) -> Result<()> {
     }
     let dir = ctx.vault_dir()?;
     let pw = ctx.master_password()?;
-    let mut u = dir.unlock(&pw)?;
+    let mut u = Unlocked::open(dir, &pw)?;
     let (bytes, detail): (zeroize::Zeroizing<Vec<u8>>, serde_json::Value) = match a.format {
         ExportFormat::Aryavault => {
             let export_pw = ctx.secrets.read_new("Export password")?;
-            let cost = kdf_for(a.kdf_profile)?;
-            let b = u
-                .vault
-                .export_aryavault(&export_pw, &cost, a.include_history)?;
+            let cost = arya_vault_session::KdfProfile::from(a.kdf_profile).params()?;
+            let b = u.run(|v| v.export_aryavault(&export_pw, &cost, a.include_history))?;
             (zeroize::Zeroizing::new(b), json!({}))
         }
         ExportFormat::Csv => {
-            let e = u
-                .vault
-                .export_csv(PlaintextRiskAcknowledged::acknowledge_plaintext_risk())?;
+            let e =
+                u.run(|v| v.export_csv(PlaintextRiskAcknowledged::acknowledge_plaintext_risk()))?;
             let r = e.report;
             (
                 e.bytes,
@@ -73,7 +70,7 @@ pub fn export(ctx: &Ctx, a: ExportArgs) -> Result<()> {
             )
         }
     };
-    u.vault.close()?;
+    u.close()?;
     let mut f = create_new(&a.out)?;
     f.write_all(&bytes)?;
     f.sync_all()?;
@@ -89,7 +86,7 @@ pub fn import(ctx: &Ctx, a: ImportArgs) -> Result<()> {
     let bytes = read_limited(file, &limits)?;
     let dir = ctx.vault_dir()?;
     let pw = ctx.master_password()?;
-    let mut u = dir.unlock(&pw)?;
+    let mut u = Unlocked::open(dir, &pw)?;
     let bundle = match a.format {
         ImportFormat::Csv => parse_csv(&bytes, &limits)?,
         ImportFormat::Bitwarden => parse_bitwarden_json(&bytes, &limits)?,
@@ -98,15 +95,17 @@ pub fn import(ctx: &Ctx, a: ImportArgs) -> Result<()> {
             parse_aryavault(&bytes, &export_pw, &limits)?
         }
     };
-    let report = u.vault.commit_import(
-        &bundle,
-        &ImportOptions {
-            dry_run: a.dry_run,
-            skip_duplicates: !a.keep_duplicates,
-            target_folder: None,
-        },
-    )?;
-    u.vault.close()?;
+    let report = u.run(|v| {
+        v.commit_import(
+            &bundle,
+            &ImportOptions {
+                dry_run: a.dry_run,
+                skip_duplicates: !a.keep_duplicates,
+                target_folder: None,
+            },
+        )
+    })?;
+    u.close()?;
     let human = format!(
         "{}: {} item(s) created, {} folder(s) created, {} duplicate(s) skipped, {} invalid, \
          {} record(s) skipped by the parser, {} warning(s)",

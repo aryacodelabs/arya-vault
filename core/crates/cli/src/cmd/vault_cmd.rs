@@ -1,31 +1,22 @@
 //! `vault create`, `unlock-check`, `password change`, `recover`, `rotate-recovery-key`, `info`.
+//!
+//! Argument handling and output only: the lifecycle itself is `arya-vault-session`.
 
 use arya_vault_crypto::format::FORMAT_VERSION;
-use arya_vault_crypto::recovery_key;
-use arya_vault_generator::meets_master_password_policy;
-use arya_vault_storage::{Store, latest_schema_version};
+use arya_vault_session::{RecoveryConfirmation, RecoveryKeyResult};
+use arya_vault_storage::latest_schema_version;
 use serde_json::json;
 
 use super::Ctx;
 use crate::args::{InfoArgs, PasswordCmd, RecoverArgs, RevealArgs, VaultCmd};
 use crate::error::{CliError, Result};
-use crate::layout::parse_recovery_key;
 use crate::out::hex;
 
-/// SEC-A07: the master password policy applies to every new master password.
-fn require_policy(password: &str) -> Result<()> {
-    meets_master_password_policy(password).map_err(|v| {
-        let reasons: Vec<String> = v.iter().map(ToString::to_string).collect();
-        CliError::usage(format!("master password rejected: {}", reasons.join("; ")))
-    })
-}
+/// The CLI prints the key itself, so there is no onboarding step to confirm.
+const CLI_CONFIRMATION: RecoveryConfirmation = RecoveryConfirmation::NotRequired;
 
-fn show_recovery_key(
-    ctx: &Ctx,
-    rk: &arya_vault_crypto::keys::RecoveryKey,
-    extra: serde_json::Value,
-) -> Result<()> {
-    let text = recovery_key::encode(rk);
+fn show_recovery_key(ctx: &Ctx, rk: &RecoveryKeyResult, extra: serde_json::Value) -> Result<()> {
+    let text = rk.recovery_key();
     let mut value = extra;
     value["recovery_key"] = json!(text.as_str());
     ctx.out.lines(
@@ -45,23 +36,23 @@ pub fn vault(ctx: &Ctx, cmd: VaultCmd) -> Result<()> {
                     "vault create shows the recovery key exactly once; pass --reveal to print it",
                 ));
             }
-            let dir = ctx.vault_dir()?;
+            let mut session = ctx.session()?;
             let pw = ctx.secrets.read_new("New master password")?;
-            require_policy(&pw)?;
-            let rk = dir.create(&pw, a.kdf_profile)?;
+            let rk = session.create_with(&pw, a.kdf_profile.into(), CLI_CONFIRMATION)?;
             show_recovery_key(ctx, &rk, json!({ "created": true }))
         }
     }
 }
 
 pub fn unlock_check(ctx: &Ctx) -> Result<()> {
-    let dir = ctx.vault_dir()?;
+    let mut session = ctx.session()?;
     let pw = ctx.master_password()?;
-    let database_opened = if dir.has_db() {
-        dir.unlock(&pw)?.vault.close()?;
+    let database_opened = if session.has_database() {
+        session.unlock(&pw)?;
+        session.lock()?;
         true
     } else {
-        dir.check_password(&pw)?;
+        session.check_header_password(&pw)?;
         false
     };
     ctx.out.emit(
@@ -76,11 +67,10 @@ pub fn unlock_check(ctx: &Ctx) -> Result<()> {
 
 pub fn password(ctx: &Ctx, cmd: PasswordCmd) -> Result<()> {
     let PasswordCmd::Change { kdf_profile } = cmd;
-    let dir = ctx.vault_dir()?;
+    let mut session = ctx.session()?;
     let old = ctx.secrets.read("Current master password")?;
     let new = ctx.secrets.read_new("New master password")?;
-    require_policy(&new)?;
-    let version = dir.change_password(&old, &new, kdf_profile)?;
+    let version = session.change_password(&old, &new, kdf_profile.into())?;
     ctx.out.emit(
         &format!(
             "master password changed (header version {version}); the recovery key is unchanged"
@@ -95,18 +85,23 @@ pub fn recover(ctx: &Ctx, a: RecoverArgs) -> Result<()> {
             "--regenerate-recovery-key prints the new key once; pass --reveal as well",
         ));
     }
-    let dir = ctx.vault_dir()?;
+    let mut session = ctx.session()?;
     let rk_text = ctx.secrets.read("Recovery key")?;
-    let rk = parse_recovery_key(&rk_text)?;
     let new = ctx.secrets.read_new("New master password")?;
-    require_policy(&new)?;
-    let (version, new_rk) = dir.recover(&rk, &new, a.kdf_profile, a.regenerate_recovery_key)?;
-    match new_rk {
-        Some(k) => show_recovery_key(ctx, &k, json!({ "ok": true, "header_version": version })),
-        None => ctx.out.emit(
+    let profile = a.kdf_profile.into();
+    if a.regenerate_recovery_key {
+        let k = session.recover_and_regenerate(&rk_text, &new, profile, CLI_CONFIRMATION)?;
+        show_recovery_key(
+            ctx,
+            &k,
+            json!({ "ok": true, "header_version": k.header_version() }),
+        )
+    } else {
+        let version = session.recover(&rk_text, &new, profile)?;
+        ctx.out.emit(
             &format!("master password reset with the recovery key (header version {version})"),
             &json!({ "ok": true, "header_version": version }),
-        ),
+        )
     }
 }
 
@@ -116,39 +111,30 @@ pub fn rotate_recovery_key(ctx: &Ctx, a: RevealArgs) -> Result<()> {
             "rotate-recovery-key shows the new key exactly once; pass --reveal to print it",
         ));
     }
-    let dir = ctx.vault_dir()?;
+    let mut session = ctx.session()?;
     let pw = ctx.master_password()?;
-    let (version, rk) = dir.rotate_recovery_key(&pw)?;
-    show_recovery_key(ctx, &rk, json!({ "ok": true, "header_version": version }))
+    session.unlock(&pw)?;
+    let rk = session.regenerate_recovery_key_with(&pw, CLI_CONFIRMATION)?;
+    show_recovery_key(
+        ctx,
+        &rk,
+        json!({ "ok": true, "header_version": rk.header_version() }),
+    )
 }
 
-const PINNED_KEYS: [&str; 10] = [
-    "cipher.page_size",
-    "cipher.compatibility",
-    "cipher.kdf_algorithm",
-    "cipher.hmac_algorithm",
-    "cipher.kdf_iter",
-    "cipher.plaintext_header_size",
-    "sqlite.journal_mode",
-    "sqlite.synchronous",
-    "sqlite.foreign_keys",
-    "sqlite.secure_delete",
-];
-
 pub fn info(ctx: &Ctx, a: InfoArgs) -> Result<()> {
-    let dir = ctx.vault_dir()?;
-    let active = dir.active_header()?;
-    let h = &active.header;
+    let mut session = ctx.session()?;
+    let h = session.header_info()?;
     let mut lines = vec![
         format!("container format_version: {FORMAT_VERSION}"),
         format!("header format_version:    {}", h.format_version),
         format!("header_version:           {}", h.header_version),
         format!("epoch:                    {}", h.epoch),
         format!("vault_id:                 {}", hex(&h.vault_id)),
-        format!("device_id:                {}", hex(&active.device_id)),
+        format!("device_id:                {}", hex(&h.device_id)),
         format!(
             "kdf:                      argon2id m={} KiB t={} p={}",
-            h.kdf.m_kib, h.kdf.t, h.kdf.p
+            h.kdf_m_kib, h.kdf_t, h.kdf_p
         ),
         format!("created_at (unix s):      {}", h.created_at),
     ];
@@ -159,51 +145,33 @@ pub fn info(ctx: &Ctx, a: InfoArgs) -> Result<()> {
             "header_version": h.header_version,
             "epoch": h.epoch,
             "vault_id": hex(&h.vault_id),
-            "device_id": hex(&active.device_id),
-            "kdf": { "alg": "argon2id", "m_kib": h.kdf.m_kib, "t": h.kdf.t, "p": h.kdf.p },
+            "device_id": hex(&h.device_id),
+            "kdf": { "alg": "argon2id", "m_kib": h.kdf_m_kib, "t": h.kdf_t, "p": h.kdf_p },
             "created_at": h.created_at,
         },
         "database": null,
     });
-    if !a.no_unlock && dir.has_db() {
+    if !a.no_unlock && session.has_database() {
         let pw = ctx.master_password()?;
-        let (active, vk) = dir.check_password(&pw)?;
-        let key = {
-            use arya_vault_crypto::hkdf::{SubKeyLabel, subkey};
-            let sub = subkey(
-                &vk,
-                &active.header.vault_id,
-                SubKeyLabel::Db,
-                active.header.epoch,
-            )?;
-            arya_vault_storage::DbKey::from_bytes(*sub.expose_secret())
-        };
-        let mut db = arya_vault_storage::Db::open(&dir.db_path(), key)?;
-        let schema = db.schema_version()?;
+        session.unlock(&pw)?;
+        let db = session.db_info()?;
         let mut pinned = serde_json::Map::new();
-        for k in PINNED_KEYS {
-            let v = db.with_read(
-                |tx| -> std::result::Result<Option<Vec<u8>>, arya_vault_storage::StorageError> {
-                    tx.meta_get(k)
-                },
-            )?;
-            let v = v.map_or_else(
-                || "(unset)".to_owned(),
-                |b| String::from_utf8_lossy(&b).into_owned(),
-            );
+        for (k, v) in &db.pinned_settings {
+            let v = v.clone().unwrap_or_else(|| "(unset)".to_owned());
             lines.push(format!("{k}: {v}"));
-            pinned.insert(k.to_owned(), json!(v));
+            pinned.insert((*k).to_owned(), json!(v));
         }
         lines.push(format!(
-            "schema_version:           {schema} (latest supported {})",
+            "schema_version:           {} (latest supported {})",
+            db.schema_version,
             latest_schema_version()
         ));
         value["database"] = json!({
-            "schema_version": schema,
+            "schema_version": db.schema_version,
             "latest_schema_version": latest_schema_version(),
             "pinned_settings": pinned,
         });
-        db.close()?;
+        session.lock()?;
     }
     ctx.out.lines(&lines, &value)
 }
