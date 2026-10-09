@@ -1799,3 +1799,28 @@ fn perf_20k_items_search_and_list() {
     }
     eprintln!("(informational, unpaged) list all: {l_all:?}, list favorites_only: {l_type:?}");
 }
+
+#[test]
+fn settings_round_trip_and_stay_in_their_namespace() {
+    let mut e = env();
+    assert_eq!(e.v.get_setting("app").unwrap(), None);
+    e.v.set_setting("app", b"v1").unwrap();
+    e.v.set_setting("app", b"v2").unwrap();
+    assert_eq!(e.v.get_setting("app").unwrap().as_deref(), Some(&b"v2"[..]));
+    // Names that could reach the vault's own meta keys are refused.
+    for bad in ["", "device_id", "Hlc", "a b", "../x", &"a".repeat(65)] {
+        let r = e.v.get_setting(bad);
+        // "device_id" is a legal *name* (it lives under `setting.`), the rest are not.
+        if bad == "device_id" {
+            assert_eq!(r.unwrap(), None);
+        } else {
+            assert!(matches!(r, Err(VaultError::InvalidValue(_))), "{bad:?}");
+        }
+    }
+    assert!(matches!(
+        e.v.set_setting("big", &vec![0; MAX_SETTING_BYTES + 1]),
+        Err(VaultError::LimitExceeded(_))
+    ));
+    // The vault still opens: the setting did not touch `device_id`.
+    assert_eq!(e.v.device_id(), [0xB2; 16]);
+}

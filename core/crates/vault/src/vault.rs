@@ -101,6 +101,33 @@ impl Vault {
         self.cfg = cfg;
     }
 
+    /// Reads an app-level setting kept in the encrypted `meta` table under `setting.<name>`.
+    ///
+    /// Settings are opaque bytes to this crate; the namespace keeps callers away from the keys
+    /// the vault itself owns (`device_id`, the clock, the key epoch...).
+    ///
+    /// # Errors
+    /// [`VaultError::InvalidValue`] for a malformed name; storage errors.
+    pub fn get_setting(&mut self, name: &str) -> Result<Option<Vec<u8>>> {
+        let key = setting_key(name)?;
+        self.db
+            .with_read(|tx| Ok::<_, VaultError>(tx.meta_get(&key)?))
+    }
+
+    /// Stores an app-level setting (see [`Vault::get_setting`]) in one transaction.
+    ///
+    /// # Errors
+    /// [`VaultError::InvalidValue`] for a malformed name; [`VaultError::LimitExceeded`] above
+    /// [`MAX_SETTING_BYTES`]; storage errors.
+    pub fn set_setting(&mut self, name: &str, value: &[u8]) -> Result<()> {
+        let key = setting_key(name)?;
+        if value.len() > MAX_SETTING_BYTES {
+            return Err(VaultError::LimitExceeded("setting value too large"));
+        }
+        self.db
+            .with_tx(|tx| Ok::<_, VaultError>(tx.meta_set(&key, value)?))
+    }
+
     /// Close the vault (checkpoints the WAL and zeroizes the database key).
     ///
     /// # Errors
@@ -716,6 +743,22 @@ impl Vault {
 }
 
 // ---------------------------------------------------------------------- helpers
+
+/// Largest value [`Vault::set_setting`] accepts.
+pub const MAX_SETTING_BYTES: usize = 4096;
+const MAX_SETTING_NAME_BYTES: usize = 64;
+
+fn setting_key(name: &str) -> Result<String> {
+    if name.is_empty()
+        || name.len() > MAX_SETTING_NAME_BYTES
+        || !name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_' || b == b'.')
+    {
+        return Err(VaultError::InvalidValue("setting name"));
+    }
+    Ok(format!("setting.{name}"))
+}
 
 fn check_folder_name(name: &str) -> Result<()> {
     if name.trim().is_empty()

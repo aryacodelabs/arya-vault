@@ -86,6 +86,14 @@ dependencies = [
 [[package]]
 name = "arya-vault-ffi"
 version = "0.0.0"
+dependencies = [
+ "arya-vault-ffi",
+ "arya-vault-generator",
+ "arya-vault-session",
+ "arya-vault-vault",
+ "tempfile",
+ "zeroize",
+]
 
 [[package]]
 name = "arya-vault-generator"
