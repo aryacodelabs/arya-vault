@@ -128,10 +128,10 @@ pub fn parse_bitwarden_json(
                     item.set(StdField::TotpSeed, text(l.get("totp")).unwrap_or(""));
                     if let Some(uris) = l.get("uris").and_then(Json::as_array) {
                         for u in uris {
-                            if let Some(uri) = text(u.get("uri")) {
-                                if !item.urls.iter().any(|x| x == uri) {
-                                    item.urls.push(uri.to_owned());
-                                }
+                            if let Some(uri) = text(u.get("uri"))
+                                && !item.urls.iter().any(|x| x == uri)
+                            {
+                                item.urls.push(uri.to_owned());
                             }
                         }
                     }

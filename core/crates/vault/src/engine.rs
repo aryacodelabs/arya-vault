@@ -148,11 +148,11 @@ pub(crate) fn apply_op(s: &impl Store, op: &Op, cfg: &VaultConfig) -> Result<()>
         },
         history_limit(cfg, &op.key),
     );
-    if after.winner != before.winner {
-        if let Some(w) = &after.winner {
-            s.put_field(&to_row(&op.item_id, &op.key, w))?;
-            fault::point()?;
-        }
+    if after.winner != before.winner
+        && let Some(w) = &after.winner
+    {
+        s.put_field(&to_row(&op.item_id, &op.key, w))?;
+        fault::point()?;
     }
     if !same_history(&after.history, &before.history) {
         s.prune_history(&op.item_id, &op.key, 0)?;
