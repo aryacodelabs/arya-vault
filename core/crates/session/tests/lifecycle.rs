@@ -194,9 +194,8 @@ fn state_machine_violations_return_locked_and_friends() {
     // NoVault
     let tmp = tempfile::tempdir().unwrap();
     let mut s = Session::open_dir(tmp.path().join("none")).unwrap();
-    let well_formed_key = recovery_key::encode(
-        &recovery_key::generate(&mut arya_vault_crypto::rng::OsRng).unwrap(),
-    );
+    let well_formed_key =
+        recovery_key::encode(&recovery_key::generate(&mut arya_vault_crypto::rng::OsRng).unwrap());
     expect_code(s.with_vault(|_| ()), "locked");
     expect_code(s.unlock(PW), "notFound");
     expect_code(s.change_password(PW, PW2, LOW), "notFound");
