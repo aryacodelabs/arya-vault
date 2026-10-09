@@ -866,8 +866,10 @@ const V2_BAD: Migration = Migration {
     sql: "CREATE TABLE extra(x INTEGER); INSERT INTO table_that_does_not_exist VALUES (1);",
 };
 
+/// The schema-1 migration list as first shipped (the committed fixture is a v1 database; the
+/// tests below layer a fake migration on top of it).
 fn v1_list() -> Vec<Migration> {
-    MIGRATIONS.to_vec()
+    MIGRATIONS[..1].to_vec()
 }
 fn list_with(extra: Migration) -> Vec<Migration> {
     let mut v = v1_list();
@@ -966,7 +968,8 @@ fn fixture_copy() -> (tempfile::TempDir, PathBuf) {
 #[test]
 fn committed_v1_fixture_still_opens() {
     let (_d, p) = fixture_copy();
-    let mut db = Db::open(&p, fixture_key()).unwrap();
+    // A build that only knows schema 1 (the real `Db::open` now migrates to 2: next test).
+    let mut db = Db::open_with(&p, fixture_key(), &v1_list()).unwrap();
     assert_eq!(db.schema_version().unwrap(), 1);
     assert_fixture(&mut db);
     assert!(
@@ -995,7 +998,7 @@ fn migration_from_v1_fixture_makes_encrypted_backup_and_keeps_data() {
         "backup must be encrypted"
     );
     // The backup is a complete v1 database under the same key.
-    let mut old = Db::open(&b[0], fixture_key()).unwrap();
+    let mut old = Db::open_with(&b[0], fixture_key(), &v1_list()).unwrap();
     assert_eq!(old.schema_version().unwrap(), 1);
     assert_fixture(&mut old);
     assert!(
@@ -1012,7 +1015,7 @@ fn failed_migration_rolls_back_and_leaves_original_intact() {
         matches!(r, Err(StorageError::MigrationFailed { version: 2 })),
         "{r:?}"
     );
-    let mut db = Db::open(&p, fixture_key()).unwrap();
+    let mut db = Db::open_with(&p, fixture_key(), &v1_list()).unwrap();
     assert_eq!(db.schema_version().unwrap(), 1);
     assert!(
         db.conn.prepare("SELECT x FROM extra").is_err(),
@@ -1029,7 +1032,13 @@ fn failed_migration_rolls_back_and_leaves_original_intact() {
 #[test]
 fn newer_database_is_refused() {
     let (_d, p) = fixture_copy();
-    Db::open_with(&p, fixture_key(), &list_with(V2_OK))
+    // This build's migrations plus one from "the future".
+    let mut future = MIGRATIONS.to_vec();
+    future.push(Migration {
+        version: latest_schema_version() + 1,
+        sql: "CREATE TABLE extra(x INTEGER);",
+    });
+    Db::open_with(&p, fixture_key(), &future)
         .unwrap()
         .close()
         .unwrap();
@@ -1037,10 +1046,8 @@ fn newer_database_is_refused() {
     assert!(
         matches!(
             r,
-            Err(StorageError::SchemaTooNew {
-                found: 2,
-                supported: 1
-            })
+            Err(StorageError::SchemaTooNew { found, supported })
+                if found == latest_schema_version() + 1 && supported == latest_schema_version()
         ),
         "{r:?}"
     );
@@ -1086,6 +1093,217 @@ fn backups_older_than_14_days_are_pruned() {
     assert_eq!(
         migrations::BACKUP_RETENTION,
         Duration::from_secs(14 * 86_400)
+    );
+}
+
+// ------------------------------------------------------------ schema v2 (A00)
+
+fn index_names(db: &Db) -> Vec<String> {
+    let mut stmt = db
+        .conn
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'field\\_%' ESCAPE '\\' ORDER BY name")
+        .unwrap();
+    stmt.query_map([], |r| r.get::<_, String>(0))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect()
+}
+
+fn plan(db: &Db, sql: &str) -> String {
+    let mut stmt = db
+        .conn
+        .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+        .unwrap();
+    stmt.query_map([], |r| r.get::<_, String>(3))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect::<Vec<_>>()
+        .join(" | ")
+}
+
+#[test]
+fn v1_fixture_migrates_to_v2_with_an_encrypted_backup_and_the_indexes() {
+    let (d, p) = fixture_copy();
+    let mut db = Db::open(&p, fixture_key()).unwrap();
+    assert_eq!(db.schema_version().unwrap(), 2);
+    assert_eq!(latest_schema_version(), 2);
+    assert_fixture(&mut db);
+    assert!(index_names(&db).contains(&"field_title_cover".to_owned()));
+    assert!(index_names(&db).contains(&"field_favorite_cover".to_owned()));
+    // The statements that matter really use them (and do not touch the table).
+    for key in ["title", "favorite"] {
+        let p = plan(
+            &db,
+            &format!(
+                "SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE key = '{key}'"
+            ),
+        );
+        assert!(p.contains("COVERING INDEX"), "{key}: {p}");
+    }
+    db.close().unwrap();
+
+    // The backup is the untouched v1 file, encrypted.
+    let b = backups(d.path());
+    assert_eq!(b.len(), 1, "{b:?}");
+    assert!(b[0].to_string_lossy().contains(".bak-v1-"));
+    let bytes = std::fs::read(&b[0]).unwrap();
+    assert!(!bytes.starts_with(b"SQLite format 3\0") && !contains(&bytes, b"CANARY-FIXTURE"));
+    let mut old = Db::open_with(&b[0], fixture_key(), &v1_list()).unwrap();
+    assert_eq!(old.schema_version().unwrap(), 1);
+    assert_fixture(&mut old);
+    assert!(index_names(&old).iter().all(|n| !n.ends_with("_cover")));
+
+    // Reopening a v2 database migrates nothing and makes no second backup (opening the backup
+    // above left its -wal/-shm sidecars, which `backups` also lists).
+    Db::open(&p, fixture_key()).unwrap().close().unwrap();
+    let files: Vec<_> = backups(d.path())
+        .into_iter()
+        .filter(|f| {
+            !f.to_string_lossy().ends_with("-wal") && !f.to_string_lossy().ends_with("-shm")
+        })
+        .collect();
+    assert_eq!(files.len(), 1, "{files:?}");
+}
+
+#[test]
+fn v2_migration_failure_rolls_back_completely() {
+    let (d, p) = fixture_copy();
+    // Something already called `field_favorite_cover`: the second CREATE INDEX of the migration
+    // fails, after the first one succeeded. Neither may remain.
+    {
+        let c = raw(&p, &fixture_key());
+        c.execute_batch("CREATE TABLE field_favorite_cover(x INTEGER);")
+            .unwrap();
+    }
+    let r = Db::open(&p, fixture_key());
+    assert!(
+        matches!(r, Err(StorageError::MigrationFailed { version: 2 })),
+        "{r:?}"
+    );
+    let c = raw(&p, &fixture_key());
+    let names: Vec<String> = c
+        .prepare("SELECT name FROM sqlite_master WHERE name LIKE 'field\\_%title%' ESCAPE '\\'")
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect();
+    assert!(names.is_empty(), "partial migration left {names:?}");
+    drop(c);
+    // Still a v1 database with all its data, and a backup was taken before the attempt.
+    let mut db = Db::open_with(&p, fixture_key(), &v1_list()).unwrap();
+    assert_eq!(db.schema_version().unwrap(), 1);
+    assert_fixture(&mut db);
+    assert_eq!(
+        backups(d.path()).len(),
+        1,
+        "taken before the failed attempt"
+    );
+}
+
+#[test]
+fn the_covering_indexes_hold_only_title_and_favorite_rows() {
+    let (_d, p) = setup();
+    let mut db = Db::create(&p, key(3), &params()).unwrap();
+    db.with_tx(|t| -> Result<()> {
+        t.upsert_item(&item(1))?;
+        for (k, v) in [
+            ("title", &b"CANARY-title"[..]),
+            ("favorite", b"\xf5"),
+            ("password", b"CANARY-SECRET-password"),
+            ("totp_seed", b"CANARY-SECRET-totp"),
+            ("body", b"CANARY-SECRET-body"),
+            ("number", b"CANARY-SECRET-card"),
+        ] {
+            t.put_field(&field(1, k, v, 5))?;
+        }
+        Ok(())
+    })
+    .unwrap();
+    // The index definitions are literal-predicate partial indexes on exactly those two keys.
+    let defs: Vec<String> = db
+        .conn
+        .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND name LIKE '%\\_cover' ESCAPE '\\'")
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect();
+    assert_eq!(defs.len(), 2, "{defs:?}");
+    assert!(defs.iter().any(|d| d.ends_with("WHERE key = 'title'")));
+    assert!(defs.iter().any(|d| d.ends_with("WHERE key = 'favorite'")));
+    // Reading *through* each index yields only its own key (nothing secret is in them).
+    for (idx, want) in [
+        ("field_title_cover", "title"),
+        ("field_favorite_cover", "favorite"),
+    ] {
+        let keys: Vec<String> = db
+            .conn
+            .prepare(&format!(
+                "SELECT key FROM field INDEXED BY {idx} WHERE key = '{want}'"
+            ))
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        assert_eq!(keys, vec![want.to_owned()]);
+    }
+    db.close().unwrap();
+    // SEC-S05: still nothing readable on disk.
+    let bytes = std::fs::read(&p).unwrap();
+    assert!(!contains(&bytes, b"CANARY"));
+}
+
+#[test]
+fn fields_with_key_gives_the_same_rows_with_and_without_the_indexes() {
+    let (_d, p) = setup();
+    let mut db = Db::create(&p, key(4), &params()).unwrap();
+    db.with_tx(|t| -> Result<()> {
+        for n in 1..=40u8 {
+            t.upsert_item(&item(n))?;
+            t.put_field(&field(
+                n,
+                "title",
+                format!("title {n}").as_bytes(),
+                i64::from(n),
+            ))?;
+            t.put_field(&field(n, "Title", b"case differs", 1))?;
+            t.put_field(&field(n, "titles", b"prefix differs", 1))?;
+            t.put_field(&field(n, "password", b"CANARY", 1))?;
+            if n % 3 == 0 {
+                t.put_field(&field(n, "favorite", b"\xf5", 2))?;
+            }
+        }
+        // A deleted register (value NULL) is still a row.
+        t.put_field(&FieldRow {
+            value: None,
+            ..field(7, "favorite", b"", 9)
+        })?;
+        Ok(())
+    })
+    .unwrap();
+    for key in ["title", "favorite", "password", "Title", "nothing"] {
+        let via_api = db.with_read(|t| t.fields_with_key(key)).unwrap();
+        let mut naive: Vec<FieldRow> = db
+            .conn
+            .prepare("SELECT item_id, key, value, hlc, device_id, base_hlc FROM field NOT INDEXED WHERE key = ?1")
+            .unwrap()
+            .query_map([key], crate::store::field_row)
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        let mut got = via_api;
+        let order = |a: &FieldRow, b: &FieldRow| a.item_id.cmp(&b.item_id);
+        got.sort_by(order);
+        naive.sort_by(order);
+        assert_eq!(got, naive, "key {key}");
+    }
+    assert_eq!(
+        db.with_read(|t| t.fields_with_key("favorite"))
+            .unwrap()
+            .len(),
+        14
     );
 }
 
