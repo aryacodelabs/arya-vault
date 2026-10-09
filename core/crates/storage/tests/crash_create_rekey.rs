@@ -292,8 +292,7 @@ fn sec_s06_kill_during_rekey_leaves_a_database_that_opens_under_one_of_the_two_k
     seed_rekey_db(&path);
 
     // How long one rekey of this file takes here (median of 5, on a copy), so the kill delays
-    // can be spread over exactly that span and the kills that surely landed *inside* a rekey
-    // can be counted.
+    // can be spread over that span.
     let rekey_time = {
         let scratch = dir.path().join("timing.db");
         std::fs::copy(&path, &scratch).unwrap();
@@ -328,29 +327,45 @@ fn sec_s06_kill_during_rekey_leaves_a_database_that_opens_under_one_of_the_two_k
         let mut last_ack = current;
         let mut began = false;
         let mut acks = 0;
-        let reader = BufReader::new(child.stdout.as_mut().unwrap());
-        for line in reader.lines() {
-            let Ok(line) = line else { break };
+        // One reader for the child's whole life: after the kill the pipe still holds whatever the
+        // child wrote before it died, and the exact last ACK is needed (the child can complete
+        // several rekeys between the parent's last read and the kill, notably on a fast machine).
+        let mut reader = BufReader::new(child.stdout.take().unwrap());
+        let note = |line: &str, last_ack: &mut u64, began: &mut bool, acks: &mut u64| {
             if let Some((_, n)) = line.split_once("ACK ") {
-                last_ack = n.trim().parse().unwrap();
-                acks += 1;
-                began = false;
+                *last_ack = n.trim().parse().unwrap();
+                *acks += 1;
+                *began = false;
             } else if line.contains("BEGIN ") {
-                began = true;
-                if acks >= target {
-                    break;
-                }
+                *began = true;
+            }
+        };
+        let mut line = String::new();
+        loop {
+            line.clear();
+            if reader.read_line(&mut line).unwrap() == 0 {
+                break;
+            }
+            note(&line, &mut last_ack, &mut began, &mut acks);
+            if began && acks >= target {
+                break;
             }
         }
-        let delay = Duration::from_micros(rng.next(span));
-        let began_at = std::time::Instant::now();
-        std::thread::sleep(delay);
+        std::thread::sleep(Duration::from_micros(rng.next(span)));
         kill(&mut child);
-        // Less than half a typical rekey after its BEGIN line: it cannot have finished.
-        if began && began_at.elapsed() < rekey_time / 2 {
+        // Everything the child managed to write before it died.
+        loop {
+            line.clear();
+            if reader.read_line(&mut line).unwrap_or(0) == 0 {
+                break;
+            }
+            note(&line, &mut last_ack, &mut began, &mut acks);
+        }
+        // A trailing BEGIN without its ACK: the kill came while a rekey was running (or in the
+        // instants around it).
+        if began {
             inside += 1;
         }
-        drop(child.stdout.take());
 
         // The file opens under the last acknowledged key (rekey did not commit) or the next one
         // (it did), never under both and never under neither.
@@ -387,7 +402,7 @@ fn sec_s06_kill_during_rekey_leaves_a_database_that_opens_under_one_of_the_two_k
         current = which;
     }
     println!(
-        "{} kills survived (one rekey takes ~{rekey_time:?}): {inside} landed certainly inside a rekey; {kept_old} left the old key, {took_new} the new one; ended at key {current}",
+        "{} kills survived (one rekey takes ~{rekey_time:?}): {inside} caught a rekey in progress (BEGIN logged, no ACK); {kept_old} left the old key, {took_new} the new one; ended at key {current}",
         iterations()
     );
     assert!(current > 0, "no rekey ever committed; test is vacuous");
