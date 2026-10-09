@@ -1,0 +1,6 @@
+# Direct dependencies of the independent cross-check decryptor (docs/11 §2).
+# Regenerate requirements.txt with:
+#   pip-compile --generate-hashes --strip-extras --allow-unsafe -o requirements.txt requirements.in
+argon2-cffi
+cryptography
+PyNaCl

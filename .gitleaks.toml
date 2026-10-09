@@ -1,0 +1,14 @@
+# gitleaks configuration (used by the `secret-scan` job in .github/workflows/ci.yml).
+# Start from the default ruleset; only the allowlist below is project-specific.
+[extend]
+useDefault = true
+
+# The golden test vault (core/testdata/golden/, see its README) is FAKE data generated
+# from a fixed public seed with the non-secure deterministic RNG; its "recovery key" is
+# published in the README and in tests. Allow exactly that value in exactly that file so
+# every other occurrence of anything key-shaped is still scanned.
+[[allowlists]]
+description = "Fake golden-vault recovery key in expected.json (canary test data)"
+condition = "AND"
+paths = ['''^core/testdata/golden/v1/expected\.json$''']
+regexes = ['''MH365-7P3RV-640RY-YD7T8-RN1R5-65JCX-SA-65''']
