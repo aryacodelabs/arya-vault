@@ -20,8 +20,15 @@ subtle = { version = "2.6.1", default-features = false }
 zeroize = "1.9.1"
 thiserror = "2.0.21"
 
+[features]
+default = []
+# Fake quick-unlock provider for tests; refuses to compile in release builds.
+test-support = []
+
 [dev-dependencies]
 tempfile = "3.27.0"
+# Integration tests need the fake provider.
+arya-vault-session = { path = ".", features = ["test-support"] }
 
 [lints]
 workspace = true

@@ -10,8 +10,9 @@ use arya_vault_storage::StorageError;
 use arya_vault_vault::VaultError;
 use thiserror::Error;
 
-/// The error codes of docs/14 §2 (`AppErrorCode`), minus `quickUnlockUnavailable`, which
-/// belongs to task A02.
+use crate::quick::QuickUnlockDenied;
+
+/// The error codes of docs/14 §2 (`AppErrorCode`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AppErrorCode {
     /// Wrong master password or recovery key.
@@ -32,6 +33,8 @@ pub enum AppErrorCode {
     CorruptVault,
     /// The data is from a newer format than this build understands.
     UnsupportedFormat,
+    /// Quick unlock cannot be used now; fall back to the master password.
+    QuickUnlockUnavailable,
     /// The target already exists.
     AlreadyExists,
     /// Filesystem failure.
@@ -56,6 +59,7 @@ impl AppErrorCode {
             Self::LimitReached => "limitReached",
             Self::CorruptVault => "corruptVault",
             Self::UnsupportedFormat => "unsupportedFormat",
+            Self::QuickUnlockUnavailable => "quickUnlockUnavailable",
             Self::AlreadyExists => "alreadyExists",
             Self::Io => "io",
             Self::Busy => "busy",
@@ -111,6 +115,9 @@ pub enum SessionError {
         /// Highest version this build reads.
         max_supported: u16,
     },
+    /// Quick unlock cannot be used; the master password is required.
+    #[error("{}", .0.message())]
+    QuickUnlockUnavailable(QuickUnlockDenied),
     /// The storage layer failed.
     #[error(transparent)]
     Storage(#[from] StorageError),
@@ -207,6 +214,7 @@ impl SessionError {
             Self::WeakPassword(_) => AppErrorCode::WeakPassword,
             // docs/14 has no code for a running delay; see "Spec questions" in the A01 PR.
             Self::Backoff { .. } => AppErrorCode::Busy,
+            Self::QuickUnlockUnavailable(_) => AppErrorCode::QuickUnlockUnavailable,
             Self::CorruptVault(_) => AppErrorCode::CorruptVault,
             Self::UnsupportedFormat { .. } => AppErrorCode::UnsupportedFormat,
             Self::Storage(s) => storage_code(s),
@@ -267,6 +275,10 @@ mod tests {
             (SessionError::WeakPassword(vec!["x".into()]), "weakPassword"),
             (SessionError::Backoff { retry_after_ms: 5 }, "busy"),
             (SessionError::CorruptVault("x"), "corruptVault"),
+            (
+                SessionError::QuickUnlockUnavailable(QuickUnlockDenied::Rebooted),
+                "quickUnlockUnavailable",
+            ),
             (
                 SessionError::UnsupportedFormat {
                     found: 2,
@@ -338,6 +350,7 @@ mod tests {
             (C::LimitReached, "limitReached"),
             (C::CorruptVault, "corruptVault"),
             (C::UnsupportedFormat, "unsupportedFormat"),
+            (C::QuickUnlockUnavailable, "quickUnlockUnavailable"),
             (C::AlreadyExists, "alreadyExists"),
             (C::Io, "io"),
             (C::Busy, "busy"),

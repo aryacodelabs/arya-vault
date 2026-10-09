@@ -29,15 +29,20 @@ pub mod layout;
 mod lifecycle;
 pub mod meta;
 pub mod profile;
+pub mod quick;
 mod state;
 
 pub use backoff::{BackoffPolicy, Clock, FailureBackoff, MonotonicClock};
 pub use diag::{DbInfo, HeaderInfo, PINNED_SETTING_KEYS};
 pub use error::{AppErrorCode, Result, SessionError};
 pub use profile::KdfProfile;
+pub use quick::{
+    Blob, NoProvider, PolicyRecord, ProviderError, QuickUnlockConfig, QuickUnlockDenied,
+    QuickUnlockKind, QuickUnlockProvider, QuickUnlockStatus, SystemWallClock, WallClock,
+};
 pub use state::{
-    CONFIRMATION_GROUPS, CONFIRMATION_POOL, RECOVERY_KEY_GROUPS, RecoveryConfirmation,
-    RecoveryKeyResult, Session, SessionConfig, SessionState, VaultStatus,
+    CONFIRMATION_GROUPS, CONFIRMATION_POOL, LockRequestHandle, RECOVERY_KEY_GROUPS,
+    RecoveryConfirmation, RecoveryKeyResult, Session, SessionConfig, SessionState, VaultStatus,
 };
 
 #[cfg(test)]

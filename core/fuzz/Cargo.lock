@@ -69,6 +69,7 @@ name = "arya-vault-fuzz"
 version = "0.0.0"
 dependencies = [
  "arya-vault-crypto",
+ "arya-vault-session",
  "arya-vault-vault",
  "libfuzzer-sys",
 ]
@@ -81,6 +82,19 @@ dependencies = [
  "thiserror",
  "zeroize",
  "zxcvbn",
+]
+
+[[package]]
+name = "arya-vault-session"
+version = "0.0.0"
+dependencies = [
+ "arya-vault-crypto",
+ "arya-vault-generator",
+ "arya-vault-storage",
+ "arya-vault-vault",
+ "subtle",
+ "thiserror",
+ "zeroize",
 ]
 
 [[package]]
