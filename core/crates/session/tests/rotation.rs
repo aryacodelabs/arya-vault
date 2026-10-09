@@ -159,6 +159,7 @@ fn sec_a06_rotation_round_trip() {
     s2.unlock(PW3).unwrap();
     s2.lock().unwrap();
     fs::remove_file(&new_header).unwrap();
+    fs::write(dir.join(&old_name), &old_bytes).unwrap();
     let e = s2.unlock(PW).unwrap_err();
     assert_eq!(e.code().as_str(), "corruptVault");
     assert!(e.to_string().contains("eligible"), "{e}");
