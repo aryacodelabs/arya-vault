@@ -16,7 +16,7 @@ use arya_vault_crypto::keys::{RecoveryKey, VaultKey};
 use arya_vault_crypto::rng::{OsRng, Rng};
 use arya_vault_crypto::vault_key::{self, HeaderWraps};
 use arya_vault_crypto::wrap;
-use arya_vault_storage::{CreateParams, Db, DbKey, Store};
+use arya_vault_storage::{CreateParams, Db, DbKey, StorageError, Store};
 use arya_vault_vault::{SystemClock, Vault};
 
 use crate::error::{Result, SessionError};
@@ -118,11 +118,69 @@ pub(crate) fn check_password(
     Ok((active, vk))
 }
 
-/// Opens the database with the key derived from `vk`.
-pub(crate) fn open_vault(dir: &VaultDir, vk: &VaultKey, active: &ActiveHeader) -> Result<Vault> {
+/// Opens the database with the key derived from `vk`, finishing an interrupted key rotation if
+/// there is one (see `rotation`), and enforces the epoch floor.
+///
+/// If `vault.db` does not open under this header's key but `vault.db.next` does, the header was
+/// committed and the database swap was not: the swap is completed here. A `.next` that does not
+/// open under the key is never used.
+pub(crate) fn open_vault(
+    dir: &VaultDir,
+    vk: &VaultKey,
+    active: &ActiveHeader,
+    seen: &mut Seen,
+) -> Result<Vault> {
     let key = db_key(vk, &active.header.vault_id, active.header.epoch)?;
-    let db = Db::open(&dir.db_path(), key)?;
+    let mut db = match Db::open(&dir.db_path(), key.duplicate()) {
+        Ok(db) => db,
+        Err(StorageError::WrongKeyOrCorrupt)
+            if dir.next_exists() && crate::rotation::opens_under(&dir.next_db_path(), &key) =>
+        {
+            dir.swap_next_into_place()?;
+            Db::open(&dir.db_path(), key.duplicate())?
+        }
+        Err(e) => return Err(e.into()),
+    };
+    enforce_epoch_floor(&mut db, active.header.epoch, seen)?;
+    if dir.has_rotation_leftovers(active) {
+        dir.collect_rotation_leftovers(active);
+    }
     Ok(Vault::open(db, Box::new(SystemClock))?)
+}
+
+/// Records the highest key epoch this device has used in the (encrypted) `meta`, and refuses a
+/// header older than that (docs/04 §5, review M4). A header of a lower epoch cannot normally
+/// even open the database (the database key changed with the epoch); this is the explicit check.
+fn enforce_epoch_floor(db: &mut Db, epoch: u32, seen: &mut Seen) -> Result<()> {
+    let stored = db.with_read(|tx| -> std::result::Result<Option<Vec<u8>>, StorageError> {
+        tx.meta_get(crate::rotation::META_HIGHEST_EPOCH)
+    })?;
+    let highest = match stored {
+        None => None,
+        Some(b) => Some(
+            std::str::from_utf8(&b)
+                .ok()
+                .and_then(|t| t.parse::<u32>().ok())
+                .ok_or(SessionError::CorruptVault("unreadable epoch record"))?,
+        ),
+    };
+    match highest {
+        Some(h) if h > epoch => {
+            seen.highest_epoch = seen.highest_epoch.max(h);
+            return Err(SessionError::CorruptVault(
+                "the vault header is older than one this device has already used",
+            ));
+        }
+        Some(h) if h == epoch => {}
+        _ => db.with_tx(|tx| -> std::result::Result<(), StorageError> {
+            tx.meta_set(
+                crate::rotation::META_HIGHEST_EPOCH,
+                epoch.to_string().as_bytes(),
+            )
+        })?,
+    }
+    seen.highest_epoch = seen.highest_epoch.max(epoch);
+    Ok(())
 }
 
 /// New wraps ready to be published, plus what the caller needs afterwards.
@@ -213,6 +271,47 @@ pub(crate) fn prepare_regenerate(
         wraps,
         vk: Some(vk),
         new_recovery_key: Some(rk),
+    })
+}
+
+/// Everything a rotation needs, computed before any file is touched.
+pub(crate) struct RotationPrep {
+    pub(crate) active: ActiveHeader,
+    pub(crate) old_vk: VaultKey,
+    pub(crate) new_vk: VaultKey,
+    pub(crate) new_recovery_key: RecoveryKey,
+    pub(crate) wraps: HeaderWraps,
+}
+
+/// Re-authenticates with `current_password` and builds the wraps for the next epoch: under the
+/// same password with a fresh salt and the same cost, or under `new_password` with `profile`.
+pub(crate) fn prepare_rotation(
+    dir: &VaultDir,
+    seen: &mut Seen,
+    current_password: &str,
+    new_password: Option<(&str, KdfProfile)>,
+) -> Result<RotationPrep> {
+    let (active, old_vk) = check_password(dir, seen, current_password)?;
+    let new_epoch = active
+        .header
+        .epoch
+        .checked_add(1)
+        .ok_or(SessionError::Internal("key epoch overflow"))?;
+    let (password, kdf) = match new_password {
+        Some((pw, profile)) => (pw, profile.params()?),
+        None => (
+            current_password,
+            active.header.kdf.with_fresh_salt(&mut OsRng)?,
+        ),
+    };
+    let fresh =
+        vault_key::rotate_vault_key(password, kdf, active.header.vault_id, new_epoch, &mut OsRng)?;
+    Ok(RotationPrep {
+        active,
+        old_vk,
+        new_vk: fresh.vault_key,
+        new_recovery_key: fresh.recovery_key,
+        wraps: fresh.wraps,
     })
 }
 

@@ -26,7 +26,7 @@ impl Session {
 
     /// Deletes the policy record and the blob and asks the provider to drop its key, ignoring
     /// failures (used when quick unlock must stop working *now*).
-    fn disable_quick_best_effort(&self) {
+    pub(super) fn disable_quick_best_effort(&self) {
         let _ = self.quick_store().remove_all();
         self.provider.revoke();
     }
@@ -216,7 +216,7 @@ impl Session {
                 return Err(e);
             }
         };
-        let vault = match lifecycle::open_vault(&self.dir, &vk, &active) {
+        let vault = match lifecycle::open_vault(&self.dir, &vk, &active, &mut self.seen) {
             Ok(v) => v,
             // The key does not open this vault's database: a blob of another vault or a damaged
             // file. The attempt stays counted and quick unlock is switched off.

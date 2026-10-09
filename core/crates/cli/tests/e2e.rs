@@ -437,6 +437,134 @@ fn full_lifecycle_with_disk_and_output_scan() {
 }
 
 #[test]
+fn rotate_keys_replaces_the_recovery_key_and_keeps_the_data() {
+    // SEC-A06: `vault rotate-keys` end to end.
+    let mut h = Harness::new();
+    let r = h.run(
+        &[
+            "--json",
+            "vault",
+            "create",
+            "--kdf-profile",
+            "low",
+            "--reveal",
+        ],
+        &[PW],
+        true,
+    );
+    assert_eq!(r.code, 0, "{}", r.stderr);
+    let rk1 = r.json()["recovery_key"].as_str().unwrap().to_owned();
+    let login = item_id(&h.ok(
+        &[
+            "--json",
+            "item",
+            "add",
+            "--title",
+            "CANARY Bank",
+            "--set-secret",
+            "password",
+        ],
+        &[PW, ITEM_PW],
+    ));
+    let header_before = fs::read_dir(h.vault())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .find(|n| n.starts_with("header-"))
+        .unwrap();
+
+    // the new key is printed once, so --reveal is required (exit 2 without it)
+    assert_eq!(
+        h.run(
+            &["vault", "rotate-keys", "--kdf-profile", "low"],
+            &[PW],
+            false
+        )
+        .code,
+        2
+    );
+    assert_eq!(
+        h.run(
+            &["vault", "rotate-keys", "--reveal", "--kdf-profile", "low"],
+            &["CANARY-wrong-password-1234"],
+            true
+        )
+        .code,
+        3,
+        "re-authentication is required"
+    );
+
+    let r = h.run(
+        &[
+            "--json",
+            "vault",
+            "rotate-keys",
+            "--reveal",
+            "--kdf-profile",
+            "low",
+        ],
+        &[PW],
+        true,
+    );
+    assert_eq!(r.code, 0, "{}", r.stderr);
+    let v = r.json();
+    assert_eq!(
+        (v["old_epoch"].as_u64(), v["new_epoch"].as_u64()),
+        (Some(1), Some(2))
+    );
+    let rk2 = v["recovery_key"].as_str().unwrap().to_owned();
+    assert_ne!(rk1, rk2);
+
+    // exactly one header, of epoch 2; the old header file is gone
+    let headers: Vec<String> = fs::read_dir(h.vault())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .filter(|n| n.starts_with("header-"))
+        .collect();
+    assert_eq!(headers.len(), 1, "{headers:?}");
+    assert!(headers[0].starts_with("header-00000002-"), "{headers:?}");
+    assert_ne!(headers[0], header_before);
+
+    // data survive, the password is unchanged, the old recovery key is dead, the new one works
+    let r = h.run(&["--json", "item", "get", &login, "--reveal"], &[PW], true);
+    assert_eq!(r.json()["secrets"]["password"], ITEM_PW);
+    assert_eq!(
+        h.run(&["recover", "--kdf-profile", "low"], &[&rk1, PW2], true)
+            .code,
+        3
+    );
+    assert_eq!(
+        h.run(&["recover", "--kdf-profile", "low"], &[&rk2, PW2], true)
+            .code,
+        0
+    );
+    h.ok(&["unlock-check"], &[PW2]);
+
+    // "change password and rotate keys": the second line on stdin is the new password
+    let r = h.run(
+        &[
+            "--json",
+            "vault",
+            "rotate-keys",
+            "--reveal",
+            "--change-password",
+            "--kdf-profile",
+            "low",
+        ],
+        &[PW2, PW3],
+        true,
+    );
+    assert_eq!(r.code, 0, "{}", r.stderr);
+    assert_eq!(r.json()["new_epoch"].as_u64(), Some(3));
+    assert_eq!(h.run(&["unlock-check"], &[PW2], false).code, 3);
+    h.ok(&["unlock-check"], &[PW3]);
+    let r = h.run(&["--json", "item", "get", &login, "--reveal"], &[PW3], true);
+    assert_eq!(r.json()["secrets"]["password"], ITEM_PW);
+
+    // no plaintext secret on disk or in the captured output
+    assert_no_leaks(h.dir.path(), &h.transcript);
+}
+
+#[test]
 fn csv_import_and_plaintext_export() {
     let mut h = Harness::new();
     assert_eq!(

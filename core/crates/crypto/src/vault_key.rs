@@ -101,6 +101,44 @@ pub fn create_vault(
     })
 }
 
+/// Creates the key material for the next key epoch of an **existing** vault (docs/04 §10 steps
+/// 1 and 4): a fresh random vault key VK', a fresh recovery key, and the two wraps for
+/// `new_epoch`, under the same `vault_id`.
+///
+/// The password may be the current one (plain rotation) or a new one (the "change password and
+/// rotate keys" action); `kdf` must carry a fresh random salt and is validated before use. The
+/// wraps bind `vault_id` and `new_epoch` in their AAD (SEC-C05), so a wrap made here cannot be
+/// replayed into a header of another epoch. The old recovery key and old wraps are not involved:
+/// a rotation always replaces the recovery key, because `wrap_rk` can only be created with it.
+///
+/// Like [`create_vault`] this is the only place randomness is drawn, in the order VK', RK'.
+pub fn rotate_vault_key(
+    password: &str,
+    kdf: KdfParams,
+    vault_id: VaultId,
+    new_epoch: u32,
+    rng: &mut dyn Rng,
+) -> Result<NewVault, VaultKeyError> {
+    let vault_key = generate_vault_key(rng)?;
+    let recovery_key = recovery_key::generate(rng)?;
+    let mk = derive_master_key(password, &kdf)?;
+    let kek_pw = hkdf::kek_pw(&mk, &vault_id)?;
+    let kek_rk = hkdf::kek_rk(&recovery_key, &vault_id)?;
+    let wrap_pw = wrap::wrap_pw(&kek_pw, &vault_id, new_epoch, &kdf, &vault_key, rng)?;
+    let wrap_rk = wrap::wrap_rk(&kek_rk, &vault_id, new_epoch, &vault_key, rng)?;
+    Ok(NewVault {
+        vault_key,
+        recovery_key,
+        wraps: HeaderWraps {
+            vault_id,
+            epoch: new_epoch,
+            kdf,
+            wrap_pw,
+            wrap_rk,
+        },
+    })
+}
+
 /// Unlocks the vault key with the master password.
 ///
 /// KDF parameters from the (untrusted) header are range-checked before hashing. A wrong
@@ -328,5 +366,61 @@ mod tests {
         let mut h = nv.wraps.clone();
         h.kdf.t += 1; // still in range, but different AAD and different key
         assert!(unlock_with_password("CANARY-pw", &h).is_err());
+    }
+
+    // SEC-A06 / SEC-C05: rotation material is for the new epoch only.
+    #[test]
+    fn sec_a06_rotation_makes_a_new_vk_and_rk_bound_to_the_new_epoch() {
+        let old = create_vault("pw-one-CANARY", floor(1), 1, &mut OsRng).unwrap();
+        let new =
+            rotate_vault_key("pw-one-CANARY", floor(2), old.wraps.vault_id, 2, &mut OsRng).unwrap();
+        assert_eq!(new.wraps.vault_id, old.wraps.vault_id);
+        assert_eq!(new.wraps.epoch, 2);
+        assert_ne!(new.vault_key.expose_secret(), old.vault_key.expose_secret());
+        assert_ne!(
+            new.recovery_key.expose_secret(),
+            old.recovery_key.expose_secret()
+        );
+        // both new credentials open the new VK ...
+        let a = unlock_with_password("pw-one-CANARY", &new.wraps).unwrap();
+        let b = unlock_with_recovery_key(&new.recovery_key, &new.wraps).unwrap();
+        assert_eq!(a.expose_secret(), new.vault_key.expose_secret());
+        assert_eq!(b.expose_secret(), new.vault_key.expose_secret());
+        // ... the old recovery key does not, and neither opens the old wraps' VK
+        assert!(unlock_with_recovery_key(&old.recovery_key, &new.wraps).is_err());
+        assert!(unlock_with_recovery_key(&new.recovery_key, &old.wraps).is_err());
+    }
+
+    #[test]
+    fn sec_c05_a_rotation_wrap_cannot_be_replayed_under_another_epoch() {
+        let old = create_vault("pw-one-CANARY", floor(1), 1, &mut OsRng).unwrap();
+        let new =
+            rotate_vault_key("pw-one-CANARY", floor(2), old.wraps.vault_id, 2, &mut OsRng).unwrap();
+        for epoch in [1u32, 3] {
+            let replay = HeaderWraps {
+                epoch,
+                ..new.wraps.clone()
+            };
+            assert!(
+                unlock_with_password("pw-one-CANARY", &replay).is_err(),
+                "{epoch}"
+            );
+            assert!(
+                unlock_with_recovery_key(&new.recovery_key, &replay).is_err(),
+                "{epoch}"
+            );
+        }
+    }
+
+    #[test]
+    fn rotation_can_change_the_password_and_refuses_out_of_range_kdf() {
+        let old = create_vault("pw-one-CANARY", floor(1), 1, &mut OsRng).unwrap();
+        let new =
+            rotate_vault_key("pw-two-CANARY", floor(3), old.wraps.vault_id, 2, &mut OsRng).unwrap();
+        assert!(unlock_with_password("pw-one-CANARY", &new.wraps).is_err());
+        assert!(unlock_with_password("pw-two-CANARY", &new.wraps).is_ok());
+        let mut bad = floor(4);
+        bad.m_kib = 1;
+        assert!(rotate_vault_key("x", bad, old.wraps.vault_id, 2, &mut OsRng).is_err());
     }
 }

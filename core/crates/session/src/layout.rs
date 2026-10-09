@@ -25,6 +25,8 @@ use crate::error::{Result, SessionError};
 pub const DB_FILE: &str = "vault.db";
 /// First key epoch of a new vault.
 pub const INITIAL_EPOCH: u32 = 1;
+/// Suffix of the re-keyed copy of the database that a key rotation builds next to `vault.db`.
+pub const NEXT_DB_SUFFIX: &str = ".next";
 /// Header files larger than this are not even read (a real header is ~250 bytes; the format
 /// limit is 2048).
 pub const MAX_HEADER_FILE_BYTES: u64 = 4096;
@@ -61,6 +63,15 @@ pub(crate) struct VaultDir {
     root: PathBuf,
 }
 
+/// The epoch of a header file name, if it is one (used by tests).
+#[cfg(test)]
+pub(crate) fn parse_name(name: &str) -> Option<u32> {
+    match parse_header_path(name) {
+        Ok(PathInfo::Header { epoch, .. }) => Some(epoch),
+        _ => None,
+    }
+}
+
 fn is_header_name(name: &str) -> bool {
     name.starts_with("header-") && name.ends_with(".bin")
 }
@@ -80,6 +91,90 @@ impl VaultDir {
 
     pub(crate) fn has_db(&self) -> bool {
         self.db_path().exists()
+    }
+
+    /// The re-keyed copy built by a rotation (see `rotation`).
+    pub(crate) fn next_db_path(&self) -> PathBuf {
+        let mut p = self.db_path().into_os_string();
+        p.push(NEXT_DB_SUFFIX);
+        PathBuf::from(p)
+    }
+
+    /// `vault.db`, `vault.db-wal`, `vault.db-shm` or the same for `vault.db.next`.
+    fn db_family(base: &Path) -> [PathBuf; 3] {
+        let with = |suffix: &str| {
+            let mut s = base.as_os_str().to_owned();
+            s.push(suffix);
+            PathBuf::from(s)
+        };
+        [base.to_path_buf(), with("-wal"), with("-shm")]
+    }
+
+    pub(crate) fn next_exists(&self) -> bool {
+        self.next_db_path().exists()
+    }
+
+    /// Removes the re-keyed copy and its SQLite side files (best effort).
+    pub(crate) fn remove_next(&self) {
+        for f in Self::db_family(&self.next_db_path()) {
+            let _ = fs::remove_file(f);
+        }
+    }
+
+    /// Moves the verified re-keyed copy into place (atomic replace). The stale write-ahead log and
+    /// shared-memory file of the old database are removed first: applied to the new file they
+    /// would corrupt it.
+    pub(crate) fn swap_next_into_place(&self) -> Result<()> {
+        let db = self.db_path();
+        let [_, wal, shm] = Self::db_family(&db);
+        let _ = fs::remove_file(wal);
+        let _ = fs::remove_file(shm);
+        fs::rename(self.next_db_path(), &db)?;
+        let [_, nwal, nshm] = Self::db_family(&self.next_db_path());
+        let _ = fs::remove_file(nwal);
+        let _ = fs::remove_file(nshm);
+        self.sync_dir();
+        Ok(())
+    }
+
+    /// Flushes directory entries (renames) to disk where the platform allows it; best effort.
+    pub(crate) fn sync_dir(&self) {
+        #[cfg(unix)]
+        if let Ok(d) = File::open(&self.root) {
+            let _ = d.sync_all();
+        }
+    }
+
+    /// After a database has opened under `active`: removes what an interrupted or finished key
+    /// rotation leaves behind. That is the re-keyed copy and every header of a lower epoch (they
+    /// are brute-force targets for the old key, docs/04 §5, §9). Best effort.
+    pub(crate) fn collect_rotation_leftovers(&self, active: &ActiveHeader) {
+        self.remove_next();
+        let Ok(names) = self.header_files() else {
+            return;
+        };
+        for name in names {
+            if let Ok(PathInfo::Header { epoch, .. }) = parse_header_path(&name)
+                && epoch < active.header.epoch
+            {
+                let _ = fs::remove_file(self.root.join(name));
+            }
+        }
+    }
+
+    /// Whether anything of a rotation is lying around (cheap check before collecting).
+    pub(crate) fn has_rotation_leftovers(&self, active: &ActiveHeader) -> bool {
+        if self.next_exists() {
+            return true;
+        }
+        self.header_files().is_ok_and(|names| {
+            names.iter().any(|n| {
+                matches!(
+                    parse_header_path(n),
+                    Ok(PathInfo::Header { epoch, .. }) if epoch < active.header.epoch
+                )
+            })
+        })
     }
 
     /// Creates the directory (owner-only on Unix). Idempotent.
@@ -192,6 +287,7 @@ impl VaultDir {
         f.sync_all()?;
         drop(f);
         fs::rename(&tmp, self.root.join(&name))?;
+        self.sync_dir();
         Ok(name)
     }
 

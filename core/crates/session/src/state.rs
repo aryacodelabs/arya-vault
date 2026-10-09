@@ -36,6 +36,9 @@ use crate::quick::{
 };
 
 mod quick_impl;
+mod rotation_impl;
+
+pub use rotation_impl::RotationOutcome;
 
 /// Number of recovery-key groups shown to the user: six of five characters, one of two, and the
 /// two-character checksum group (docs/04 §4).
@@ -551,7 +554,7 @@ impl Session {
         let started = self.lock_gen.load(Ordering::SeqCst);
         let (active, vk) =
             self.attempt(|s| lifecycle::check_password(&s.dir, &mut s.seen, password))?;
-        let vault = lifecycle::open_vault(&self.dir, &vk, &active)?;
+        let vault = lifecycle::open_vault(&self.dir, &vk, &active, &mut self.seen)?;
         if self.lock_gen.load(Ordering::SeqCst) != started {
             // `lock` was requested while the key was being derived: keep nothing.
             let _ = vault.close();
@@ -772,7 +775,7 @@ impl Session {
             pending = p;
         }
         if self.dir.has_db() {
-            let vault = lifecycle::open_vault(&self.dir, &vk, &active)?;
+            let vault = lifecycle::open_vault(&self.dir, &vk, &active, &mut self.seen)?;
             let now = self.wall.now_ms();
             self.install(vault, vk, pending, now);
             // Setting a new master password through the recovery key is a credential unlock.
@@ -1160,5 +1163,30 @@ mod tests {
             assert!(!dbg.contains(&key) && !dbg.contains(&compact), "{dbg}");
         }
         assert!(format!("{rk:?}").contains("redacted"));
+    }
+
+    // SEC-C06: a rotation drops the old unlocked state, the old vault key and the old pending key.
+    #[test]
+    fn sec_c06_rotation_releases_the_old_keys() {
+        let t = tempfile::tempdir().unwrap();
+        let (mut s, rk) = create(&t.path().join("v"));
+        let key = rk.recovery_key().to_string();
+        let ans: Vec<_> = rk
+            .challenge()
+            .iter()
+            .map(|i| (*i, groups(&key)[*i].clone()))
+            .collect();
+        assert!(s.confirm_recovery_key(ans).unwrap());
+        assert_eq!(drops(), (0, 1));
+        let out = s.rotate_keys(PW).unwrap();
+        assert_eq!(
+            drops().0,
+            1,
+            "the old unlocked state (old vault key, old DB handle) was dropped"
+        );
+        assert_eq!(out.record.new_epoch, 2);
+        // the rotation left a new pending key; locking drops it and the new state
+        s.lock().unwrap();
+        assert_eq!(drops(), (2, 2));
     }
 }

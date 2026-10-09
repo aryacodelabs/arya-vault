@@ -30,6 +30,7 @@ mod lifecycle;
 pub mod meta;
 pub mod profile;
 pub mod quick;
+pub mod rotation;
 mod state;
 
 pub use backoff::{BackoffPolicy, Clock, FailureBackoff, MonotonicClock};
@@ -40,9 +41,11 @@ pub use quick::{
     Blob, NoProvider, PolicyRecord, ProviderError, QuickUnlockConfig, QuickUnlockDenied,
     QuickUnlockKind, QuickUnlockProvider, QuickUnlockStatus, SystemWallClock, WallClock,
 };
+pub use rotation::{RotationRecord, Step as RotationStep};
 pub use state::{
     CONFIRMATION_GROUPS, CONFIRMATION_POOL, LockRequestHandle, RECOVERY_KEY_GROUPS,
-    RecoveryConfirmation, RecoveryKeyResult, Session, SessionConfig, SessionState, VaultStatus,
+    RecoveryConfirmation, RecoveryKeyResult, RotationOutcome, Session, SessionConfig, SessionState,
+    VaultStatus,
 };
 
 #[cfg(test)]

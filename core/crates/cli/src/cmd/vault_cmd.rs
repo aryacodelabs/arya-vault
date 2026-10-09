@@ -41,6 +41,38 @@ pub fn vault(ctx: &Ctx, cmd: VaultCmd) -> Result<()> {
             let rk = session.create_with(&pw, a.kdf_profile.into(), CLI_CONFIRMATION)?;
             show_recovery_key(ctx, &rk, json!({ "created": true }))
         }
+        VaultCmd::RotateKeys(a) => {
+            if !a.reveal {
+                return Err(CliError::usage(
+                    "rotate-keys shows the new recovery key exactly once; pass --reveal to print it",
+                ));
+            }
+            let mut session = ctx.session()?;
+            let pw = ctx.master_password()?;
+            session.unlock(&pw)?;
+            let out = if a.change_password {
+                let new = ctx.secrets.read_new("New master password")?;
+                session.change_password_and_rotate_with(
+                    &pw,
+                    &new,
+                    a.kdf_profile.into(),
+                    CLI_CONFIRMATION,
+                )?
+            } else {
+                session.rotate_keys_with(&pw, CLI_CONFIRMATION)?
+            };
+            show_recovery_key(
+                ctx,
+                &out.recovery_key,
+                json!({
+                    "ok": true,
+                    "rotated": true,
+                    "old_epoch": out.record.old_epoch,
+                    "new_epoch": out.record.new_epoch,
+                    "header_version": out.recovery_key.header_version(),
+                }),
+            )
+        }
     }
 }
 
