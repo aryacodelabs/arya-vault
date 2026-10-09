@@ -27,7 +27,7 @@ These are the honest gaps. Nothing here is hidden elsewhere in the document.
 | 7 | **SEC-A06 (VK rotation, `MUST`)** | Not implemented anywhere (`docs/04` §10). The roadmap does not put it in M1, but it is a `MUST`. | **Not verified** (not built) |
 | 8 | **Search worst case < 100 ms** | Typical queries are fast (p50 about 2 ms, p95 about 10 ms on 20,000 items) but a broad prefix that matches most of the index took **138-149 ms** in four of five runs (section 4). | **Partially verified** |
 | 9 | **Argon2 calibration "converges to 0.5-1.0 s"** | The default calibration target (750 ms) produced parameters that take **about 1.0 s** (median 998 ms, max 1,054 ms) here, because calibration moves in coarse steps (see section 4). Edge of the range, not clearly inside it. | **Partially verified** |
-| 10 | **Coverage >= 90 % in crypto and vault** | See section 3 for the measured numbers. CI's coverage job is informational (no threshold) and has been red on a known profraw flake. | see section 3 |
+| 10 | **Coverage >= 90 % in crypto and vault** | Measured locally: crypto 98.5 %, vault 95.9 % of lines (section 3). CI's coverage job is informational (no threshold) and has been red on a known profraw flake, so the gate is not enforced anywhere. | **Verified locally; not enforced in CI** |
 
 ---
 
@@ -53,7 +53,7 @@ These are the honest gaps. Nothing here is hidden elsewhere in the document.
 | Criterion | Status | Evidence |
 |---|---|---|
 | SEC-C* requirements verified | See the table in section 5: 9 verified, 4 partially verified (C01, C03 pending `RV`; C04 test is 10^6 draws vs 10^7 in `docs/11`; C06 as in item 2 above) | Section 5. |
-| 90%+ coverage in crypto/vault | **Not yet measured in this draft** | Local measurement with `cargo llvm-cov` was still running when this commit was made; this row is replaced before the PR is opened. CI's coverage job is informational (no threshold). |
+| 90%+ coverage in crypto/vault | **Verified (local measurement)** | `cargo llvm-cov --workspace --locked --summary-only` on the T08 branch, whole-workspace test run: **crypto 98.5 % of lines (3,099 of 3,145; 97.3 % of regions), vault 95.9 % of lines (4,371 of 4,558; 93.3 % of regions)**. Per file the lowest are `vault/src/interchange/json.rs` (89.9 % lines) and `vault/src/query.rs` (89.0 %). For context: generator 98.6 %, storage 90.8 %, cli 89.0 % (lines). Caveats: measured locally, not in CI (CI's coverage job is informational, has no threshold, and is subject to the known profraw flake); I kept only the summary table and did not capture every test-binary result line of that run, though the plain `cargo test` runs pass; line coverage says a line ran, not that it was asserted. |
 | Fuzzers run 1 h clean | **Not verified** | Item 1 in section 1. |
 | Benchmark: Argon2 calibration | **Partially verified** | Section 4: parameters are chosen and timed; the result lands at the top of the 0.5-1.0 s window. |
 | Benchmark: 20k-item search < 100 ms | **Partially verified** | Section 4: typical queries pass by a wide margin; the worst broad prefix does not. |
