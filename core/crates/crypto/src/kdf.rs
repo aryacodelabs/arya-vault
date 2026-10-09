@@ -17,7 +17,7 @@ use argon2::{Algorithm, Argon2, Block, Params, Version};
 use thiserror::Error;
 use zeroize::Zeroize;
 
-use crate::cbor;
+use crate::format::cbor;
 use crate::keys::MasterKey;
 use crate::normalize::normalize_password;
 use crate::rng::{Rng, RngError, random_array};
