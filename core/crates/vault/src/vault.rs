@@ -25,7 +25,7 @@ const FOLDER_OP_KEY: &str = "_folder";
 
 /// A set of register writes made by one user action (all share one HLC).
 #[derive(Default)]
-pub(crate) struct Edits(Vec<(String, Option<Zeroizing<Vec<u8>>>)>);
+pub(crate) struct Edits(pub(crate) Vec<(String, Option<Zeroizing<Vec<u8>>>)>);
 
 impl Edits {
     pub fn set(&mut self, key: &str, v: Option<Zeroizing<Vec<u8>>>) {
@@ -727,14 +727,14 @@ fn check_folder_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn require_live_folder(tx: &Tx<'_>, id: &Id) -> Result<()> {
+pub(crate) fn require_live_folder(tx: &Tx<'_>, id: &Id) -> Result<()> {
     match tx.get_folder(id)? {
         Some(f) if !f.deleted => Ok(()),
         _ => Err(VaultError::NotFound),
     }
 }
 
-fn write_folder(
+pub(crate) fn write_folder(
     tx: &Tx<'_>,
     clock: &HlcClock,
     device: &Id,
@@ -771,7 +771,7 @@ fn write_folder(
 
 /// Apply one action's edits and persist the clock, all inside the caller's transaction.
 #[allow(clippy::too_many_arguments)]
-fn commit_edits(
+pub(crate) fn commit_edits(
     tx: &Tx<'_>,
     clock: &HlcClock,
     device: &Id,
@@ -868,7 +868,7 @@ fn require_type(regs: &Regs, want: ItemType, what: &'static str) -> Result<()> {
     }
 }
 
-fn live_tags(regs: &Regs) -> Vec<String> {
+pub(crate) fn live_tags(regs: &Regs) -> Vec<String> {
     let mut t: Vec<String> = regs
         .iter()
         .filter(|(k, _)| k.starts_with(keys::TAG_PREFIX) && engine::bool_of(regs, k))
@@ -879,7 +879,7 @@ fn live_tags(regs: &Regs) -> Vec<String> {
 }
 
 /// Ids of live custom fields (those whose `kind` register has a value), in creation order.
-fn custom_ids(regs: &Regs) -> Vec<String> {
+pub(crate) fn custom_ids(regs: &Regs) -> Vec<String> {
     let mut ids: Vec<String> = regs
         .iter()
         .filter(|(k, r)| {

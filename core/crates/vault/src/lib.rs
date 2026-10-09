@@ -15,6 +15,7 @@ mod fault;
 mod health;
 mod history;
 mod hlc;
+mod interchange;
 mod model;
 mod query;
 mod register;
@@ -29,6 +30,13 @@ pub use error::{Result, VaultError};
 pub use hlc::{
     Clock, Hlc, HlcClock, HlcError, MAX_PT, ManualClock, SKEW_CORRUPT_MS, SKEW_FLAG_MS, Skew,
     SystemClock,
+};
+pub use interchange::{
+    ContainerInfo, CsvExport, CsvExportReport, ImportBundle, ImportCustom, ImportError,
+    ImportFolder, ImportHistory, ImportItem, ImportLimits, ImportOptions, ImportReport,
+    ImportSource, ImportWarning, Importer, PlaintextRiskAcknowledged, SkipReason, SkippedRecord,
+    WarningKind, parse_aryavault, parse_aryavault_payload, parse_bitwarden_json, parse_csv,
+    read_container_info, read_limited,
 };
 pub use model::{
     CustomKind, ElementId, FieldRef, HARD_ITEM_LIMIT, ItemType, MAX_BODY_BYTES, MAX_CUSTOM_FIELDS,
