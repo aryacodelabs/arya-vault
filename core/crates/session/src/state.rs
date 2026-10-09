@@ -11,6 +11,8 @@
 //! [`Session::with_vault`], which fails with `locked` once the session is locked.
 
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use arya_vault_crypto::keys::{RecoveryKey, VaultKey};
 use arya_vault_crypto::recovery_key;
@@ -28,6 +30,12 @@ use crate::layout::{Seen, VaultDir};
 use crate::lifecycle::{self, Prepared};
 use crate::meta;
 use crate::profile::KdfProfile;
+use crate::quick::{
+    NoProvider, QuickUnlockConfig, QuickUnlockProvider, QuickUnlockStatus, SystemWallClock,
+    WallClock,
+};
+
+mod quick_impl;
 
 /// Number of recovery-key groups shown to the user: six of five characters, one of two, and the
 /// two-character checksum group (docs/04 §4).
@@ -61,6 +69,8 @@ pub struct VaultStatus {
     pub onboarding_complete: bool,
     /// `format_version` of the active header; `0` if there is no vault.
     pub format_version: u16,
+    /// Quick-unlock state (docs/14 `VaultStatus.quickUnlock`).
+    pub quick_unlock: QuickUnlockStatus,
 }
 
 /// Whether a freshly shown recovery key must be re-entered before onboarding completes.
@@ -151,6 +161,9 @@ struct Unlocked {
     vk: VaultKey,
     onboarding_pending: bool,
     pending: Option<PendingKey>,
+    /// Wall-clock time (ms) of the password (or recovery) unlock this session descends from.
+    /// A quick unlock inherits the recorded value, so it never extends the age limit.
+    password_verified_at_ms: u64,
     #[cfg(test)]
     _probe: crate::probe::UnlockedProbe,
 }
@@ -167,6 +180,29 @@ pub struct Session {
     seen: Seen,
     backoff: FailureBackoff,
     state: State,
+    provider: Box<dyn QuickUnlockProvider>,
+    wall: Box<dyn WallClock>,
+    quick_cfg: QuickUnlockConfig,
+    lock_gen: Arc<AtomicU64>,
+}
+
+/// A handle that asks a session to lock **without** needing `&mut Session`.
+///
+/// `unlock` and `unlock_quick` can block (Argon2, a biometric prompt) while the caller holds the
+/// session behind a mutex. `lock()` would then wait for them. Call
+/// [`request_lock`](Self::request_lock) first: an unlock that is in flight notices when it
+/// finishes, drops the key it obtained and leaves the session locked (docs/14 §5: `lock()`
+/// cancels in-flight work). Then call `lock()` as usual.
+#[derive(Debug, Clone)]
+pub struct LockRequestHandle {
+    gen_counter: Arc<AtomicU64>,
+}
+
+impl LockRequestHandle {
+    /// Cancels any unlock that started before this call.
+    pub fn request_lock(&self) {
+        self.gen_counter.fetch_add(1, Ordering::SeqCst);
+    }
 }
 
 impl core::fmt::Debug for Session {
@@ -258,7 +294,40 @@ impl Session {
             seen: Seen::default(),
             backoff: FailureBackoff::new(config.backoff, config.clock),
             state,
+            provider: Box::new(NoProvider),
+            wall: Box::new(SystemWallClock),
+            quick_cfg: QuickUnlockConfig::default(),
+            lock_gen: Arc::new(AtomicU64::new(0)),
         })
+    }
+
+    /// Installs the platform quick-unlock provider (default: [`NoProvider`], unsupported).
+    #[must_use]
+    pub fn with_provider(mut self, provider: Box<dyn QuickUnlockProvider>) -> Self {
+        self.provider = provider;
+        self
+    }
+
+    /// Replaces the wall clock used by the quick-unlock policy.
+    #[must_use]
+    pub fn with_wall_clock(mut self, clock: Box<dyn WallClock>) -> Self {
+        self.wall = clock;
+        self
+    }
+
+    /// Replaces the quick-unlock policy parameters.
+    #[must_use]
+    pub fn with_quick_unlock_config(mut self, cfg: QuickUnlockConfig) -> Self {
+        self.quick_cfg = cfg;
+        self
+    }
+
+    /// A handle for cancelling in-flight unlocks from another thread.
+    #[must_use]
+    pub fn lock_request_handle(&self) -> LockRequestHandle {
+        LockRequestHandle {
+            gen_counter: Arc::clone(&self.lock_gen),
+        }
     }
 
     /// Re-checks the disk while no keys are held (another process may have created or removed
@@ -299,12 +368,14 @@ impl Session {
     /// `CorruptVault` / `UnsupportedFormat` if the header cannot be used; filesystem errors.
     pub fn status(&mut self) -> Result<VaultStatus> {
         self.sync_presence()?;
+        let quick_unlock = self.quick_unlock_status();
         match &self.state {
             State::NoVault => Ok(VaultStatus {
                 exists: false,
                 locked: true,
                 onboarding_complete: false,
                 format_version: 0,
+                quick_unlock,
             }),
             State::Locked => {
                 let active = self.dir.active_header(&mut self.seen)?;
@@ -313,6 +384,7 @@ impl Session {
                     locked: true,
                     onboarding_complete: !meta::onboarding_pending(self.dir.root()),
                     format_version: active.header.format_version,
+                    quick_unlock,
                 })
             }
             State::Unlocked(u) => {
@@ -322,6 +394,7 @@ impl Session {
                     locked: false,
                     onboarding_complete: !u.onboarding_pending,
                     format_version: active.header.format_version,
+                    quick_unlock,
                 })
             }
         }
@@ -452,6 +525,7 @@ impl Session {
             vk: created.vk,
             onboarding_pending: required,
             pending,
+            password_verified_at_ms: self.wall.now_ms(),
             #[cfg(test)]
             _probe: crate::probe::UnlockedProbe,
         }));
@@ -474,20 +548,29 @@ impl Session {
             State::NoVault => return Err(SessionError::NoVault),
             State::Locked => {}
         }
+        let started = self.lock_gen.load(Ordering::SeqCst);
         let (active, vk) =
             self.attempt(|s| lifecycle::check_password(&s.dir, &mut s.seen, password))?;
         let vault = lifecycle::open_vault(&self.dir, &vk, &active)?;
-        self.install(vault, vk, None);
+        if self.lock_gen.load(Ordering::SeqCst) != started {
+            // `lock` was requested while the key was being derived: keep nothing.
+            let _ = vault.close();
+            return Err(SessionError::Locked);
+        }
+        let now = self.wall.now_ms();
+        self.install(vault, vk, None, now);
+        self.note_password_unlock(now);
         Ok(())
     }
 
-    fn install(&mut self, vault: Vault, vk: VaultKey, pending: Option<PendingKey>) {
+    fn install(&mut self, vault: Vault, vk: VaultKey, pending: Option<PendingKey>, pw_at_ms: u64) {
         let onboarding_pending = pending.is_some() || meta::onboarding_pending(self.dir.root());
         self.state = State::Unlocked(Box::new(Unlocked {
             vault,
             vk,
             onboarding_pending,
             pending,
+            password_verified_at_ms: pw_at_ms,
             #[cfg(test)]
             _probe: crate::probe::UnlockedProbe,
         }));
@@ -501,6 +584,8 @@ impl Session {
     /// A failure to checkpoint or close the database. The session is locked and every key is
     /// gone regardless; the data stays consistent in the write-ahead log.
     pub fn lock(&mut self) -> Result<()> {
+        // Cancels an unlock that is still in flight on another thread's behalf.
+        self.lock_gen.fetch_add(1, Ordering::SeqCst);
         match std::mem::replace(&mut self.state, State::Locked) {
             State::Unlocked(u) => {
                 let Unlocked {
@@ -688,7 +773,10 @@ impl Session {
         }
         if self.dir.has_db() {
             let vault = lifecycle::open_vault(&self.dir, &vk, &active)?;
-            self.install(vault, vk, pending);
+            let now = self.wall.now_ms();
+            self.install(vault, vk, pending, now);
+            // Setting a new master password through the recovery key is a credential unlock.
+            self.note_password_unlock(now);
         }
         Ok((version, result))
     }
