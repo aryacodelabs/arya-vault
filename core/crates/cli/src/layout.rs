@@ -113,10 +113,11 @@ impl VaultDir {
         };
         for entry in rd {
             let entry = entry?;
-            if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with("header-") && name.ends_with(".bin") {
-                    names.push(name.to_owned());
-                }
+            if let Some(name) = entry.file_name().to_str()
+                && name.starts_with("header-")
+                && name.ends_with(".bin")
+            {
+                names.push(name.to_owned());
             }
         }
         names.sort();
