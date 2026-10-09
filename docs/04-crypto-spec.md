@@ -175,3 +175,43 @@ Note: rotation cannot protect data an attacker already decrypted. It protects fu
 - Whether to add an optional "Secret Key" (1Password-style, device-held extra entropy) in v2.
 - Whether to add per-device Ed25519 signatures for attribution (requires revocation story).
 - Padding bucket sizes vs storage overhead.
+
+## 16. Encoding details (v1, normative)
+This section pins the byte-level choices that §2-§7 leave open, so an independent implementation (e.g. `tools/crosscheck`) can read every v1 file from this document alone. It documents what the v1 golden files (`core/testdata/golden/v1/`) already contain; any change is a `format_version` bump (§14).
+
+**Integers.** Where an integer is concatenated into a hash/KDF/AAD input (`epoch` in the §2 sub-key `info`, in the §5 wrap AADs, and in the envelope fixed header), it is **big-endian, fixed width** (`epoch` u32 = 4 bytes, `seq` u64 = 8 bytes, `format_version` u16 = 2 bytes). `vault_id`, `device_id` and `prev_hash` are the raw bytes.
+
+**Sub-key `info` (§2).** `info = ASCII(label) ‖ epoch_be32`, e.g. `"db/v1" ‖ 00 00 00 01`. Salt is `vault_id` (16 bytes), IKM is VK, output is 32 bytes. `KEK_pw` uses IKM = MK (32 B) and `KEK_rk` uses IKM = RK (the 20 raw bytes), each with `salt = vault_id` and the `info` strings in §2.
+
+**Canonical CBOR (RFC 8949 §4.2.1).** Used for the header, the `kdf` struct in the `wrap_pw` AAD and the envelope AAD. Shortest-form integer and length heads, definite lengths only, no tags/floats; maps have unique keys sorted by the bytewise lexicographic order of their **encoded** keys. A reader MUST reject any non-canonical encoding, duplicate keys, nesting deeper than 16, trailing bytes, and lengths above its limits.
+
+**`kdf` struct.** A CBOR map with text keys `alg` (`"argon2id"`), `version` (unsigned `19`), `m_kib`, `t`, `p` (unsigned), `salt` (byte string of 16). This exact canonical encoding is the `canonical_cbor(kdf)` in the `wrap_pw` AAD (§5). Hex example for `m_kib=65536, t=3, p=1, salt=ab×16`:
+`a6 6170 01 6174 03 63616c67 686172676f6e326964 6473616c74 50 abab…ab 656d5f6b6962 1a00010000 6776657273696f6e 13`.
+
+**Header file.** One canonical CBOR map with text keys `format_version` (unsigned), `vault_id` (bstr 16), `header_version` (u32), `epoch` (u32), `kdf` (map above), `wrap_pw` and `wrap_rk` (maps `{ "nonce": bstr 24, "ct": bstr 48 }`), `created_at` (unsigned, seconds since the Unix epoch). No other keys. Maximum size 2048 bytes. `device_id` is **not** in the body; it appears only in the file name (§16 file names), and the epoch and version in the name MUST equal the body.
+
+**Envelope wire layout (v1, fixed width).**
+```
+offset  size  field
+     0     4  magic = "AVLT"
+     4     2  format_version (u16, = 1)
+     6     1  kind (1 = segment, 2 = snapshot, 3 = manifest)
+     7    16  vault_id
+    23     4  epoch
+    27    16  device_id
+    43     8  seq   (segment seq / manifest counter; 0 for snapshots)
+    51    32  prev_hash (SHA-256 of the previous segment envelope bytes; zero otherwise)
+    83    24  nonce
+   107     4  ct_len (u32)
+   111 ct_len  ciphertext ‖ 16-byte tag
+```
+The total file length is exactly `111 + ct_len`. `format_version` is checked immediately after the magic, before any other validation, so a newer format is reported as "unsupported" rather than as a malformed file. Per-kind rules: segments have `seq >= 1` and a zero `prev_hash` when `seq = 1`; snapshots have `seq = 0` and a zero `prev_hash`; manifests have a zero `prev_hash` (their `seq` is the manifest counter). `ct_len - 16` is a non-zero multiple of 1024 and at most the padded maximum plaintext (segment 1 MiB, manifest 256 KiB, snapshot 64 MiB, before padding).
+
+**Envelope AAD (§6).** The canonical CBOR map with text keys `magic` (bstr `"AVLT"`), `format_version` (unsigned), `kind` (unsigned 1-3), `vault_id` (bstr 16), `epoch` (unsigned), `device_id` (bstr 16), `seq` (unsigned), `prev_hash` (bstr 32). `prev_hash` is present for every kind (all zero where unused). The AEAD key is `K_log` for segments, `K_snap` for snapshots and `K_manifest` for manifests, each derived at the envelope's `epoch`.
+
+**Padding (§6).** ISO/IEC 7816-4: append `0x80` then `0x00` bytes to the next multiple of 1024; there is always at least one padding byte, so a plaintext whose length is already a multiple of 1024 gains a full 1024-byte bucket. Unpadding strips trailing zeros, requires `0x80`, and requires that the padding is the minimal form (no extra buckets). It is performed only after authentication.
+
+**File names (§6, docs/06 §3).** Relative to `<root>/AryaVault/<vault_id>/`, lowercase hex, fixed width, and nothing else is accepted:
+`header-<epoch:8>-<header_version:8>-<device_id:32>.bin`; `devices/<device_id:32>/<seq:16>.seg`; `devices/<device_id:32>/manifest-<counter:16>.bin`; `snapshots/<hlc:16>-<device_id:32>.snap`. A segment's or manifest's envelope `device_id` and `seq` MUST equal the path's. For snapshots only `device_id` is bound (the file name's HLC is not repeated in the envelope).
+
+**Recovery key text (§4).** 20 key bytes are written as 32 Crockford Base32 characters (alphabet `0123456789ABCDEFGHJKMNPQRSTVWXYZ`, most significant bits first, 5 bits per character), followed by 2 checksum characters, grouped as `XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX-CC`.
