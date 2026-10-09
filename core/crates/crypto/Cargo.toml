@@ -8,7 +8,30 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+default = []
+# Deterministic, NON-secure RNG for golden-file generation only. Release builds with this
+# feature fail to compile (see src/lib.rs). Never enable in shipped artifacts.
+deterministic-rng = []
+
 [dependencies]
+# RustCrypto primitives (docs/04 §1). Default features are disabled so only the
+# pieces we use are compiled; `zeroize` wipes internal state (and, for argon2, the
+# per-block scratch that we allocate ourselves; see src/kdf.rs).
+argon2 = { version = "0.6.0", default-features = false, features = ["alloc", "zeroize"] }
+chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["alloc", "zeroize"] }
+hkdf = { version = "0.13.0", default-features = false }
+sha2 = { version = "0.11.0", default-features = false, features = ["zeroize"] }
+zeroize = "1.9.1"
+subtle = { version = "2.6.1", default-features = false }
+getrandom = "0.4.3"
+# Pinned EXACTLY: a table update can change NFKD output and lock users out (docs/04 §3, SEC-C10).
+unicode-normalization = { version = "=0.1.25", default-features = false, features = ["std"] }
+thiserror = "2.0.21"
+
+[dev-dependencies]
+hex = "0.4.3"
+proptest = "1.11.0"
 
 [lints]
 workspace = true
