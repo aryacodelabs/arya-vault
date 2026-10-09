@@ -234,8 +234,23 @@ impl Vault {
             // Ranking by relevance costs time proportional to the number of matches (about 70 ms for
             // 3,000 matches in 20,000 items). So fetch the matches by recency (a few ms), and only
             // when the match set is small enough to rank cheaply redo it in relevance order.
-            // Filters are applied afterwards, over up to `FTS_CANDIDATES` matches.
-            let by_recency = tx.fts_search_recent(&query, FTS_CANDIDATES)?;
+            //
+            // How many to fetch: a filter is applied *after* the fetch and may drop most of the
+            // candidates, so a filtered search takes up to `FTS_CANDIDATES`. Without a filter
+            // every candidate is a result, so `limit` of them are enough, plus one more than
+            // `RANK_THRESHOLD` to tell a small match set (rank it) from a broad one (recency
+            // order). Keeping a top-N instead of sorting thousands of matches is what makes a
+            // prefix that matches every item (`user`) fast.
+            let unfiltered = q.filter.item_type.is_none()
+                && q.filter.folder_id.is_none()
+                && q.filter.tag.is_none()
+                && !q.filter.favorites_only;
+            let candidates = if unfiltered {
+                limit.clamp(RANK_THRESHOLD + 1, FTS_CANDIDATES)
+            } else {
+                FTS_CANDIDATES
+            };
+            let by_recency = tx.fts_search_recent(&query, candidates)?;
             let ids = if by_recency.len() <= RANK_THRESHOLD {
                 tx.fts_search(&query, RANK_THRESHOLD)?
             } else {
