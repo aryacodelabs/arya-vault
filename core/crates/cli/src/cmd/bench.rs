@@ -144,7 +144,7 @@ fn search_bench(ctx: &Ctx, a: &BenchSearchArgs) -> Result<()> {
     for q in 0..a.queries {
         // A whole word and a 3-letter prefix, alternating.
         let w = word(q * 31 + 5);
-        let text = if q % 2 == 0 {
+        let text = if q.is_multiple_of(2) {
             w.to_owned()
         } else {
             w.chars().take(3).collect()

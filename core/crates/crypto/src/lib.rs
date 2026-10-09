@@ -79,10 +79,12 @@ mod policy_tests {
                 in_section = line == header;
                 continue;
             }
-            if in_section && !line.is_empty() && !line.starts_with('#') {
-                if let Some((name, _)) = line.split_once('=') {
-                    crates.push(name.trim());
-                }
+            if in_section
+                && !line.is_empty()
+                && !line.starts_with('#')
+                && let Some((name, _)) = line.split_once('=')
+            {
+                crates.push(name.trim());
             }
         }
         crates

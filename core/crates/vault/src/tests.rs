@@ -1428,7 +1428,7 @@ fn large_result_sets_are_ordered_by_recency_and_small_ones_ranked() {
     let mut e = env();
     for i in 0..320u32 {
         e.clock.advance(1);
-        let tag = if i % 2 == 0 {
+        let tag = if i.is_multiple_of(2) {
             vec!["even".to_owned()]
         } else {
             vec![]

@@ -25,6 +25,8 @@ use arya_vault_storage::{CreateParams, Db, DbKey, ItemFilter, Result, Store};
 
 const KEY: [u8; 32] = [0x5A; 32];
 const DB_ENV: &str = "ARYA_CRASH_CHILD_DB";
+/// Where killed children send coverage profile data so nothing corrupt is left for the merge step.
+const NULL_DEVICE: &str = if cfg!(windows) { "NUL" } else { "/dev/null" };
 const CANARY: &[u8] = b"CANARY-7F3A-CRASH-DO-NOT-USE";
 
 fn marker(t: &impl Store) -> i64 {
@@ -97,6 +99,9 @@ fn kill_at_random_points_never_corrupts_or_loses_commits() {
         let mut child = Command::new(&exe)
             .args(["--exact", "crash_child", "--nocapture", "--test-threads=1"])
             .env(DB_ENV, &path)
+            // The child is SIGKILLed on purpose. Under `cargo llvm-cov` a killed process leaves a
+            // corrupt .profraw behind and the report step then fails ("no profile can be merged").
+            .env("LLVM_PROFILE_FILE", NULL_DEVICE)
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()

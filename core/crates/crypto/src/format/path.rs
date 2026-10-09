@@ -66,7 +66,7 @@ fn hex_bytes<const N: usize>(s: &str) -> Result<[u8; N], FormatError> {
         return Err(FormatError::BadPath);
     }
     let mut out = [0u8; N];
-    for (i, pair) in b.chunks_exact(2).enumerate() {
+    for (i, pair) in b.as_chunks::<2>().0.iter().enumerate() {
         let hi = hex_val(pair[0]).ok_or(FormatError::BadPath)?;
         let lo = hex_val(pair[1]).ok_or(FormatError::BadPath)?;
         out[i] = (hi << 4) | lo;

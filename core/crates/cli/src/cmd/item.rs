@@ -80,12 +80,11 @@ fn summary_line(s: &ItemSummary) -> String {
 /// their leading characters while the trailing ones are random: both ends are accepted.
 fn resolve(vault: &mut Vault, text: &str) -> Result<Id> {
     let text = text.to_ascii_lowercase();
-    if text.len() == 32 {
-        if let Some(b) = unhex(&text) {
-            if let Ok(id) = Id::try_from(b) {
-                return Ok(id);
-            }
-        }
+    if text.len() == 32
+        && let Some(b) = unhex(&text)
+        && let Ok(id) = Id::try_from(b)
+    {
+        return Ok(id);
     }
     if text.len() < 6 || !text.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(CliError::usage(

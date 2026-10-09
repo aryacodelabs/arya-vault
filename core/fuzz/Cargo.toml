@@ -2,7 +2,7 @@
 name = "arya-vault-fuzz"
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MPL-2.0"
 publish = false
 description = "cargo-fuzz targets (not a member of the core workspace)"

@@ -307,7 +307,7 @@ mod tests {
                 .map(|i| sizes[i])
                 .sum();
             let term = ((n - removed) as f64).powi(len as i32);
-            if mask.count_ones() % 2 == 0 {
+            if mask.count_ones().is_multiple_of(2) {
                 total += term
             } else {
                 total -= term

@@ -123,10 +123,10 @@ fn decode_text_inner(bytes: &[u8]) -> Result<String, ImportError> {
             .map_err(|_| ImportError::InvalidEncoding);
     }
     let utf16 = |rest: &[u8], le: bool| -> Result<String, ImportError> {
-        if rest.len() % 2 != 0 {
+        if !rest.len().is_multiple_of(2) {
             return Err(ImportError::InvalidEncoding);
         }
-        let units = rest.chunks_exact(2).map(|c| {
+        let units = rest.as_chunks::<2>().0.iter().map(|c| {
             if le {
                 u16::from_le_bytes([c[0], c[1]])
             } else {
@@ -306,15 +306,17 @@ pub fn parse_csv(bytes: &[u8], limits: &ImportLimits) -> Result<ImportBundle, Im
             bundle.skip(row, SkipReason::Empty, limits)?;
             continue;
         }
-        if let Some(k) = &kind {
-            if !is_note && k != "login" && k != "password" {
-                bundle.skip(
-                    row,
-                    SkipReason::Invalid("unsupported item type column"),
-                    limits,
-                )?;
-                continue;
-            }
+        if let Some(k) = &kind
+            && !is_note
+            && k != "login"
+            && k != "password"
+        {
+            bundle.skip(
+                row,
+                SkipReason::Invalid("unsupported item type column"),
+                limits,
+            )?;
+            continue;
         }
         let derived = title.is_none();
         let title = title

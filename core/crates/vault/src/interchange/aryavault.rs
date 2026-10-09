@@ -147,7 +147,7 @@ pub(crate) fn parse_container(
         _ => return Err(ImportError::Malformed),
     };
     // Padded plaintext is a non-empty multiple of 1 KiB, plus the 16-byte tag.
-    if ct.len() < padding::BUCKET + 16 || (ct.len() - 16) % padding::BUCKET != 0 {
+    if ct.len() < padding::BUCKET + 16 || !(ct.len() - 16).is_multiple_of(padding::BUCKET) {
         return Err(ImportError::Malformed);
     }
     Ok(Container {
