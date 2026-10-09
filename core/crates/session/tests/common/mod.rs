@@ -143,3 +143,28 @@ pub fn expect_code(r: Result<impl std::fmt::Debug, SessionError>, code: &str) {
         Err(e) => assert_eq!(e.code().as_str(), code, "{e:?}"),
     }
 }
+
+/// A wall clock the test sets by hand (ms since the Unix epoch).
+#[derive(Clone)]
+pub struct FakeWall(pub Arc<AtomicU64>);
+
+impl FakeWall {
+    pub fn at(ms: u64) -> Self {
+        Self(Arc::new(AtomicU64::new(ms)))
+    }
+    pub fn set(&self, ms: u64) {
+        self.0.store(ms, Ordering::SeqCst);
+    }
+    pub fn advance(&self, ms: u64) {
+        self.0.fetch_add(ms, Ordering::SeqCst);
+    }
+    pub fn get(&self) -> u64 {
+        self.0.load(Ordering::SeqCst)
+    }
+}
+
+impl arya_vault_session::WallClock for FakeWall {
+    fn now_ms(&self) -> u64 {
+        self.get()
+    }
+}
