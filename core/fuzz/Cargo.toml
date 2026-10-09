@@ -15,6 +15,7 @@ libfuzzer-sys = "0.4"
 
 # Path dependencies on the crates under test (one per fuzz target group).
 arya-vault-crypto = { path = "../crates/crypto" }
+arya-vault-vault = { path = "../crates/vault" }
 
 # Keep this crate out of the core workspace (cargo-fuzz needs its own root).
 [workspace]
@@ -57,6 +58,27 @@ bench = false
 [[bin]]
 name = "fuzz_path"
 path = "fuzz_targets/fuzz_path.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_import_csv"
+path = "fuzz_targets/fuzz_import_csv.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_import_bitwarden"
+path = "fuzz_targets/fuzz_import_bitwarden.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_import_aryavault"
+path = "fuzz_targets/fuzz_import_aryavault.rs"
 test = false
 doc = false
 bench = false

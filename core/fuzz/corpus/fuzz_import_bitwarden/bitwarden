@@ -1,0 +1,14 @@
+{
+  "encrypted": false,
+  "folders": [{"id": "folder-1", "name": "Work"}],
+  "items": [
+    {"id": "i1", "folderId": "folder-1", "type": 1, "name": "Example Login", "notes": "CANARY login note", "favorite": true,
+     "fields": [{"name": "pin", "value": "CANARY-bw-pin", "type": 1}, {"name": "vip", "value": "true", "type": 2}],
+     "login": {"uris": [{"uri": "https://example.test"}], "username": "alice", "password": "CANARY-bw-pw", "totp": "CANARYBWSEED"}},
+    {"id": "i2", "type": 2, "name": "Secure Note", "notes": "CANARY note body", "secureNote": {"type": 0}},
+    {"id": "i3", "type": 3, "name": "Card", "card": {"cardholderName": "A Person", "brand": "Visa", "number": "4111111111111111", "expMonth": "12", "expYear": "2031", "code": "999"}},
+    {"id": "i4", "type": 4, "name": "Identity", "identity": {"firstName": "A", "lastName": "Person", "email": "a@example.test", "address1": "1 Test St", "city": "Testville", "country": "TV", "ssn": "CANARY-ssn-000"}},
+    {"id": "i5", "type": 9, "name": "Unknown kind"},
+    {"id": "i6", "type": 1, "name": "Trashed", "deletedDate": "2024-01-01T00:00:00.000Z", "login": {"username": "gone"}}
+  ]
+}
