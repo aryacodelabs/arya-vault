@@ -809,6 +809,33 @@ fn aryavault_payload_fixture_is_stable_and_parses() {
     assert_eq!((b.items.len(), b.folders.len()), (1, 1));
 }
 
+/// docs/13 §7 must describe the committed fixture: a third-party implementer copying the vector
+/// from the spec must get the bytes the code produces. (MK and KEK in that table were checked
+/// against an independent Python implementation; `expose_secret` is crate-private in `crypto`.)
+#[test]
+fn docs_test_vector_matches_the_fixture() {
+    use sha2::{Digest, Sha256};
+    let doc = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs/13-export-format.md"),
+    )
+    .unwrap();
+    let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
+    let file = fixture("aryavault-v1.avex");
+    let payload = fixture("aryavault-v1.payload.cbor");
+    assert!(
+        doc.contains(&hex(&Sha256::digest(&file))),
+        "SHA-256 of the fixture is not in docs/13 §7"
+    );
+    assert!(
+        doc.contains(&format!("{} bytes", file.len())),
+        "file length is not in docs/13 §7"
+    );
+    assert!(
+        doc.contains(&hex(&payload)),
+        "payload hex is not in docs/13 §7"
+    );
+}
+
 /// Writes the fixtures. Run once when intentionally introducing a format version:
 /// `cargo test -p arya-vault-vault --lib regenerate_aryavault_fixture -- --ignored`
 #[test]
