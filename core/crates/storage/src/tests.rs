@@ -834,6 +834,16 @@ fn fts_index_remove_clear_search() {
         t.fts_remove(&[1; 16], &d1)?;
         assert_eq!(t.fts_search("github", 10)?, vec![[2; 16]]);
         assert!(t.fts_search("alice", 10)?.is_empty());
+        // Recency order (updated_hlc desc), independent of relevance.
+        let mut newer = item(2);
+        newer.updated_hlc = 99;
+        t.upsert_item(&newer)?;
+        assert_eq!(t.fts_search_recent("github", 10)?, vec![[2; 16]]);
+        t.fts_index(&[1; 16], &d1)?; // re-add item 1 (removed above)
+        assert_eq!(t.fts_search_recent("github", 10)?, vec![[2; 16], [1; 16]]);
+        assert_eq!(t.fts_search_recent("github", 1)?, vec![[2; 16]]);
+        assert!(t.fts_search_recent("nomatch", 10)?.is_empty());
+        t.fts_remove(&[1; 16], &d1)?;
         t.fts_clear()?;
         assert!(t.fts_search("github", 10)?.is_empty());
         assert!(matches!(
