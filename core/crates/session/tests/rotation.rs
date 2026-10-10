@@ -346,3 +346,46 @@ fn quick_unlock_is_switched_off_by_a_rotation_and_a_stale_blob_cannot_come_back(
         "the stale blob disabled itself"
     );
 }
+
+fn backups(dir: &std::path::Path) -> Vec<String> {
+    all_files(dir)
+        .iter()
+        .map(|p| p.file_name().unwrap().to_str().unwrap().to_owned())
+        .filter(|n| n.contains(".bak-v"))
+        .collect()
+}
+
+/// SEC-A06: the old database key must not survive in a pre-migration backup. A password change
+/// keeps the vault key, so its backups stay valid and stay.
+#[test]
+fn sec_a06_rotation_deletes_pre_migration_backups_but_a_password_change_keeps_them() {
+    let (_t, dir, _rk) = fixture_copy(BIN);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let plant = |dir: &std::path::Path| {
+        fs::copy(
+            dir.join("vault.db"),
+            dir.join(format!("vault.db.bak-v1-{now}")),
+        )
+        .unwrap();
+    };
+    let mut s = Session::open_dir(&dir).unwrap();
+    s.unlock(PW).unwrap();
+    s.lock().unwrap();
+    plant(&dir);
+
+    s.unlock(PW).unwrap();
+    s.change_password(PW, PW2, LOW).unwrap();
+    assert_eq!(
+        backups(&dir).len(),
+        1,
+        "a password change keeps the vault key"
+    );
+
+    // the backup opens under the current key now, and not after the rotation
+    s.rotate_keys(PW2).unwrap();
+    assert_eq!(backups(&dir), Vec::<String>::new());
+    assert_eq!(revealed_secret(&mut s), ITEM_PW);
+}

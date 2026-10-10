@@ -17,7 +17,7 @@
 //! | 4 | fsync `.next` and the directory | old state |
 //! | **5** | **commit: atomically rename the new header `H(E+1)` into place** | **new state** (below) |
 //! | 6 | rename `.next` over `vault.db` (stale `-wal`/`-shm` removed first) | new state |
-//! | 7 | delete `H(E)` and any leftover | new state |
+//! | 7 | delete the pre-migration backups (`vault.db.bak-v*`, encrypted under the retired key), then `H(E)` and any leftover | new state |
 //!
 //! * Before step 5 the active header is `H(E)` and `vault.db` is untouched, so the vault opens
 //!   entirely under the old credentials; `.next` is deleted the next time the vault opens.
@@ -454,6 +454,106 @@ mod tests {
             assert_eq!(a2.header.epoch, expect_epoch + 1);
             assert_eq!(v2.item_count().unwrap(), 4);
             v2.close().unwrap();
+        }
+    }
+
+    /// Plants what `Db::open` leaves after a schema upgrade: an encrypted copy of the database under
+    /// the current key, a sidecar, and two files that merely look similar.
+    fn plant_backups(dir: &VaultDir) -> Vec<std::path::PathBuf> {
+        let db = dir.db_path();
+        let with = |suffix: &str| {
+            let mut s = db.as_os_str().to_owned();
+            s.push(suffix);
+            std::path::PathBuf::from(s)
+        };
+        // recent, so that the 14-day pruning of `Db::open` cannot be what removes them
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let backups = vec![
+            with(&format!(".bak-v1-{now}")),
+            with(&format!(".bak-v1-{now}-1")),
+            with(&format!(".bak-v1-{now}-wal")),
+        ];
+        for b in &backups {
+            fs::copy(&db, b).unwrap();
+        }
+        backups
+    }
+
+    fn decoys(dir: &VaultDir) -> Vec<std::path::PathBuf> {
+        let d = vec![
+            dir.root().join("vault.db.bak-vX-1"),
+            dir.root().join("vault.db.bak-v1"),
+            dir.root().join("other.db.bak-v1-1700000000"),
+            dir.root().join("vault.db.bak-v1-1700000000.txt"),
+        ];
+        for f in &d {
+            fs::write(f, b"not ours").unwrap();
+        }
+        d
+    }
+
+    // SEC-A06: a pre-migration backup is encrypted under the retired key, so it must go with it.
+    #[test]
+    fn sec_a06_a_committed_rotation_deletes_the_pre_migration_backups() {
+        let t = tempfile::tempdir().unwrap();
+        let dir = make_vault(t.path(), 2);
+        let backups = plant_backups(&dir);
+        let decoys = decoys(&dir);
+        rotate(&dir, &mut |_| Ok(())).unwrap();
+        for b in &backups {
+            assert!(!b.exists(), "{b:?} survived the rotation");
+        }
+        for d in &decoys {
+            assert!(d.exists(), "{d:?} is not a backup and must stay");
+        }
+    }
+
+    // The same, for a crash at every step after the commit: the next open finishes the job.
+    #[test]
+    fn sec_a06_a_crash_after_the_commit_still_deletes_the_backups_on_the_next_open() {
+        for stop_at in [Step::Committed, Step::Swapped] {
+            let t = tempfile::tempdir().unwrap();
+            let dir = make_vault(t.path(), 2);
+            let backups = plant_backups(&dir);
+            let _ = rotate(&dir, &mut |s| {
+                if s == stop_at {
+                    Err(SessionError::Internal("simulated crash"))
+                } else {
+                    Ok(())
+                }
+            });
+            let (_, v) = restart(&dir);
+            v.close().unwrap();
+            for b in &backups {
+                assert!(!b.exists(), "{stop_at:?}: {b:?} survived");
+            }
+            assert_eq!(header_epochs(&dir), [2]);
+        }
+    }
+
+    // A rotation that never committed leaves the old key in force; its backups stay usable.
+    #[test]
+    fn a_rotation_that_did_not_commit_keeps_the_backups() {
+        for stop_at in [Step::Copied, Step::Verified, Step::BeforeCommit] {
+            let t = tempfile::tempdir().unwrap();
+            let dir = make_vault(t.path(), 2);
+            let backups = plant_backups(&dir);
+            let _ = rotate(&dir, &mut |s| {
+                if s == stop_at {
+                    Err(SessionError::Internal("simulated crash"))
+                } else {
+                    Ok(())
+                }
+            });
+            let (_, v) = restart(&dir);
+            v.close().unwrap();
+            assert!(!dir.next_exists(), "{stop_at:?}");
+            for b in &backups {
+                assert!(b.exists(), "{stop_at:?}: {b:?} was deleted");
+            }
         }
     }
 

@@ -28,7 +28,7 @@ mod store;
 pub use db::{CreateParams, Db};
 pub use error::StorageError;
 pub use key::DbKey;
-pub use migrations::{BACKUP_RETENTION, latest_schema_version};
+pub use migrations::{BACKUP_RETENTION, latest_schema_version, remove_all_backups};
 pub use pragmas::BUSY_TIMEOUT_MS;
 pub use store::{
     DeviceRow, FieldHistoryRow, FieldRow, FolderRow, FtsDoc, Id, ItemFilter, ItemRow, LocalOp,

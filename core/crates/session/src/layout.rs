@@ -146,19 +146,33 @@ impl VaultDir {
     }
 
     /// After a database has opened under `active`: removes what an interrupted or finished key
-    /// rotation leaves behind. That is the re-keyed copy and every header of a lower epoch (they
-    /// are brute-force targets for the old key, docs/04 §5, §9). Best effort.
+    /// rotation leaves behind. That is the re-keyed copy, every pre-migration backup (encrypted
+    /// under the retired database key) and every header of a lower epoch (they are brute-force
+    /// targets for the old key, docs/04 §5, §9). Best effort.
+    ///
+    /// The headers go **last**: a lower-epoch header is the marker `has_rotation_leftovers` looks
+    /// for, so a crash before the backups are gone leaves the marker and the next open finishes.
     pub(crate) fn collect_rotation_leftovers(&self, active: &ActiveHeader) {
         self.remove_next();
         let Ok(names) = self.header_files() else {
             return;
         };
-        for name in names {
-            if let Ok(PathInfo::Header { epoch, .. }) = parse_header_path(&name)
-                && epoch < active.header.epoch
-            {
-                let _ = fs::remove_file(self.root.join(name));
-            }
+        let older: Vec<&String> = names
+            .iter()
+            .filter(|n| {
+                matches!(
+                    parse_header_path(n),
+                    Ok(PathInfo::Header { epoch, .. }) if epoch < active.header.epoch
+                )
+            })
+            .collect();
+        // Backups are only retired by a rotation that committed (an older header proves it): an
+        // abandoned attempt leaves the old key in force and its backups still useful.
+        if !older.is_empty() {
+            arya_vault_storage::remove_all_backups(&self.db_path());
+        }
+        for name in older {
+            let _ = fs::remove_file(self.root.join(name));
         }
     }
 
