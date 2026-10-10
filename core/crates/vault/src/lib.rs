@@ -48,3 +48,11 @@ pub use views::{
     CustomView, Folder, ItemSummary, ItemView, ListFilter, NewItem, OldPassword, Page, ReuseGroup,
     SearchQuery, TrashEntry, UrlView, VersionInfo, WeakPassword,
 };
+
+/// The register value codec, exposed for the fuzz target only (`fuzz_vault_value_decode`).
+#[doc(hidden)]
+pub mod fuzzing {
+    pub use crate::value::{
+        MAX_VALUE_BYTES, Value, decode, encode_bool, encode_bytes, encode_int, encode_text,
+    };
+}

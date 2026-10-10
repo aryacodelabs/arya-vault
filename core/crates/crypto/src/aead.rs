@@ -285,6 +285,25 @@ mod tests {
         }
     }
 
+    // SEC-C04 at the strength docs/11 section 2 asks for: 10^7 nonces. Too slow and too large
+    // for every PR in a debug build, so it is `#[ignore]`d and run by the nightly workflow
+    // (`cargo test --release -p arya-vault-crypto -- --ignored sec_c04`). Sorted `Vec` rather
+    // than a `HashSet`: 240 MB instead of well over 500 MB, and a duplicate shows up as equal
+    // neighbours.
+    #[test]
+    #[ignore = "10^7 draws; run by the nightly workflow"]
+    fn sec_c04_ten_million_nonces_are_distinct() {
+        const N: usize = 10_000_000;
+        let k = key(4);
+        let mut nonces: Vec<Nonce> = Vec::with_capacity(N);
+        for _ in 0..N {
+            nonces.push(seal(&k, b"", b"", &mut OsRng).unwrap().0);
+        }
+        nonces.sort_unstable();
+        let dup = nonces.windows(2).filter(|w| w[0] == w[1]).count();
+        assert_eq!(dup, 0, "duplicate nonces observed");
+    }
+
     #[test]
     fn same_inputs_give_different_nonce_and_ciphertext() {
         let k = key(5);

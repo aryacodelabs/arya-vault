@@ -181,6 +181,36 @@ mod tests {
         );
     }
 
+    /// The same property the `fuzz_vault_value_decode` target checks, run over its seed corpus on
+    /// stable (the fuzzer itself needs nightly): no panic, an accepted value re-encodes to the
+    /// input, `bad-*` seeds are rejected and the others accepted.
+    #[test]
+    fn fuzz_seed_corpus_satisfies_the_target_property() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fuzz/corpus/fuzz_vault_value_decode");
+        let mut n = 0;
+        for e in std::fs::read_dir(dir).unwrap() {
+            let e = e.unwrap();
+            let name = e.file_name().into_string().unwrap();
+            let data = std::fs::read(e.path()).unwrap();
+            match decode(&data) {
+                Ok(v) => {
+                    assert!(!name.starts_with("bad-"), "{name} should be rejected");
+                    let again = match &v {
+                        Value::Text(s) => encode_text(s),
+                        Value::Bool(b) => encode_bool(*b),
+                        Value::Int(i) => encode_int(*i),
+                        Value::Bytes(b) => encode_bytes(b),
+                    };
+                    assert_eq!(&again[..], &data[..], "{name} is not canonical");
+                }
+                Err(_) => assert!(name.starts_with("bad-"), "{name} should be accepted"),
+            }
+            n += 1;
+        }
+        assert!(n >= 20, "seed corpus missing ({n} files)");
+    }
+
     #[test]
     fn debug_never_prints_contents() {
         let v = Value::Text("CANARY-SECRET".into());

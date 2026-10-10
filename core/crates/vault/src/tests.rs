@@ -1025,6 +1025,63 @@ fn search_typical_queries() {
     );
 }
 
+/// A prefix that matches many items: the unfiltered search takes a small recency-bounded
+/// candidate set, the filtered one up to 5,000. Both must return the same first `limit` results,
+/// most recently changed first, whatever the match count relative to the ranking threshold.
+#[test]
+fn broad_unfiltered_search_returns_the_same_results_as_the_filtered_path() {
+    let mut e = env();
+    let mut ids = Vec::new();
+    for n in 0..420 {
+        e.clock.advance(1);
+        ids.push(
+            e.v.create_item(
+                NewItem::new(ItemType::Login, &format!("site {n}"))
+                    .with_field(StdField::Username, &format!("user{n}@example.test")),
+            )
+            .unwrap(),
+        );
+    }
+    // Touch a few old items so "recently changed" differs from "recently created".
+    for n in [3, 17, 250] {
+        e.clock.advance(1);
+        e.v.set_field(&ids[n], StdField::Notes, "edited").unwrap();
+    }
+    let q = |limit: usize, filtered: bool| SearchQuery {
+        text: "user".into(),
+        filter: ListFilter {
+            // Every item is a login: this filter drops nothing but selects the wide path.
+            item_type: filtered.then_some(ItemType::Login),
+            ..Default::default()
+        },
+        limit,
+    };
+    for limit in [1, 20, 100, 300, 301, 350, 420, 500] {
+        let narrow: Vec<_> =
+            e.v.search(&q(limit, false))
+                .unwrap()
+                .into_iter()
+                .map(|s| s.id)
+                .collect();
+        let wide: Vec<_> =
+            e.v.search(&q(limit, true))
+                .unwrap()
+                .into_iter()
+                .map(|s| s.id)
+                .collect();
+        assert_eq!(narrow.len(), limit.min(420), "limit {limit}");
+        assert_eq!(narrow, wide, "limit {limit}");
+    }
+    // Most recently changed first: the three edited items lead.
+    let top: Vec<_> =
+        e.v.search(&q(5, false))
+            .unwrap()
+            .into_iter()
+            .map(|s| s.id)
+            .collect();
+    assert_eq!(&top[..3], &[ids[250], ids[17], ids[3]]);
+}
+
 #[test]
 fn search_index_follows_every_mutation() {
     let mut e = env();
@@ -1707,6 +1764,9 @@ fn perf_20k_items_search_and_list() {
     })
     .unwrap();
     eprintln!("setup of 20,000 items: {:?}", started.elapsed());
+    // A vault that was closed and reopened (the cold-unlock case) has no big WAL; reads that go
+    // through a 20,000-item WAL are several times slower and say nothing about the queries.
+    e.v.db.checkpoint().unwrap();
     let v = &mut e.v;
     let time = |label: &str, f: &mut dyn FnMut()| {
         f(); // warm up
@@ -1739,6 +1799,22 @@ fn perf_20k_items_search_and_list() {
             .is_empty()
         )
     });
+    // The case the M1 exit check found slow: a prefix that matches every item.
+    let s_broad = time(
+        "search 'user' (prefix matching all 20,000 items)",
+        &mut || {
+            assert_eq!(
+                v.search(&SearchQuery {
+                    text: "user".into(),
+                    ..Default::default()
+                })
+                .unwrap()
+                .len(),
+                100
+            )
+        },
+    );
+    let v = &mut e.v;
     let s_rare = time("search 'user19999' (single hit)", &mut || {
         assert_eq!(
             v.search(&SearchQuery {
@@ -1789,6 +1865,7 @@ fn perf_20k_items_search_and_list() {
     for (label, d, target_ms) in [
         ("search prefix", s_prefix, 100),
         ("search multi", s_multi, 100),
+        ("search broad", s_broad, 100),
         ("search rare", s_rare, 100),
         ("list first page", l_page, 50),
     ] {

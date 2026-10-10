@@ -23,10 +23,16 @@ pub(crate) struct Migration {
 }
 
 /// All migrations shipped in this build, oldest first.
-pub(crate) const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    sql: include_str!("migrations/v001_initial.sql"),
-}];
+pub(crate) const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        sql: include_str!("migrations/v001_initial.sql"),
+    },
+    Migration {
+        version: 2,
+        sql: include_str!("migrations/v002_title_favorite_indexes.sql"),
+    },
+];
 
 /// Highest schema version this build writes.
 #[must_use]

@@ -182,7 +182,8 @@ pub trait Store {
     fn get_field(&self, item_id: &Id, key: &str) -> Result<Option<FieldRow>>;
     /// All registers of an item, ordered by key.
     fn fields_for_item(&self, item_id: &Id) -> Result<Vec<FieldRow>>;
-    /// The register named exactly `key` for every item (one scan; used to list titles).
+    /// The register named exactly `key` for every item (used to list titles). `title` and
+    /// `favorite` are answered from covering indexes (schema v2), other keys by a table scan.
     fn fields_with_key(&self, key: &str) -> Result<Vec<FieldRow>>;
     /// Registers whose key starts with `prefix`, for every item (e.g. `tags.`).
     fn fields_with_key_prefix(&self, prefix: &str) -> Result<Vec<FieldRow>>;
@@ -283,7 +284,7 @@ fn item_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<ItemRow> {
     })
 }
 
-fn field_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<FieldRow> {
+pub(crate) fn field_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<FieldRow> {
     Ok(FieldRow {
         item_id: id_from(r.get(0)?)?,
         key: r.get(1)?,
@@ -370,10 +371,24 @@ impl Store for Tx<'_> {
     }
 
     fn fields_with_key(&self, key: &str) -> Result<Vec<FieldRow>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE key = ?1",
-        )?;
-        let rows = stmt.query_map([key], field_row)?;
+        // Schema v2 has partial covering indexes for these two registers. SQLite uses a partial
+        // index only when the statement carries the same literal, so they get their own SQL
+        // (a bound parameter would silently fall back to a scan of the whole table).
+        let sql = match key {
+            "title" => {
+                "SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE key = 'title'"
+            }
+            "favorite" => {
+                "SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE key = 'favorite'"
+            }
+            _ => "SELECT item_id, key, value, hlc, device_id, base_hlc FROM field WHERE key = ?1",
+        };
+        let mut stmt = self.conn.prepare(sql)?;
+        let rows = if sql.ends_with("?1") {
+            stmt.query_map([key], field_row)?
+        } else {
+            stmt.query_map([], field_row)?
+        };
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
     fn fields_with_key_prefix(&self, prefix: &str) -> Result<Vec<FieldRow>> {

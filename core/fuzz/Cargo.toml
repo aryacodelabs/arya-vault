@@ -90,3 +90,10 @@ path = "fuzz_targets/fuzz_quick_policy.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "fuzz_vault_value_decode"
+path = "fuzz_targets/fuzz_vault_value_decode.rs"
+test = false
+doc = false
+bench = false
