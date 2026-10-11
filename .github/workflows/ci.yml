@@ -151,3 +151,45 @@ jobs:
         run: '"$RUNNER_TEMP/crosscheck-venv/bin/python" -I tools/crosscheck/crosscheck.py core/testdata/golden'
       - name: Tampered copies must be rejected
         run: '"$RUNNER_TEMP/crosscheck-venv/bin/python" -I tools/crosscheck/test_negative.py core/testdata/golden'
+
+  flutter:
+    # B01: the Flutter app over the fake API (docs/cloud-tasks/m2/B01). Linux only; goldens are
+    # generated on Linux (app/test/golden/README.md).
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      # Keep in sync with app/.flutter-version and the `flutter:` constraint in app/pubspec.yaml.
+      FLUTTER_VERSION: 3.47.7
+      # sha256 of flutter_linux_3.47.7-stable.tar.xz from the official releases manifest
+      # (https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json)
+      FLUTTER_SHA256: af7455f540df951184c7953fbe3cf884766e7541dacf8571f9f582db03dd6230
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Pinned release tarball with a checksum instead of a third-party setup action.
+      - name: Install Flutter (pinned, checksum-verified)
+        run: |
+          test "$(cat .flutter-version)" = "${FLUTTER_VERSION}"
+          curl -sSfL -o "$RUNNER_TEMP/flutter.tar.xz" \
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+          echo "${FLUTTER_SHA256}  $RUNNER_TEMP/flutter.tar.xz" | sha256sum --check --strict
+          tar -xf "$RUNNER_TEMP/flutter.tar.xz" -C "$RUNNER_TEMP"
+          rm "$RUNNER_TEMP/flutter.tar.xz"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - name: Verify the version and turn analytics off
+        run: |
+          flutter --version | head -1 | grep -F "Flutter ${FLUTTER_VERSION} "
+          flutter config --no-analytics
+      - run: flutter pub get --enforce-lockfile
+      - name: Generated localizations are up to date
+        run: |
+          flutter gen-l10n
+          git diff --exit-code -- lib/src/l10n
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: flutter analyze
+      - run: flutter test
