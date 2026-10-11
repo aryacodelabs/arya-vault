@@ -12,3 +12,11 @@ description = "Fake golden-vault recovery key in expected.json (canary test data
 condition = "AND"
 paths = ['''^core/testdata/golden/v1/expected\.json$''']
 regexes = ['''MH365-7P3RV-640RY-YD7T8-RN1R5-65JCX-SA-65''']
+
+# The Flutter test suite's fake master password (app/test/helpers.dart). Obvious canary,
+# never used outside tests; allow exactly that value in exactly that file.
+[[allowlists]]
+description = "Fake master password canary in the Flutter test helpers"
+condition = "AND"
+paths = ['''^app/test/helpers\.dart$''']
+regexes = ['''CANARY-correct-horse-battery-staple-9142''']

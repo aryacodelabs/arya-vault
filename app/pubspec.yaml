@@ -1,0 +1,30 @@
+name: arya_vault
+description: "AryaVault: local-first, zero-knowledge password and notes manager (Flutter UI over the shared Rust core)."
+publish_to: 'none'
+version: 0.1.0+1
+
+# The Flutter version is pinned in .flutter-version; CI and local builds must use it.
+environment:
+  sdk: ^3.13.5
+  flutter: 3.47.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # State management (docs/09). Providers hold only DTOs and UI state, never keys.
+  flutter_riverpod: ^3.4.3
+  # Declarative routing with a redirect guard driven by VaultStatus.
+  go_router: ^18.0.2
+  # Required by flutter_localizations / gen-l10n.
+  intl: ^0.20.3
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  generate: true
