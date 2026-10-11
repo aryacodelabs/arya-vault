@@ -5,12 +5,16 @@ import 'package:arya_vault/src/api/dtos.dart';
 import 'package:arya_vault/src/api/fake_vault_api.dart';
 import 'package:arya_vault/src/api/secret_bytes.dart';
 import 'package:arya_vault/src/app.dart';
+import 'package:arya_vault/src/l10n/gen/app_localizations.dart';
 import 'package:arya_vault/src/l10n/gen/app_localizations_en.dart';
 import 'package:arya_vault/src/services/fake_services.dart';
 import 'package:arya_vault/src/state/onboarding_state.dart';
 import 'package:arya_vault/src/state/providers.dart';
+import 'package:arya_vault/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 /// English strings, straight from the generated localizations so tests follow
@@ -52,6 +56,7 @@ class Services {
   final FakeFilePickerService filePicker = FakeFilePickerService();
   final FakePrintService printer = FakePrintService();
   final FakePlatformEvents events = FakePlatformEvents();
+  final FakeUrlLauncherService urlLauncher = FakeUrlLauncherService();
 }
 
 /// Pumps the whole app against [api] at [size] (logical pixels) and [textScale].
@@ -62,6 +67,8 @@ Future<Harness> pumpApp(
   Size size = const Size(420, 900),
   double textScale = 1,
   ThemeMode themeMode = ThemeMode.light,
+  List<Override> overrides = const <Override>[],
+  bool settle = true,
 }) async {
   final FakeVaultApi fake = api ?? newFakeApi();
   final Services s = services ?? Services();
@@ -72,18 +79,25 @@ Future<Harness> pumpApp(
   addTearDown(tester.platformDispatcher.clearAllTestValues);
   await tester.pumpWidget(
     ProviderScope(
+      retry: noAutoRetry,
       overrides: [
         vaultApiProvider.overrideWithValue(fake),
         clipboardServiceProvider.overrideWithValue(s.clipboard),
         filePickerServiceProvider.overrideWithValue(s.filePicker),
         printServiceProvider.overrideWithValue(s.printer),
         platformEventsProvider.overrideWithValue(s.events),
+        urlLauncherServiceProvider.overrideWithValue(s.urlLauncher),
         themeModeProvider.overrideWith(() => _FixedTheme(themeMode)),
+        ...overrides,
       ],
       child: const AryaVaultApp(),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
   final ProviderContainer container = ProviderScope.containerOf(
     tester.element(find.byType(AryaVaultApp)),
   );
@@ -136,6 +150,7 @@ List<String> keyGroups(RecoveryKeyResult r) =>
     String.fromCharCodes(r.recoveryKey).split('-');
 
 Future<void> tapOn(WidgetTester tester, Finder finder) async {
+  await tester.pumpAndSettle(); // let earlier actions finish moving things
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
@@ -184,3 +199,14 @@ Future<void> typeAnswers(WidgetTester tester, List<String> answers) async {
   }
   await tester.pumpAndSettle();
 }
+
+/// Localization delegates and theme for tests that build a bare MaterialApp.
+const List<LocalizationsDelegate<dynamic>> appDelegates =
+    <LocalizationsDelegate<dynamic>>[
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ];
+
+ThemeData get appTheme => AppTheme.light;
