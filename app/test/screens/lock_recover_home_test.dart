@@ -349,23 +349,33 @@ void main() {
       await pumpApp(tester, api: api, size: size);
     }
 
-    testWidgets('desktop width shows three panes', (WidgetTester tester) async {
+    testWidgets('desktop width shows sidebar, list and detail panes', (
+      WidgetTester tester,
+    ) async {
       await unlockedHome(tester, size: const Size(kDesktopBreakpoint, 700));
-      expect(find.byType(NavigationRail), findsOneWidget);
-      expect(textOf(l10n.homeListPlaceholder), findsOneWidget);
+      // Sidebar entries, the list pane's search, and the detail placeholder.
+      expect(textOf(l10n.allItems), findsOneWidget);
+      expect(textOf(l10n.trashTitle), findsOneWidget);
+      expect(fieldLabelled(l10n.searchLabel), findsOneWidget);
+      expect(textOf(l10n.selectItemHint), findsOneWidget);
       expect(textOf(l10n.homeUnlockedMessage), findsOneWidget);
     });
 
-    testWidgets('compact width is a single pane', (WidgetTester tester) async {
+    testWidgets('compact width is a single pane with the sidebar in a drawer', (
+      WidgetTester tester,
+    ) async {
       await unlockedHome(tester, size: const Size(kDesktopBreakpoint - 1, 700));
-      expect(find.byType(NavigationRail), findsNothing);
-      expect(textOf(l10n.homeListPlaceholder), findsNothing);
+      expect(textOf(l10n.allItems), findsNothing);
+      expect(textOf(l10n.selectItemHint), findsNothing);
+      expect(fieldLabelled(l10n.searchLabel), findsOneWidget);
       expect(textOf(l10n.homeUnlockedMessage), findsOneWidget);
+      await tapOn(tester, find.byTooltip(l10n.openMenu));
+      expect(textOf(l10n.allItems), findsOneWidget);
     });
 
     testWidgets('Lock returns to the lock screen', (WidgetTester tester) async {
       await unlockedHome(tester, size: const Size(420, 800));
-      await tapOn(tester, find.text(l10n.actionLock));
+      await tapOn(tester, find.byTooltip(l10n.actionLock));
       expect(textOf(l10n.lockTitle), findsOneWidget);
     });
   });

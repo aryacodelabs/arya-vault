@@ -1,15 +1,23 @@
 # Golden images
 
-15 images: Welcome, Create (with strength feedback), Recovery key, Verify and
-Lock (with quick unlock), each in light, dark and 200% text.
+27 images:
+
+- B01 (15): Welcome, Create (with strength feedback), Recovery key, Verify and
+  Lock (with quick unlock), each in light, dark and 200% text.
+- B02 (12): list with detail, detail masked, detail revealed (fake canary), edit
+  login, trash and history compare, each in light and dark
+  (`goldens/vault_*.png`).
 
 ## Regenerate
 
 From `app/`:
 
 ```
-flutter test --update-goldens test/golden
+TZ=UTC flutter test --update-goldens test/golden
 ```
+
+`TZ=UTC` matters for the B02 images: they show dates (from a fixed test clock),
+and Dart formats them in the machine's local time zone. CI runs in UTC.
 
 Review the diff of `test/golden/goldens/*.png` before committing.
 

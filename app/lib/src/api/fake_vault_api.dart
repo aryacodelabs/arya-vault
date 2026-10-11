@@ -58,6 +58,10 @@ class _FakeItem {
   final Map<StdField, String> fields = <StdField, String>{};
   final Map<StdField, List<(int, String)>> versions =
       <StdField, List<(int, String)>>{};
+
+  /// Versions (by hlc) that lost to the current one but are not its ancestors
+  /// (docs/06 §5.3). A derived view in the real core; seeded here.
+  final Map<StdField, Set<int>> concurrent = <StdField, Set<int>>{};
   final int createdAt;
   int updatedAt;
   int? deletedAt;
@@ -70,12 +74,13 @@ class FakeVaultApi implements VaultApi {
     QuickUnlockStatus quickUnlock = QuickUnlockStatus.unsupported,
     bool seedSampleItems = true,
     int sampleItemCount = 2000,
+    int sampleTrashCount = 5,
     this.freeAttempts = 5,
   }) : _clock = clock ?? DateTime.now,
        _random = random ?? Random.secure(),
        _quick = quickUnlock {
     if (seedSampleItems) {
-      _seedSamples(sampleItemCount);
+      _seedSamples(sampleItemCount, sampleTrashCount);
     }
   }
 
@@ -109,6 +114,28 @@ class FakeVaultApi implements VaultApi {
   int confirmSuccessCount = 0;
 
   final Map<String, _FakeItem> _items = <String, _FakeItem>{};
+
+  /// Bumped by every change to items, so the sorted view can be cached (the
+  /// 20,000-item mode pages and searches it constantly).
+  int _version = 0;
+  int _sortedVersion = -1;
+  List<_FakeItem> _sorted = <_FakeItem>[];
+
+  void _bump() => _version++;
+
+  /// All items, newest first like the real core (`ORDER BY updated_hlc DESC, id`).
+  List<_FakeItem> get _byNewest {
+    if (_sortedVersion != _version) {
+      _sorted = _items.values.toList()
+        ..sort((_FakeItem a, _FakeItem b) {
+          final int byTime = b.updatedAt.compareTo(a.updatedAt);
+          return byTime != 0 ? byTime : a.id.compareTo(b.id);
+        });
+      _sortedVersion = _version;
+    }
+    return _sorted;
+  }
+
   final Map<String, Folder> _folders = <String, Folder>{};
 
   // ------------------------------------------------------------------ helpers
@@ -610,7 +637,7 @@ class FakeVaultApi implements VaultApi {
 
   // ------------------------------------------------- 4.2 items and folders
 
-  void _seedSamples(int count) {
+  void _seedSamples(int count, int trashCount) {
     const List<String> sites = <String>[
       'Aurora',
       'Beacon',
@@ -643,9 +670,14 @@ class FakeVaultApi implements VaultApi {
       'Cards',
       'Travel',
     ];
+    final List<String> folderIds = <String>[
+      for (final String name in <String>['Work', 'Personal', 'Finance'])
+        _addFolder(name),
+    ];
     final DateTime base = DateTime.utc(2026, 1, 1);
     final int baseMs = base.millisecondsSinceEpoch;
-    for (var i = 0; i < count; i++) {
+    for (var i = 0; i < count + trashCount; i++) {
+      final bool trashed = i >= count;
       final ItemType type = switch (i % 10) {
         0 || 1 => ItemType.note,
         2 => ItemType.card,
@@ -673,8 +705,12 @@ class FakeVaultApi implements VaultApi {
           if (i % 7 == 0) {
             item.fields[StdField.totpSeed] = '$_canary-totp-$i';
           }
+          if (i % 11 == 0) {
+            item.fields[StdField.notes] = 'Sample note for item $i';
+          }
         case ItemType.note:
-          item.fields[StdField.body] = '$_canary note body $i';
+          item.fields[StdField.body] =
+              '# $_canary note $i\n\nSome **bold** text and a list:\n\n- one\n- two\n';
         case ItemType.card:
           item.fields[StdField.cardHolder] = 'Sample Holder $i';
           item.fields[StdField.cardNumber] = '$_canary-0000-0000-0000';
@@ -684,8 +720,55 @@ class FakeVaultApi implements VaultApi {
           item.fields[StdField.lastName] = 'Person $i';
       }
       item.favorite = i % 40 == 0;
+      if (i % 9 == 0) item.tags.add('work');
+      if (i % 13 == 0) item.tags.add('personal');
+      if (i % 6 < 3) item.folderId = folderIds[i % 6];
+      if (type == ItemType.login && i % 30 == 5) {
+        // A little password history: two older values, then the current one.
+        final String current = item.fields[StdField.password]!;
+        item.versions[StdField.password] = <(int, String)>[
+          (item.updatedAt - 2 * 86400000, '$_canary-old-pw-$i-1'),
+          (item.updatedAt - 86400000, '$_canary-old-pw-$i-2'),
+          (item.updatedAt, current),
+        ];
+        if (i % 90 == 5) {
+          final int hlc = item.updatedAt - 43200000;
+          item.versions[StdField.password]!.insert(2, (
+            hlc,
+            '$_canary-other-device-pw-$i',
+          ));
+          item.concurrent[StdField.password] = <int>{hlc};
+        }
+      }
+      if (trashed) {
+        item.deletedAt = _nowMs - (i - count) * 86400000;
+      }
       _items[item.id] = item;
     }
+    _bump();
+  }
+
+  String _addFolder(String name) {
+    final String id = _newId();
+    _folders[id] = Folder(id: id, name: name);
+    return id;
+  }
+
+  /// Test hook: records a version of [field] on [id] made "on another device"
+  /// that is concurrent with the current one (docs/06 §5.3). Returns its hlc.
+  int seedConcurrentVersion(String id, StdField field, String value) {
+    final _FakeItem i = _item(id);
+    final int hlc = _nowMs - 1000;
+    final List<(int, String)> v = i.versions.putIfAbsent(
+      field,
+      () => <(int, String)>[
+        if (i.fields[field] != null) (i.updatedAt, i.fields[field]!),
+      ],
+    );
+    v.insert(v.isEmpty ? 0 : v.length - 1, (hlc, value));
+    i.concurrent.putIfAbsent(field, () => <int>{}).add(hlc);
+    _bump();
+    return hlc;
   }
 
   static const Set<StdField> _secretFields = <StdField>{
@@ -735,6 +818,7 @@ class FakeVaultApi implements VaultApi {
     return true;
   }
 
+  /// [items] must already be in newest-first order.
   List<ItemSummary> _paged(Iterable<_FakeItem> items, Page page) {
     if (page.limit > 200 || page.limit < 1 || page.offset < 0) {
       throw const AppError(
@@ -743,14 +827,7 @@ class FakeVaultApi implements VaultApi {
         field: 'page',
       );
     }
-    final List<_FakeItem> sorted = items.toList()
-      ..sort((_FakeItem a, _FakeItem b) {
-        final int byTitle = a.title.toLowerCase().compareTo(
-          b.title.toLowerCase(),
-        );
-        return byTitle != 0 ? byTitle : a.id.compareTo(b.id);
-      });
-    return sorted
+    return items
         .skip(page.offset)
         .take(page.limit)
         .map(_summary)
@@ -760,19 +837,19 @@ class FakeVaultApi implements VaultApi {
   @override
   Future<List<ItemSummary>> list(ListFilter filter, Page page) async {
     _requireUnlocked();
-    return _paged(
-      _items.values.where((_FakeItem i) => _matches(i, filter)),
-      page,
-    );
+    return _paged(_byNewest.where((_FakeItem i) => _matches(i, filter)), page);
   }
 
   @override
   Future<List<ItemSummary>> search(SearchQuery query) async {
     _requireUnlocked();
     final String needle = query.text.toLowerCase();
+    // Like the real core: prefix search over non-secret fields; the trash is
+    // never searched.
     return _paged(
-      _items.values.where(
+      _byNewest.where(
         (_FakeItem i) =>
+            i.deletedAt == null &&
             _matches(i, query.filter) &&
             (needle.isEmpty ||
                 i.title.toLowerCase().contains(needle) ||
@@ -823,9 +900,7 @@ class FakeVaultApi implements VaultApi {
       },
       createdAt: i.createdAt,
       updatedAt: i.updatedAt,
-      otherVersions: i.versions.values.any(
-        (List<(int, String)> v) => v.length > 1,
-      ),
+      otherVersions: i.concurrent.values.any((Set<int> s) => s.isNotEmpty),
     );
   }
 
@@ -858,17 +933,27 @@ class FakeVaultApi implements VaultApi {
     return _bytes(c.value);
   }
 
-  void _touch(_FakeItem i, [StdField? field]) {
-    i.updatedAt = _nowMs;
-    if (field != null) {
-      final String? value = i.fields[field];
-      if (value != null) {
-        i.versions.putIfAbsent(field, () => <(int, String)>[]).add((
-          i.updatedAt,
-          value,
-        ));
-      }
+  /// Sets [field] and records the history the way the core does: the value
+  /// being replaced becomes a version the first time a field is edited.
+  void _setValue(_FakeItem i, StdField field, String value) {
+    final String? old = i.fields[field];
+    final List<(int, String)> v = i.versions.putIfAbsent(
+      field,
+      () => <(int, String)>[],
+    );
+    if (v.isEmpty && old != null) {
+      v.add((i.updatedAt, old));
     }
+    i.fields[field] = value;
+    if (field == StdField.title) i.title = value;
+    i.updatedAt = max(_nowMs, i.updatedAt + 1);
+    v.add((i.updatedAt, value));
+    _bump();
+  }
+
+  void _touch(_FakeItem i) {
+    i.updatedAt = max(_nowMs, i.updatedAt + 1);
+    _bump();
   }
 
   @override
@@ -899,16 +984,14 @@ class FakeVaultApi implements VaultApi {
       i.custom.add(_FakeCustom(_newId(), c.kind, c.label, c.value));
     }
     _items[i.id] = i;
+    _bump();
     return i.id;
   }
 
   @override
   Future<void> setField(String id, StdField field, String value) async {
     _requireUnlocked();
-    final _FakeItem i = _item(id);
-    i.fields[field] = value;
-    if (field == StdField.title) i.title = value;
-    _touch(i, field);
+    _setValue(_item(id), field, value);
   }
 
   @override
@@ -923,11 +1006,7 @@ class FakeVaultApi implements VaultApi {
   Future<void> setFields(String id, Map<StdField, String> fields) async {
     _requireUnlocked();
     final _FakeItem i = _item(id);
-    fields.forEach((StdField f, String v) {
-      i.fields[f] = v;
-      if (f == StdField.title) i.title = v;
-      _touch(i, f);
-    });
+    fields.forEach((StdField f, String v) => _setValue(i, f, v));
   }
 
   @override
@@ -1043,12 +1122,14 @@ class FakeVaultApi implements VaultApi {
   Future<void> deleteItem(String id) async {
     _requireUnlocked();
     _item(id).deletedAt = _nowMs;
+    _bump();
   }
 
   @override
   Future<void> restoreItem(String id) async {
     _requireUnlocked();
     _item(id).deletedAt = null;
+    _bump();
   }
 
   @override
@@ -1056,6 +1137,7 @@ class FakeVaultApi implements VaultApi {
     _requireUnlocked();
     _item(id);
     _items.remove(id);
+    _bump();
   }
 
   TrashEntry _trashEntry(_FakeItem i) {
@@ -1084,6 +1166,7 @@ class FakeVaultApi implements VaultApi {
         .map((_FakeItem i) => i.id)
         .toList();
     ids.forEach(_items.remove);
+    _bump();
     return ids.length;
   }
 
@@ -1096,6 +1179,7 @@ class FakeVaultApi implements VaultApi {
         .map((_FakeItem i) => i.id)
         .toList();
     ids.forEach(_items.remove);
+    _bump();
     return ids.length;
   }
 
@@ -1111,8 +1195,10 @@ class FakeVaultApi implements VaultApi {
           hlcMs: v[n].$1,
           atMs: v[n].$1,
           isCurrent: n == v.length - 1,
-          concurrent: false,
-          deviceName: 'This device',
+          concurrent: _item(id).concurrent[field]?.contains(v[n].$1) ?? false,
+          deviceName: (_item(id).concurrent[field]?.contains(v[n].$1) ?? false)
+              ? 'Other device'
+              : 'This device',
         ),
     ];
   }
@@ -1131,14 +1217,16 @@ class FakeVaultApi implements VaultApi {
   Future<void> restoreVersion(String id, StdField field, int hlcMs) async {
     _requireUnlocked();
     final _FakeItem i = _item(id);
+    String? value;
     for (final (int, String) v in i.versions[field] ?? <(int, String)>[]) {
-      if (v.$1 == hlcMs) {
-        i.fields[field] = v.$2;
-        _touch(i, field);
-        return;
-      }
+      if (v.$1 == hlcMs) value = v.$2;
     }
-    throw const AppError(AppErrorCode.notFound, 'unknown version');
+    if (value == null) {
+      throw const AppError(AppErrorCode.notFound, 'unknown version');
+    }
+    _setValue(i, field, value);
+    // The user resolved the conflict: nothing is a concurrent loser any more.
+    i.concurrent.remove(field);
   }
 
   @override

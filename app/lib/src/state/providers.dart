@@ -4,6 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/vault_api.dart';
 import '../services/services.dart';
 
+/// Riverpod 3 retries a provider that throws. Off here: an `AppError` is an
+/// answer (locked, validation, io...), not a glitch, and the screens offer an
+/// explicit "Try again". Passed to every `ProviderScope`.
+Duration? noAutoRetry(int retryCount, Object error) => null;
+
 /// The core API. `main.dart` and tests override this; there is deliberately no
 /// default so a missing override fails loudly instead of using a fake.
 final Provider<VaultApi> vaultApiProvider = Provider<VaultApi>(
@@ -23,6 +28,11 @@ final Provider<FilePickerService> filePickerServiceProvider =
 final Provider<PrintService> printServiceProvider = Provider<PrintService>(
   (Ref ref) => const UnavailablePrintService(),
 );
+
+final Provider<UrlLauncherService> urlLauncherServiceProvider =
+    Provider<UrlLauncherService>(
+      (Ref ref) => const UnavailableUrlLauncherService(),
+    );
 
 final Provider<PlatformEvents> platformEventsProvider =
     Provider<PlatformEvents>((Ref ref) => const NoPlatformEvents());

@@ -148,12 +148,6 @@
   "forgotBody3": "As a last resort you will be able to erase this device's vault and start fresh. Erasing is permanent. This option comes in a later version.",
   "homeTitle": "Your vault",
   "homeUnlockedMessage": "Your vault is unlocked.",
-  "homeListPlaceholder": "Items will appear here.",
-  "homeDetailPlaceholder": "Select an item to see its details.",
-  "navVault": "Vault",
-  "navGenerator": "Generator",
-  "navHealth": "Health",
-  "navSettings": "Settings",
   "errWrongCredentials": "That didn't work. Check your password and try again.",
   "errWrongRecoveryKey": "That recovery key doesn't open this vault.",
   "errRecoveryKeyMalformed": "That recovery key doesn't look right. Check it for typos and try again.",
@@ -168,5 +162,337 @@
   "errAlreadyExists": "A vault already exists here.",
   "errIo": "Couldn't read or write the vault files.",
   "errBusy": "Too many attempts. Wait a moment, then try again.",
-  "errInternal": "Something went wrong."
+  "errInternal": "Something went wrong.",
+  "actionCancel": "Cancel",
+  "typeLogin": "Login",
+  "typeNote": "Secure note",
+  "typeCard": "Card",
+  "typeIdentity": "Identity",
+  "fieldTitle": "Title",
+  "fieldUsername": "Username",
+  "fieldPassword": "Password",
+  "fieldTotpSeed": "Authenticator code",
+  "fieldNotes": "Notes",
+  "fieldBody": "Note",
+  "fieldCardHolder": "Cardholder",
+  "fieldCardNumber": "Card number",
+  "fieldCardExpiry": "Expiry",
+  "fieldCardCvv": "Security code",
+  "fieldCardPin": "PIN",
+  "fieldFirstName": "First name",
+  "fieldMiddleName": "Middle name",
+  "fieldLastName": "Last name",
+  "fieldEmail": "Email",
+  "fieldPhone": "Phone",
+  "fieldAddress": "Address",
+  "fieldIds": "ID numbers",
+  "searchLabel": "Search",
+  "searchClear": "Clear search",
+  "newItem": "New item",
+  "newItemTitle": "New {type}",
+  "@newItemTitle": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "editItemTitle": "Edit item",
+  "itemListLabel": "Items",
+  "loadingItems": "Loading items…",
+  "noMatches": "No matching items.",
+  "emptyVaultHint": "Add your first item with the + button.",
+  "resultsCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@resultsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "resultsCountMore": "{count}+ items",
+  "@resultsCountMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectItemHint": "Select an item to see its details.",
+  "openMenu": "Open menu",
+  "sidebarLabel": "Vault navigation",
+  "allItems": "All items",
+  "favoritesView": "Favorites",
+  "foldersTitle": "Folders",
+  "manageFolders": "Manage folders",
+  "tagsLabel": "Tags",
+  "noTagsYet": "Tags appear here once items with tags have loaded.",
+  "trashTitle": "Trash",
+  "trashRetention": "Items stay in the trash until their purge date, then they are deleted for good.",
+  "trashEmpty": "The trash is empty.",
+  "purgesOn": "Deleted for good on {date}",
+  "@purgesOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "restore": "Restore",
+  "deleteForever": "Delete forever",
+  "emptyTrash": "Empty trash",
+  "emptyTrashTitle": "Empty the trash?",
+  "emptyTrashBody": "{count, plural, =1{1 item will be deleted for good.} other{{count} items will be deleted for good.}} This cannot be undone.",
+  "@emptyTrashBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "purgeTitle": "Delete forever?",
+  "purgeBody": "\"{title}\" will be deleted for good. This cannot be undone.",
+  "@purgeBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "movedToTrash": "\"{title}\" moved to the trash",
+  "@movedToTrash": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "undo": "Undo",
+  "favorite": "Add to favorites",
+  "unfavorite": "Remove from favorites",
+  "edit": "Edit",
+  "moveToTrash": "Move to trash",
+  "otherVersionsBadge": "Other versions",
+  "history": "History",
+  "copyField": "Copy {field}",
+  "@copyField": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "revealField": "Show {field}",
+  "@revealField": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "hideField": "Hide {field}",
+  "@hideField": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "hiddenValue": "Hidden value",
+  "copiedToast": "Copied; clears in {seconds} s",
+  "@copiedToast": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "totpLater": "Authenticator codes arrive in a later version.",
+  "urlLabel": "Website",
+  "openUrl": "Open website",
+  "urlsLabel": "Websites",
+  "addUrl": "Add website",
+  "removeUrl": "Remove website",
+  "folderLabel": "Folder",
+  "noFolder": "No folder",
+  "createdOn": "Created {date}",
+  "@createdOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "updatedOn": "Updated {date}",
+  "@updatedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "linkNotOpenable": "This link can't be opened.",
+  "openLinkTitle": "Open this link?",
+  "openLinkBody": "This opens {url} in your browser.",
+  "@openLinkBody": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "openInsecureLinkTitle": "Open an unencrypted link?",
+  "openInsecureLinkBody": "{url} does not use HTTPS, so what you send and receive can be read or changed on the way. Open it anyway?",
+  "@openInsecureLinkBody": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "openLinkConfirm": "Open",
+  "markdownImage": "image not loaded",
+  "markdownTruncated": "This note is long; only the first part is shown.",
+  "titleRequired": "A title is required.",
+  "keepCurrentHint": "Leave empty to keep the current value.",
+  "willBeRemoved": "This value will be removed when you save.",
+  "keepValue": "Keep the value",
+  "removeValue": "Remove {field}",
+  "@removeValue": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "generatePassword": "Generate a password",
+  "sizeHint": "Using {used} of {max}",
+  "@sizeHint": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "tagsCount": "Tags ({count} of {max})",
+  "@tagsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "addTagLabel": "New tag",
+  "addTag": "Add tag",
+  "removeTag": "Remove tag {tag}",
+  "@removeTag": {
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "customFieldsCount": "Custom fields ({count} of {max})",
+  "@customFieldsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "customLabel": "Label",
+  "customValue": "Value",
+  "removeCustomField": "Remove custom field",
+  "kindText": "Text",
+  "kindHidden": "Hidden",
+  "kindUrl": "Website",
+  "kindDate": "Date",
+  "addCustomField": "Add {kind} field",
+  "@addCustomField": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "save": "Save",
+  "saving": "Saving…",
+  "discardTitle": "Discard changes?",
+  "discardBody": "You have unsaved changes. If you leave, they are lost.",
+  "discard": "Discard",
+  "historyTitle": "History: {title}",
+  "@historyTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "noHistory": "No earlier versions of this field.",
+  "currentVersion": "Current",
+  "otherVersion": "Other version",
+  "concurrentVersion": "Edited on another device",
+  "thisDevice": "This device",
+  "otherDevice": "Another device",
+  "restoreThisVersion": "Restore this version",
+  "versionRestored": "Version restored.",
+  "compare": "Compare",
+  "compareTitle": "Compare: {field}",
+  "@compareTitle": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "keepAsSeparateNote": "Keep as separate note",
+  "keptAsNote": "Saved as a new note.",
+  "otherVersionNoteTitle": "{title} (other version)",
+  "@otherVersionNoteTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "newFolder": "New folder",
+  "folderNameLabel": "Folder name",
+  "create": "Create",
+  "renameFolder": "Rename {name}",
+  "@renameFolder": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "renameFolderTitle": "Rename folder",
+  "deleteFolder": "Delete {name}",
+  "@deleteFolder": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFolderTitle": "Delete the folder \"{name}\"?",
+  "@deleteFolderTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFolderBody": "The items in this folder are not deleted. They move to \"No folder\".",
+  "deleteFolderConfirm": "Delete folder",
+  "noFolders": "No folders yet."
 }

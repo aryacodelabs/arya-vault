@@ -13,7 +13,22 @@ wired in by task L01.
 Implemented so far: Welcome, Create vault (live strength meter, KDF profile under
 Advanced), "no reset" explainer, recovery key (print / save as file, no clipboard
 button), mandatory verification (no skip), optional quick-unlock offer, Lock,
-Recover with recovery key, "I have neither" explanation, and a placeholder home.
+Recover with recovery key, "I have neither" explanation (B01); and the vault
+screens (B02): desktop three panes / compact list-to-detail, debounced search,
+type filters, folders, tags, favorites, item detail with reveal/copy, safe
+Markdown notes, edit forms for login / note / card / identity, trash, history
+with restore, compare for concurrent versions, folder management.
+
+Vault behaviors worth knowing:
+
+- Secrets are masked until an explicit Reveal; a reveal hides itself after at
+  most 15 s, when the app loses focus, when you leave the item, and on lock, and
+  the bytes are wiped.
+- A lock drops everything, drafts of an open edit form included.
+- Notes render a safe Markdown subset: no HTML, no image loading, only http(s)
+  links and only after a confirmation.
+- Keyboard: the item list is one Tab stop; arrows move the selection, Enter
+  opens, Delete moves to the trash (with Undo).
 
 ## Toolchain
 
@@ -41,7 +56,7 @@ dart format --output=none --set-exit-if-changed .
 flutter analyze
 flutter test                       # everything, including goldens
 flutter test --exclude-tags golden # without pixel goldens
-flutter test --update-goldens test/golden   # regenerate goldens (see test/golden/README.md)
+TZ=UTC flutter test --update-goldens test/golden   # regenerate goldens (see test/golden/README.md)
 flutter gen-l10n                   # after editing lib/src/l10n/app_en.arb
 ```
 
@@ -51,7 +66,8 @@ flutter gen-l10n                   # after editing lib/src/l10n/app_en.arb
 |---|---|
 | `lib/src/api/` | `VaultApi` interface, DTOs, `AppError`, `SecretBytes`, `FakeVaultApi` |
 | `lib/src/state/` | Riverpod providers, `VaultStatus`, onboarding state, routing guard |
-| `lib/src/ui/` | screens, shared widgets, adaptive shell |
+| `lib/src/ui/` | onboarding and lock screens, shared widgets |
+| `lib/src/ui/vault/` | vault screens (B02): shell, list, detail, edit, history, folders, Markdown |
 | `lib/src/theme/` | light/dark themes and tokens (contrast-tested) |
 | `lib/src/l10n/` | ARB (English) and generated localizations (committed) |
 | `lib/src/services/` | `ClipboardService`, `FilePickerService`, `PrintService`, `PlatformEvents` interfaces and fakes |

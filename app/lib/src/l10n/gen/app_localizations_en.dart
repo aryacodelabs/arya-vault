@@ -339,24 +339,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeUnlockedMessage => 'Your vault is unlocked.';
 
   @override
-  String get homeListPlaceholder => 'Items will appear here.';
-
-  @override
-  String get homeDetailPlaceholder => 'Select an item to see its details.';
-
-  @override
-  String get navVault => 'Vault';
-
-  @override
-  String get navGenerator => 'Generator';
-
-  @override
-  String get navHealth => 'Health';
-
-  @override
-  String get navSettings => 'Settings';
-
-  @override
   String get errWrongCredentials =>
       'That didn\'t work. Check your password and try again.';
 
@@ -406,4 +388,476 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errInternal => 'Something went wrong.';
+
+  @override
+  String get actionCancel => 'Cancel';
+
+  @override
+  String get typeLogin => 'Login';
+
+  @override
+  String get typeNote => 'Secure note';
+
+  @override
+  String get typeCard => 'Card';
+
+  @override
+  String get typeIdentity => 'Identity';
+
+  @override
+  String get fieldTitle => 'Title';
+
+  @override
+  String get fieldUsername => 'Username';
+
+  @override
+  String get fieldPassword => 'Password';
+
+  @override
+  String get fieldTotpSeed => 'Authenticator code';
+
+  @override
+  String get fieldNotes => 'Notes';
+
+  @override
+  String get fieldBody => 'Note';
+
+  @override
+  String get fieldCardHolder => 'Cardholder';
+
+  @override
+  String get fieldCardNumber => 'Card number';
+
+  @override
+  String get fieldCardExpiry => 'Expiry';
+
+  @override
+  String get fieldCardCvv => 'Security code';
+
+  @override
+  String get fieldCardPin => 'PIN';
+
+  @override
+  String get fieldFirstName => 'First name';
+
+  @override
+  String get fieldMiddleName => 'Middle name';
+
+  @override
+  String get fieldLastName => 'Last name';
+
+  @override
+  String get fieldEmail => 'Email';
+
+  @override
+  String get fieldPhone => 'Phone';
+
+  @override
+  String get fieldAddress => 'Address';
+
+  @override
+  String get fieldIds => 'ID numbers';
+
+  @override
+  String get searchLabel => 'Search';
+
+  @override
+  String get searchClear => 'Clear search';
+
+  @override
+  String get newItem => 'New item';
+
+  @override
+  String newItemTitle(String type) {
+    return 'New $type';
+  }
+
+  @override
+  String get editItemTitle => 'Edit item';
+
+  @override
+  String get itemListLabel => 'Items';
+
+  @override
+  String get loadingItems => 'Loading items…';
+
+  @override
+  String get noMatches => 'No matching items.';
+
+  @override
+  String get emptyVaultHint => 'Add your first item with the + button.';
+
+  @override
+  String resultsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String resultsCountMore(int count) {
+    return '$count+ items';
+  }
+
+  @override
+  String get selectItemHint => 'Select an item to see its details.';
+
+  @override
+  String get openMenu => 'Open menu';
+
+  @override
+  String get sidebarLabel => 'Vault navigation';
+
+  @override
+  String get allItems => 'All items';
+
+  @override
+  String get favoritesView => 'Favorites';
+
+  @override
+  String get foldersTitle => 'Folders';
+
+  @override
+  String get manageFolders => 'Manage folders';
+
+  @override
+  String get tagsLabel => 'Tags';
+
+  @override
+  String get noTagsYet => 'Tags appear here once items with tags have loaded.';
+
+  @override
+  String get trashTitle => 'Trash';
+
+  @override
+  String get trashRetention =>
+      'Items stay in the trash until their purge date, then they are deleted for good.';
+
+  @override
+  String get trashEmpty => 'The trash is empty.';
+
+  @override
+  String purgesOn(String date) {
+    return 'Deleted for good on $date';
+  }
+
+  @override
+  String get restore => 'Restore';
+
+  @override
+  String get deleteForever => 'Delete forever';
+
+  @override
+  String get emptyTrash => 'Empty trash';
+
+  @override
+  String get emptyTrashTitle => 'Empty the trash?';
+
+  @override
+  String emptyTrashBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items will be deleted for good.',
+      one: '1 item will be deleted for good.',
+    );
+    return '$_temp0 This cannot be undone.';
+  }
+
+  @override
+  String get purgeTitle => 'Delete forever?';
+
+  @override
+  String purgeBody(String title) {
+    return '\"$title\" will be deleted for good. This cannot be undone.';
+  }
+
+  @override
+  String movedToTrash(String title) {
+    return '\"$title\" moved to the trash';
+  }
+
+  @override
+  String get undo => 'Undo';
+
+  @override
+  String get favorite => 'Add to favorites';
+
+  @override
+  String get unfavorite => 'Remove from favorites';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get moveToTrash => 'Move to trash';
+
+  @override
+  String get otherVersionsBadge => 'Other versions';
+
+  @override
+  String get history => 'History';
+
+  @override
+  String copyField(String field) {
+    return 'Copy $field';
+  }
+
+  @override
+  String revealField(String field) {
+    return 'Show $field';
+  }
+
+  @override
+  String hideField(String field) {
+    return 'Hide $field';
+  }
+
+  @override
+  String get hiddenValue => 'Hidden value';
+
+  @override
+  String copiedToast(int seconds) {
+    return 'Copied; clears in $seconds s';
+  }
+
+  @override
+  String get totpLater => 'Authenticator codes arrive in a later version.';
+
+  @override
+  String get urlLabel => 'Website';
+
+  @override
+  String get openUrl => 'Open website';
+
+  @override
+  String get urlsLabel => 'Websites';
+
+  @override
+  String get addUrl => 'Add website';
+
+  @override
+  String get removeUrl => 'Remove website';
+
+  @override
+  String get folderLabel => 'Folder';
+
+  @override
+  String get noFolder => 'No folder';
+
+  @override
+  String createdOn(String date) {
+    return 'Created $date';
+  }
+
+  @override
+  String updatedOn(String date) {
+    return 'Updated $date';
+  }
+
+  @override
+  String get linkNotOpenable => 'This link can\'t be opened.';
+
+  @override
+  String get openLinkTitle => 'Open this link?';
+
+  @override
+  String openLinkBody(String url) {
+    return 'This opens $url in your browser.';
+  }
+
+  @override
+  String get openInsecureLinkTitle => 'Open an unencrypted link?';
+
+  @override
+  String openInsecureLinkBody(String url) {
+    return '$url does not use HTTPS, so what you send and receive can be read or changed on the way. Open it anyway?';
+  }
+
+  @override
+  String get openLinkConfirm => 'Open';
+
+  @override
+  String get markdownImage => 'image not loaded';
+
+  @override
+  String get markdownTruncated =>
+      'This note is long; only the first part is shown.';
+
+  @override
+  String get titleRequired => 'A title is required.';
+
+  @override
+  String get keepCurrentHint => 'Leave empty to keep the current value.';
+
+  @override
+  String get willBeRemoved => 'This value will be removed when you save.';
+
+  @override
+  String get keepValue => 'Keep the value';
+
+  @override
+  String removeValue(String field) {
+    return 'Remove $field';
+  }
+
+  @override
+  String get generatePassword => 'Generate a password';
+
+  @override
+  String sizeHint(String used, String max) {
+    return 'Using $used of $max';
+  }
+
+  @override
+  String tagsCount(int count, int max) {
+    return 'Tags ($count of $max)';
+  }
+
+  @override
+  String get addTagLabel => 'New tag';
+
+  @override
+  String get addTag => 'Add tag';
+
+  @override
+  String removeTag(String tag) {
+    return 'Remove tag $tag';
+  }
+
+  @override
+  String customFieldsCount(int count, int max) {
+    return 'Custom fields ($count of $max)';
+  }
+
+  @override
+  String get customLabel => 'Label';
+
+  @override
+  String get customValue => 'Value';
+
+  @override
+  String get removeCustomField => 'Remove custom field';
+
+  @override
+  String get kindText => 'Text';
+
+  @override
+  String get kindHidden => 'Hidden';
+
+  @override
+  String get kindUrl => 'Website';
+
+  @override
+  String get kindDate => 'Date';
+
+  @override
+  String addCustomField(String kind) {
+    return 'Add $kind field';
+  }
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get saving => 'Saving…';
+
+  @override
+  String get discardTitle => 'Discard changes?';
+
+  @override
+  String get discardBody =>
+      'You have unsaved changes. If you leave, they are lost.';
+
+  @override
+  String get discard => 'Discard';
+
+  @override
+  String historyTitle(String title) {
+    return 'History: $title';
+  }
+
+  @override
+  String get noHistory => 'No earlier versions of this field.';
+
+  @override
+  String get currentVersion => 'Current';
+
+  @override
+  String get otherVersion => 'Other version';
+
+  @override
+  String get concurrentVersion => 'Edited on another device';
+
+  @override
+  String get thisDevice => 'This device';
+
+  @override
+  String get otherDevice => 'Another device';
+
+  @override
+  String get restoreThisVersion => 'Restore this version';
+
+  @override
+  String get versionRestored => 'Version restored.';
+
+  @override
+  String get compare => 'Compare';
+
+  @override
+  String compareTitle(String field) {
+    return 'Compare: $field';
+  }
+
+  @override
+  String get keepAsSeparateNote => 'Keep as separate note';
+
+  @override
+  String get keptAsNote => 'Saved as a new note.';
+
+  @override
+  String otherVersionNoteTitle(String title) {
+    return '$title (other version)';
+  }
+
+  @override
+  String get newFolder => 'New folder';
+
+  @override
+  String get folderNameLabel => 'Folder name';
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String renameFolder(String name) {
+    return 'Rename $name';
+  }
+
+  @override
+  String get renameFolderTitle => 'Rename folder';
+
+  @override
+  String deleteFolder(String name) {
+    return 'Delete $name';
+  }
+
+  @override
+  String deleteFolderTitle(String name) {
+    return 'Delete the folder \"$name\"?';
+  }
+
+  @override
+  String get deleteFolderBody =>
+      'The items in this folder are not deleted. They move to \"No folder\".';
+
+  @override
+  String get deleteFolderConfirm => 'Delete folder';
+
+  @override
+  String get noFolders => 'No folders yet.';
 }
