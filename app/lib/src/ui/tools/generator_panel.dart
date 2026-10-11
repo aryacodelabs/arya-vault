@@ -252,7 +252,7 @@ class _GeneratorPanelState extends ConsumerState<GeneratorPanel> {
         min: 8,
         max: 128,
         divisions: 120,
-        label: '${o.length}',
+        label: o.length.toString(),
         semanticFormatterCallback: (double v) =>
             l10n.generatorLength(v.round()),
         onChanged: (double v) => c.setPassword(copy(length: v.round())),
@@ -319,7 +319,7 @@ class _GeneratorPanelState extends ConsumerState<GeneratorPanel> {
         min: 3,
         max: 12,
         divisions: 9,
-        label: '${o.wordCount}',
+        label: o.wordCount.toString(),
         semanticFormatterCallback: (double v) => l10n.generatorWords(v.round()),
         onChanged: (double v) => c.setPassphrase(copy(wordCount: v.round())),
       ),

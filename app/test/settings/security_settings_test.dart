@@ -229,7 +229,7 @@ void main() {
       );
       await tapOn(tester, toggle);
       expect(find.text(l10n.secQuickEnableBody), findsOneWidget);
-      await typeInto(tester, l10n.masterPasswordLabel, 'CANARY-wrong-pw-123');
+      await typeInto(tester, l10n.masterPasswordLabel, 'CANARY wrong password');
       await tapOn(tester, find.text(l10n.reauthConfirm));
       expect(find.text(l10n.reauthWrong), findsOneWidget);
       expect((await api.status()).quickUnlock.enabled, isFalse);
@@ -340,7 +340,11 @@ void main() {
           find.widgetWithText(FilledButton, l10n.secRegenerateConfirm),
         );
         // Wrong password: stays on the prompt.
-        await typeInto(tester, l10n.masterPasswordLabel, 'CANARY-wrong-pw-123');
+        await typeInto(
+          tester,
+          l10n.masterPasswordLabel,
+          'CANARY wrong password',
+        );
         await tapOn(
           tester,
           find.widgetWithText(FilledButton, l10n.secRegenerateConfirm),

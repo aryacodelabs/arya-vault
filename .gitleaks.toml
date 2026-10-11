@@ -20,3 +20,11 @@ description = "Fake master password canary in the Flutter test helpers"
 condition = "AND"
 paths = ['''^app/test/helpers\.dart$''']
 regexes = ['''CANARY-correct-horse-battery-staple-9142''']
+
+# A fake wrong password typed by a B03 widget test (the line was later reworded, but
+# gitleaks also scans the commit that first contained it). Obvious canary, tests only.
+[[allowlists]]
+description = "Fake wrong-password canary in the B03 security settings test (earlier commit)"
+condition = "AND"
+paths = ['''^app/test/settings/security_settings_test\.dart$''']
+regexes = ['''CANARY-wrong-pw-123''']
