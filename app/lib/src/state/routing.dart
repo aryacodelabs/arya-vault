@@ -15,6 +15,16 @@ import '../ui/screens/recovery_key_screen.dart';
 import '../ui/screens/splash_screen.dart';
 import '../ui/screens/verify_screen.dart';
 import '../ui/screens/welcome_screen.dart';
+import '../ui/settings/about_screen.dart';
+import '../ui/settings/change_password_screen.dart';
+import '../ui/settings/diagnostics_screen.dart';
+import '../ui/settings/security_settings_screen.dart';
+import '../ui/settings/settings_screen.dart';
+import '../ui/settings/sync_settings_screen.dart';
+import '../ui/tools/export_screen.dart';
+import '../ui/tools/generator_screen.dart';
+import '../ui/tools/health_screen.dart';
+import '../ui/tools/import_screen.dart';
 import '../ui/vault/folders_screen.dart';
 import '../ui/vault/history_screen.dart';
 import '../ui/vault/item_edit_screen.dart';
@@ -39,6 +49,17 @@ abstract final class AppRoutes {
   static const String history = '/home/history';
   static const String compare = '/home/compare';
   static const String folders = '/home/folders';
+  static const String generator = '/home/generator';
+  static const String health = '/home/health';
+  static const String importFile = '/home/import';
+  static const String exportFile = '/home/export';
+  static const String settings = '/home/settings';
+  static const String settingsSecurity = '/home/settings/security';
+  static const String settingsChangePassword =
+      '/home/settings/security/password';
+  static const String settingsSync = '/home/settings/sync';
+  static const String settingsAbout = '/home/settings/about';
+  static const String settingsDiagnostics = '/home/settings/about/diagnostics';
 
   static const List<String> all = <String>[
     splash,
@@ -58,6 +79,16 @@ abstract final class AppRoutes {
     history,
     compare,
     folders,
+    generator,
+    health,
+    importFile,
+    exportFile,
+    settings,
+    settingsSecurity,
+    settingsChangePassword,
+    settingsSync,
+    settingsAbout,
+    settingsDiagnostics,
   ];
 }
 
@@ -224,6 +255,34 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((Ref ref) {
             path: 'folders',
             builder: (BuildContext context, GoRouterState state) =>
                 const FoldersScreen(),
+          ),
+          route('generator', GeneratorScreen.new),
+          route('health', HealthScreen.new),
+          route('import', ImportScreen.new),
+          route('export', ExportScreen.new),
+          GoRoute(
+            path: 'settings',
+            builder: (BuildContext context, GoRouterState state) =>
+                const SettingsScreen(),
+            routes: <RouteBase>[
+              GoRoute(
+                path: 'security',
+                builder: (BuildContext context, GoRouterState state) =>
+                    const SecuritySettingsScreen(),
+                routes: <RouteBase>[
+                  route('password', ChangePasswordScreen.new),
+                ],
+              ),
+              route('sync', SyncSettingsScreen.new),
+              GoRoute(
+                path: 'about',
+                builder: (BuildContext context, GoRouterState state) =>
+                    const AboutScreen(),
+                routes: <RouteBase>[
+                  route('diagnostics', DiagnosticsScreen.new),
+                ],
+              ),
+            ],
           ),
         ],
       ),

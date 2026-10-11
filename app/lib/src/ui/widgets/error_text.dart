@@ -5,8 +5,8 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// Which flow an error came from; `wrongCredentials` reads differently when the
-/// user typed a recovery key.
-enum ErrorContext { general, recoveryKey }
+/// user typed a recovery key or an export password.
+enum ErrorContext { general, recoveryKey, exportFile }
 
 /// Localized text for an [AppError]. Never shows [AppError.message] (it is
 /// English and meant for logs); every code the onboarding and lock flows can
@@ -16,10 +16,11 @@ String errorMessage(
   AppError error, {
   ErrorContext context = ErrorContext.general,
 }) => switch (error.code) {
-  AppErrorCode.wrongCredentials =>
-    context == ErrorContext.recoveryKey
-        ? l10n.errWrongRecoveryKey
-        : l10n.errWrongCredentials,
+  AppErrorCode.wrongCredentials => switch (context) {
+    ErrorContext.recoveryKey => l10n.errWrongRecoveryKey,
+    ErrorContext.exportFile => l10n.errWrongExportPassword,
+    ErrorContext.general => l10n.errWrongCredentials,
+  },
   AppErrorCode.recoveryKeyMalformed => l10n.errRecoveryKeyMalformed,
   AppErrorCode.weakPassword => l10n.errWeakPassword,
   AppErrorCode.locked => l10n.errLocked,

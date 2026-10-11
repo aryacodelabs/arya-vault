@@ -5,7 +5,7 @@ parsing and validation live in the Rust core and are reached through the
 `VaultApi` interface (`lib/src/api/vault_api.dart`), which mirrors
 `docs/14-app-api-contract.md` one to one.
 
-**Status (M2 / B01):** the app runs against `FakeVaultApi`, an in-memory
+**Status (M2 / B01-B03):** the app runs against `FakeVaultApi`, an in-memory
 stand-in. Nothing is encrypted and nothing is saved; closing the app forgets the
 vault. The real implementation (flutter_rust_bridge over `core/crates/ffi`) is
 wired in by task L01.
@@ -18,6 +18,18 @@ screens (B02): desktop three panes / compact list-to-detail, debounced search,
 type filters, folders, tags, favorites, item detail with reveal/copy, safe
 Markdown notes, edit forms for login / note / card / identity, trash, history
 with restore, compare for concurrent versions, folder management.
+
+Tools and settings (B03): password generator (also the sheet the edit form
+opens), password health, import (CSV, Bitwarden JSON, encrypted export) with a
+preview before anything is committed, export (encrypted, or plain CSV behind a
+type-to-confirm warning), and Settings: Security (auto-lock, clipboard, reveal
+time, screen capture, quick unlock, change master password, recovery key), a
+"coming soon" Sync panel, and About with a scrubbed diagnostics report. The
+security timers are plain Dart logic over interfaces (`lib/src/services/`):
+`AutoLockController`, `ClipboardManager` (clears only what it wrote) and
+`CaptureProtection`. Their Windows implementations arrive with L01; until then
+the settings screen says "Not available on this build" instead of showing a
+switch that does nothing.
 
 Vault behaviors worth knowing:
 

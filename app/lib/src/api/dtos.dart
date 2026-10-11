@@ -491,6 +491,24 @@ class AppSettings {
   final bool blockScreenCapture;
   final int revealHideSeconds;
   final VaultConfig vaultConfig;
+
+  AppSettings copyWith({
+    int? autoLockMinutes,
+    bool? lockOnSleep,
+    bool? lockOnScreenLock,
+    int? clipboardClearSeconds,
+    bool? blockScreenCapture,
+    int? revealHideSeconds,
+    VaultConfig? vaultConfig,
+  }) => AppSettings(
+    autoLockMinutes: autoLockMinutes ?? this.autoLockMinutes,
+    lockOnSleep: lockOnSleep ?? this.lockOnSleep,
+    lockOnScreenLock: lockOnScreenLock ?? this.lockOnScreenLock,
+    clipboardClearSeconds: clipboardClearSeconds ?? this.clipboardClearSeconds,
+    blockScreenCapture: blockScreenCapture ?? this.blockScreenCapture,
+    revealHideSeconds: revealHideSeconds ?? this.revealHideSeconds,
+    vaultConfig: vaultConfig ?? this.vaultConfig,
+  );
 }
 
 // -------------------------------------------------------------- diagnostics

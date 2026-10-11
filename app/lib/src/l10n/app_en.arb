@@ -494,5 +494,329 @@
   },
   "deleteFolderBody": "The items in this folder are not deleted. They move to \"No folder\".",
   "deleteFolderConfirm": "Delete folder",
-  "noFolders": "No folders yet."
+  "noFolders": "No folders yet.",
+  "navTools": "Tools",
+  "navGenerator": "Password generator",
+  "navHealth": "Password health",
+  "navImport": "Import",
+  "navExport": "Export",
+  "navSettings": "Settings",
+  "notAvailableBuild": "Not available on this build",
+  "notAvailableDevice": "Not available on this device",
+  "generatorTitle": "Password generator",
+  "generatorModePassword": "Password",
+  "generatorModePassphrase": "Passphrase",
+  "generatorLength": "Length: {n}",
+  "@generatorLength": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "generatorLower": "Lowercase letters (a-z)",
+  "generatorUpper": "Uppercase letters (A-Z)",
+  "generatorDigits": "Digits (0-9)",
+  "generatorSymbols": "Symbols",
+  "generatorSymbolSet": "Symbols to use",
+  "generatorExcludeAmbiguous": "Leave out look-alike characters (O, 0, l, 1)",
+  "generatorWords": "Words: {n}",
+  "@generatorWords": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "generatorSeparator": "Separator",
+  "generatorCapitalize": "Capitalize each word",
+  "generatorNumber": "Add a number",
+  "generatorEntropy": "About {bits} bits of entropy",
+  "@generatorEntropy": {
+    "placeholders": {
+      "bits": {
+        "type": "String"
+      }
+    }
+  },
+  "generatorNeedClass": "Turn on at least one kind of character.",
+  "generatorNeedSymbols": "Enter at least one symbol, or turn symbols off.",
+  "generatorRegenerate": "Generate another",
+  "generatorCopy": "Copy",
+  "generatorUse": "Use this password",
+  "generatorShow": "Show the password",
+  "generatorHide": "Hide the password",
+  "generatorValueLabel": "Generated password",
+  "generatorFailed": "Couldn't generate a password.",
+  "generatorSheetTitle": "Generate a password",
+  "healthTitle": "Password health",
+  "healthIntro": "This checks the passwords in your vault on this device. Nothing is sent anywhere, and no password is shown here.",
+  "healthLoading": "Checking your passwords…",
+  "healthReusedTitle": "Reused passwords",
+  "healthReusedExplain": "The same password is used on more than one item. If one site leaks it, every item that shares it is at risk.",
+  "healthReusedNone": "No reused passwords.",
+  "healthReusedGroup": "Shared by {count} items",
+  "@healthReusedGroup": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "healthWeakTitle": "Weak passwords",
+  "healthWeakExplain": "These passwords are easy to guess. Replace them with generated ones.",
+  "healthWeakNone": "No weak passwords.",
+  "healthWeakScore": "Strength: {level}",
+  "@healthWeakScore": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "healthOldTitle": "Old passwords",
+  "healthOldExplain": "These passwords have not changed for a long time. Changing them limits the damage of a leak you never heard about.",
+  "healthOldNone": "No old passwords.",
+  "healthOldAge": "{days, plural, =1{Unchanged for 1 day} other{Unchanged for {days} days}}",
+  "@healthOldAge": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "healthItemGone": "Item no longer exists",
+  "reauthTitle": "Confirm it's you",
+  "reauthBody": "Enter your master password to continue.",
+  "reauthConfirm": "Confirm",
+  "reauthWrong": "That isn't your master password.",
+  "importTitle": "Import",
+  "importIntro": "Bring items in from a file. Nothing changes until you confirm the preview.",
+  "importFormatLabel": "File type",
+  "importFormatCsv": "CSV file",
+  "importFormatBitwarden": "Bitwarden export (JSON)",
+  "importFormatEncrypted": "AryaVault encrypted export",
+  "importChoose": "Choose a file…",
+  "importCancelledPick": "No file chosen.",
+  "importReading": "Reading the file…",
+  "importPreviewTitle": "Preview",
+  "importPreviewCounts": "{items, plural, =1{1 item} other{{items} items}} and {folders, plural, =1{1 folder} other{{folders} folders}} found",
+  "@importPreviewCounts": {
+    "placeholders": {
+      "items": {
+        "type": "int"
+      },
+      "folders": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewDuplicates": "{count, plural, =1{1 item already exists in your vault} other{{count} items already exist in your vault}}",
+  "@importPreviewDuplicates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewNone": "Nothing to import in this file.",
+  "importWarningsTitle": "Warnings",
+  "importSkippedTitle": "Skipped",
+  "importRecordLine": "Record {n}: {detail}",
+  "@importRecordLine": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "importMore": "and {count} more",
+  "@importMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSkipDuplicates": "Skip items that already exist",
+  "importTargetFolder": "Put imported items in",
+  "importCommit": "Import {count, plural, =1{1 item} other{{count} items}}",
+  "@importCommit": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importCommitting": "Importing…",
+  "importResultTitle": "Import finished",
+  "importResultCreated": "{count, plural, =1{1 item added} other{{count} items added}}",
+  "@importResultCreated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importResultFolders": "{count, plural, =1{1 folder created} other{{count} folders created}}",
+  "@importResultFolders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importResultDuplicates": "{count, plural, =1{1 duplicate skipped} other{{count} duplicates skipped}}",
+  "@importResultDuplicates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importResultInvalid": "{count, plural, =1{1 record was not valid} other{{count} records were not valid}}",
+  "@importResultInvalid": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importResultSkipped": "{count, plural, =1{1 record skipped} other{{count} records skipped}}",
+  "@importResultSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importAnother": "Import another file",
+  "importPasswordTitle": "Open the encrypted export",
+  "importPasswordBody": "Enter the password this export was protected with.",
+  "importPasswordLabel": "Export password",
+  "importPasswordConfirm": "Import",
+  "importDeleteAdvice": "You can delete the file you imported from. Passwords in it are not encrypted.",
+  "exportTitle": "Export",
+  "exportIntro": "Make a copy of your vault to keep or move to another app.",
+  "exportEncryptedTitle": "Encrypted export (recommended)",
+  "exportEncryptedBody": "A file protected by a password you choose now. Only that password opens it.",
+  "exportEncryptedButton": "Export encrypted file…",
+  "exportCsvTitle": "Plain CSV (not encrypted)",
+  "exportCsvBody": "Every password and note in readable text. Use it only to move to another app.",
+  "exportCsvButton": "Export CSV…",
+  "exportPasswordTitle": "Choose an export password",
+  "exportPasswordLabel": "Export password",
+  "exportPasswordBody": "This password protects the exported file. It is separate from your master password.",
+  "exportKeepSafe": "Keep this password safe. Without it nobody can open the file, and we can't recover it for you.",
+  "exportPasswordSubmit": "Export",
+  "exportCsvWarnTitle": "Export without encryption?",
+  "exportCsvWarnBody": "The file will contain all your passwords as plain text. Anyone who gets it can read them, including cloud backups and anyone using this computer. Delete it as soon as you have imported it elsewhere.",
+  "exportCsvTypePrompt": "To continue, type {phrase} below.",
+  "@exportCsvTypePrompt": {
+    "placeholders": {
+      "phrase": {
+        "type": "String"
+      }
+    }
+  },
+  "exportCsvPhrase": "EXPORT",
+  "exportCsvTypeLabel": "Confirmation",
+  "exportCsvConfirm": "Export plain CSV",
+  "exportWorking": "Preparing the file…",
+  "exportSaved": "Saved.",
+  "exportCancelled": "Not saved.",
+  "exportFailed": "Couldn't save the file.",
+  "exportEncryptedFileName": "aryavault-export.avex",
+  "exportCsvFileName": "aryavault-export.csv",
+  "settingsTitle": "Settings",
+  "settingsSecurity": "Security",
+  "settingsSecuritySub": "Auto-lock, clipboard, master password, recovery key",
+  "settingsSync": "Sync & backup",
+  "settingsSyncSub": "Coming soon",
+  "settingsAbout": "About",
+  "settingsAboutSub": "Version, licenses, diagnostics",
+  "settingsLoadFailed": "Couldn't read the settings.",
+  "settingsSaveFailed": "Couldn't save that setting.",
+  "secAutoLockTitle": "Lock automatically",
+  "secAutoLockAfter": "After no activity for",
+  "secAutoLockMinutes": "{n, plural, =1{1 minute} other{{n} minutes}}",
+  "@secAutoLockMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "secLockOnScreenLock": "When the screen locks",
+  "secLockOnSleep": "When the computer sleeps",
+  "secAutoLockNote": "There is no \"never\": a vault left open is the biggest risk.",
+  "secClipboardTitle": "Clipboard",
+  "secClipboardClear": "Clear copied passwords after",
+  "secSeconds": "{n, plural, =1{1 second} other{{n} seconds}}",
+  "@secSeconds": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "secRevealHide": "Hide a shown password after",
+  "secCaptureTitle": "Screen capture",
+  "secCaptureBlock": "Block screenshots and screen recording",
+  "secCaptureNote": "Turn this off only if a screen reader or capture tool you rely on needs it.",
+  "secQuickTitle": "Quick unlock",
+  "secQuickToggle": "Unlock with {method}",
+  "@secQuickToggle": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "secQuickEnableBody": "Enter your master password to turn on quick unlock.",
+  "secQuickOnlyPassword": "Quick unlock isn't available on this device or build. You unlock with your master password.",
+  "secMasterTitle": "Master password",
+  "secChangePassword": "Change master password",
+  "secRecoveryTitle": "Recovery key",
+  "secViewRecovery": "View recovery key",
+  "secRegenerateRecovery": "Make a new recovery key",
+  "secViewRecoveryTitle": "Your recovery key can't be shown again",
+  "secViewRecoveryBody": "AryaVault never stores your recovery key: it was shown once, when you created it. If you can't find your copy, make a new one. The old key stops working right away.",
+  "secRegenerateTitle": "Make a new recovery key?",
+  "secRegenerateBody": "Your current recovery key stops working immediately. You will have to write down and confirm the new one before you can continue.",
+  "secRegenerateConfirm": "Make new key",
+  "changePwTitle": "Change master password",
+  "changePwCurrent": "Current master password",
+  "changePwNew": "New master password",
+  "changePwRotate": "Also rotate keys (recommended after a suspected leak)",
+  "changePwRotateHelp": "Replaces the key that encrypts your vault, not just the password. You will get a new recovery key to save.",
+  "changePwSubmit": "Change password",
+  "changePwDone": "Master password changed.",
+  "syncTitle": "Sync & backup",
+  "syncComingSoon": "Sync is coming soon",
+  "syncBody": "Encrypted sync through your own Google Drive, iCloud or a folder is not part of this version. Your vault lives only on this device. Until sync arrives, make backups with Export.",
+  "aboutTitle": "About AryaVault",
+  "aboutApp": "App version",
+  "aboutCore": "Core version",
+  "aboutApi": "API version",
+  "aboutFormat": "Vault format version",
+  "aboutSchema": "Database schema version",
+  "aboutInfoFailed": "Couldn't read the core version.",
+  "aboutLicenses": "Open-source licenses",
+  "aboutLicensesRust": "Licenses of the Rust crates in the core will be listed here once the core is bundled with the app.",
+  "aboutRepo": "Source code",
+  "aboutRepoUrl": "github.com/aryacodelabs/arya-vault",
+  "aboutDiagnostics": "Diagnostics",
+  "aboutDiagnosticsSub": "Review a scrubbed report before sharing it",
+  "diagTitle": "Diagnostics",
+  "diagIntro": "This report has no passwords and no vault contents. Read it before you share it with anyone.",
+  "diagPrepare": "Prepare report",
+  "diagSave": "Save report…",
+  "diagSaved": "Report saved.",
+  "diagReportLabel": "Diagnostics report",
+  "diagFileName": "aryavault-diagnostics.json",
+  "errWrongExportPassword": "That password doesn't open this file, or the file is damaged."
 }

@@ -860,4 +860,679 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noFolders => 'No folders yet.';
+
+  @override
+  String get navTools => 'Tools';
+
+  @override
+  String get navGenerator => 'Password generator';
+
+  @override
+  String get navHealth => 'Password health';
+
+  @override
+  String get navImport => 'Import';
+
+  @override
+  String get navExport => 'Export';
+
+  @override
+  String get navSettings => 'Settings';
+
+  @override
+  String get notAvailableBuild => 'Not available on this build';
+
+  @override
+  String get notAvailableDevice => 'Not available on this device';
+
+  @override
+  String get generatorTitle => 'Password generator';
+
+  @override
+  String get generatorModePassword => 'Password';
+
+  @override
+  String get generatorModePassphrase => 'Passphrase';
+
+  @override
+  String generatorLength(int n) {
+    return 'Length: $n';
+  }
+
+  @override
+  String get generatorLower => 'Lowercase letters (a-z)';
+
+  @override
+  String get generatorUpper => 'Uppercase letters (A-Z)';
+
+  @override
+  String get generatorDigits => 'Digits (0-9)';
+
+  @override
+  String get generatorSymbols => 'Symbols';
+
+  @override
+  String get generatorSymbolSet => 'Symbols to use';
+
+  @override
+  String get generatorExcludeAmbiguous =>
+      'Leave out look-alike characters (O, 0, l, 1)';
+
+  @override
+  String generatorWords(int n) {
+    return 'Words: $n';
+  }
+
+  @override
+  String get generatorSeparator => 'Separator';
+
+  @override
+  String get generatorCapitalize => 'Capitalize each word';
+
+  @override
+  String get generatorNumber => 'Add a number';
+
+  @override
+  String generatorEntropy(String bits) {
+    return 'About $bits bits of entropy';
+  }
+
+  @override
+  String get generatorNeedClass => 'Turn on at least one kind of character.';
+
+  @override
+  String get generatorNeedSymbols =>
+      'Enter at least one symbol, or turn symbols off.';
+
+  @override
+  String get generatorRegenerate => 'Generate another';
+
+  @override
+  String get generatorCopy => 'Copy';
+
+  @override
+  String get generatorUse => 'Use this password';
+
+  @override
+  String get generatorShow => 'Show the password';
+
+  @override
+  String get generatorHide => 'Hide the password';
+
+  @override
+  String get generatorValueLabel => 'Generated password';
+
+  @override
+  String get generatorFailed => 'Couldn\'t generate a password.';
+
+  @override
+  String get generatorSheetTitle => 'Generate a password';
+
+  @override
+  String get healthTitle => 'Password health';
+
+  @override
+  String get healthIntro =>
+      'This checks the passwords in your vault on this device. Nothing is sent anywhere, and no password is shown here.';
+
+  @override
+  String get healthLoading => 'Checking your passwords…';
+
+  @override
+  String get healthReusedTitle => 'Reused passwords';
+
+  @override
+  String get healthReusedExplain =>
+      'The same password is used on more than one item. If one site leaks it, every item that shares it is at risk.';
+
+  @override
+  String get healthReusedNone => 'No reused passwords.';
+
+  @override
+  String healthReusedGroup(int count) {
+    return 'Shared by $count items';
+  }
+
+  @override
+  String get healthWeakTitle => 'Weak passwords';
+
+  @override
+  String get healthWeakExplain =>
+      'These passwords are easy to guess. Replace them with generated ones.';
+
+  @override
+  String get healthWeakNone => 'No weak passwords.';
+
+  @override
+  String healthWeakScore(String level) {
+    return 'Strength: $level';
+  }
+
+  @override
+  String get healthOldTitle => 'Old passwords';
+
+  @override
+  String get healthOldExplain =>
+      'These passwords have not changed for a long time. Changing them limits the damage of a leak you never heard about.';
+
+  @override
+  String get healthOldNone => 'No old passwords.';
+
+  @override
+  String healthOldAge(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Unchanged for $days days',
+      one: 'Unchanged for 1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get healthItemGone => 'Item no longer exists';
+
+  @override
+  String get reauthTitle => 'Confirm it\'s you';
+
+  @override
+  String get reauthBody => 'Enter your master password to continue.';
+
+  @override
+  String get reauthConfirm => 'Confirm';
+
+  @override
+  String get reauthWrong => 'That isn\'t your master password.';
+
+  @override
+  String get importTitle => 'Import';
+
+  @override
+  String get importIntro =>
+      'Bring items in from a file. Nothing changes until you confirm the preview.';
+
+  @override
+  String get importFormatLabel => 'File type';
+
+  @override
+  String get importFormatCsv => 'CSV file';
+
+  @override
+  String get importFormatBitwarden => 'Bitwarden export (JSON)';
+
+  @override
+  String get importFormatEncrypted => 'AryaVault encrypted export';
+
+  @override
+  String get importChoose => 'Choose a file…';
+
+  @override
+  String get importCancelledPick => 'No file chosen.';
+
+  @override
+  String get importReading => 'Reading the file…';
+
+  @override
+  String get importPreviewTitle => 'Preview';
+
+  @override
+  String importPreviewCounts(int items, int folders) {
+    String _temp0 = intl.Intl.pluralLogic(
+      items,
+      locale: localeName,
+      other: '$items items',
+      one: '1 item',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      folders,
+      locale: localeName,
+      other: '$folders folders',
+      one: '1 folder',
+    );
+    return '$_temp0 and $_temp1 found';
+  }
+
+  @override
+  String importPreviewDuplicates(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items already exist in your vault',
+      one: '1 item already exists in your vault',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importPreviewNone => 'Nothing to import in this file.';
+
+  @override
+  String get importWarningsTitle => 'Warnings';
+
+  @override
+  String get importSkippedTitle => 'Skipped';
+
+  @override
+  String importRecordLine(int n, String detail) {
+    return 'Record $n: $detail';
+  }
+
+  @override
+  String importMore(int count) {
+    return 'and $count more';
+  }
+
+  @override
+  String get importSkipDuplicates => 'Skip items that already exist';
+
+  @override
+  String get importTargetFolder => 'Put imported items in';
+
+  @override
+  String importCommit(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return 'Import $_temp0';
+  }
+
+  @override
+  String get importCommitting => 'Importing…';
+
+  @override
+  String get importResultTitle => 'Import finished';
+
+  @override
+  String importResultCreated(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items added',
+      one: '1 item added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importResultFolders(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count folders created',
+      one: '1 folder created',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importResultDuplicates(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count duplicates skipped',
+      one: '1 duplicate skipped',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importResultInvalid(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count records were not valid',
+      one: '1 record was not valid',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importResultSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count records skipped',
+      one: '1 record skipped',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importAnother => 'Import another file';
+
+  @override
+  String get importPasswordTitle => 'Open the encrypted export';
+
+  @override
+  String get importPasswordBody =>
+      'Enter the password this export was protected with.';
+
+  @override
+  String get importPasswordLabel => 'Export password';
+
+  @override
+  String get importPasswordConfirm => 'Import';
+
+  @override
+  String get importDeleteAdvice =>
+      'You can delete the file you imported from. Passwords in it are not encrypted.';
+
+  @override
+  String get exportTitle => 'Export';
+
+  @override
+  String get exportIntro =>
+      'Make a copy of your vault to keep or move to another app.';
+
+  @override
+  String get exportEncryptedTitle => 'Encrypted export (recommended)';
+
+  @override
+  String get exportEncryptedBody =>
+      'A file protected by a password you choose now. Only that password opens it.';
+
+  @override
+  String get exportEncryptedButton => 'Export encrypted file…';
+
+  @override
+  String get exportCsvTitle => 'Plain CSV (not encrypted)';
+
+  @override
+  String get exportCsvBody =>
+      'Every password and note in readable text. Use it only to move to another app.';
+
+  @override
+  String get exportCsvButton => 'Export CSV…';
+
+  @override
+  String get exportPasswordTitle => 'Choose an export password';
+
+  @override
+  String get exportPasswordLabel => 'Export password';
+
+  @override
+  String get exportPasswordBody =>
+      'This password protects the exported file. It is separate from your master password.';
+
+  @override
+  String get exportKeepSafe =>
+      'Keep this password safe. Without it nobody can open the file, and we can\'t recover it for you.';
+
+  @override
+  String get exportPasswordSubmit => 'Export';
+
+  @override
+  String get exportCsvWarnTitle => 'Export without encryption?';
+
+  @override
+  String get exportCsvWarnBody =>
+      'The file will contain all your passwords as plain text. Anyone who gets it can read them, including cloud backups and anyone using this computer. Delete it as soon as you have imported it elsewhere.';
+
+  @override
+  String exportCsvTypePrompt(String phrase) {
+    return 'To continue, type $phrase below.';
+  }
+
+  @override
+  String get exportCsvPhrase => 'EXPORT';
+
+  @override
+  String get exportCsvTypeLabel => 'Confirmation';
+
+  @override
+  String get exportCsvConfirm => 'Export plain CSV';
+
+  @override
+  String get exportWorking => 'Preparing the file…';
+
+  @override
+  String get exportSaved => 'Saved.';
+
+  @override
+  String get exportCancelled => 'Not saved.';
+
+  @override
+  String get exportFailed => 'Couldn\'t save the file.';
+
+  @override
+  String get exportEncryptedFileName => 'aryavault-export.avex';
+
+  @override
+  String get exportCsvFileName => 'aryavault-export.csv';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get settingsSecurity => 'Security';
+
+  @override
+  String get settingsSecuritySub =>
+      'Auto-lock, clipboard, master password, recovery key';
+
+  @override
+  String get settingsSync => 'Sync & backup';
+
+  @override
+  String get settingsSyncSub => 'Coming soon';
+
+  @override
+  String get settingsAbout => 'About';
+
+  @override
+  String get settingsAboutSub => 'Version, licenses, diagnostics';
+
+  @override
+  String get settingsLoadFailed => 'Couldn\'t read the settings.';
+
+  @override
+  String get settingsSaveFailed => 'Couldn\'t save that setting.';
+
+  @override
+  String get secAutoLockTitle => 'Lock automatically';
+
+  @override
+  String get secAutoLockAfter => 'After no activity for';
+
+  @override
+  String secAutoLockMinutes(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n minutes',
+      one: '1 minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get secLockOnScreenLock => 'When the screen locks';
+
+  @override
+  String get secLockOnSleep => 'When the computer sleeps';
+
+  @override
+  String get secAutoLockNote =>
+      'There is no \"never\": a vault left open is the biggest risk.';
+
+  @override
+  String get secClipboardTitle => 'Clipboard';
+
+  @override
+  String get secClipboardClear => 'Clear copied passwords after';
+
+  @override
+  String secSeconds(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n seconds',
+      one: '1 second',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get secRevealHide => 'Hide a shown password after';
+
+  @override
+  String get secCaptureTitle => 'Screen capture';
+
+  @override
+  String get secCaptureBlock => 'Block screenshots and screen recording';
+
+  @override
+  String get secCaptureNote =>
+      'Turn this off only if a screen reader or capture tool you rely on needs it.';
+
+  @override
+  String get secQuickTitle => 'Quick unlock';
+
+  @override
+  String secQuickToggle(String method) {
+    return 'Unlock with $method';
+  }
+
+  @override
+  String get secQuickEnableBody =>
+      'Enter your master password to turn on quick unlock.';
+
+  @override
+  String get secQuickOnlyPassword =>
+      'Quick unlock isn\'t available on this device or build. You unlock with your master password.';
+
+  @override
+  String get secMasterTitle => 'Master password';
+
+  @override
+  String get secChangePassword => 'Change master password';
+
+  @override
+  String get secRecoveryTitle => 'Recovery key';
+
+  @override
+  String get secViewRecovery => 'View recovery key';
+
+  @override
+  String get secRegenerateRecovery => 'Make a new recovery key';
+
+  @override
+  String get secViewRecoveryTitle => 'Your recovery key can\'t be shown again';
+
+  @override
+  String get secViewRecoveryBody =>
+      'AryaVault never stores your recovery key: it was shown once, when you created it. If you can\'t find your copy, make a new one. The old key stops working right away.';
+
+  @override
+  String get secRegenerateTitle => 'Make a new recovery key?';
+
+  @override
+  String get secRegenerateBody =>
+      'Your current recovery key stops working immediately. You will have to write down and confirm the new one before you can continue.';
+
+  @override
+  String get secRegenerateConfirm => 'Make new key';
+
+  @override
+  String get changePwTitle => 'Change master password';
+
+  @override
+  String get changePwCurrent => 'Current master password';
+
+  @override
+  String get changePwNew => 'New master password';
+
+  @override
+  String get changePwRotate =>
+      'Also rotate keys (recommended after a suspected leak)';
+
+  @override
+  String get changePwRotateHelp =>
+      'Replaces the key that encrypts your vault, not just the password. You will get a new recovery key to save.';
+
+  @override
+  String get changePwSubmit => 'Change password';
+
+  @override
+  String get changePwDone => 'Master password changed.';
+
+  @override
+  String get syncTitle => 'Sync & backup';
+
+  @override
+  String get syncComingSoon => 'Sync is coming soon';
+
+  @override
+  String get syncBody =>
+      'Encrypted sync through your own Google Drive, iCloud or a folder is not part of this version. Your vault lives only on this device. Until sync arrives, make backups with Export.';
+
+  @override
+  String get aboutTitle => 'About AryaVault';
+
+  @override
+  String get aboutApp => 'App version';
+
+  @override
+  String get aboutCore => 'Core version';
+
+  @override
+  String get aboutApi => 'API version';
+
+  @override
+  String get aboutFormat => 'Vault format version';
+
+  @override
+  String get aboutSchema => 'Database schema version';
+
+  @override
+  String get aboutInfoFailed => 'Couldn\'t read the core version.';
+
+  @override
+  String get aboutLicenses => 'Open-source licenses';
+
+  @override
+  String get aboutLicensesRust =>
+      'Licenses of the Rust crates in the core will be listed here once the core is bundled with the app.';
+
+  @override
+  String get aboutRepo => 'Source code';
+
+  @override
+  String get aboutRepoUrl => 'github.com/aryacodelabs/arya-vault';
+
+  @override
+  String get aboutDiagnostics => 'Diagnostics';
+
+  @override
+  String get aboutDiagnosticsSub =>
+      'Review a scrubbed report before sharing it';
+
+  @override
+  String get diagTitle => 'Diagnostics';
+
+  @override
+  String get diagIntro =>
+      'This report has no passwords and no vault contents. Read it before you share it with anyone.';
+
+  @override
+  String get diagPrepare => 'Prepare report';
+
+  @override
+  String get diagSave => 'Save report…';
+
+  @override
+  String get diagSaved => 'Report saved.';
+
+  @override
+  String get diagReportLabel => 'Diagnostics report';
+
+  @override
+  String get diagFileName => 'aryavault-diagnostics.json';
+
+  @override
+  String get errWrongExportPassword =>
+      'That password doesn\'t open this file, or the file is damaged.';
 }

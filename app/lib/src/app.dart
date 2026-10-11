@@ -6,6 +6,7 @@ import 'l10n/gen/app_localizations.dart';
 import 'state/providers.dart';
 import 'state/routing.dart';
 import 'theme/app_theme.dart';
+import 'ui/shell/security_scope.dart';
 
 class AryaVaultApp extends ConsumerWidget {
   const AryaVaultApp({super.key});
@@ -20,6 +21,8 @@ class AryaVaultApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: ref.watch(themeModeProvider),
       routerConfig: ref.watch(routerProvider),
+      builder: (BuildContext context, Widget? child) =>
+          SecurityScope(child: child ?? const SizedBox.shrink()),
       localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
