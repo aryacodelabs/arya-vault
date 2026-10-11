@@ -694,42 +694,6 @@ abstract class AppLocalizations {
   /// **'Your vault is unlocked.'**
   String get homeUnlockedMessage;
 
-  /// No description provided for @homeListPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Items will appear here.'**
-  String get homeListPlaceholder;
-
-  /// No description provided for @homeDetailPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Select an item to see its details.'**
-  String get homeDetailPlaceholder;
-
-  /// No description provided for @navVault.
-  ///
-  /// In en, this message translates to:
-  /// **'Vault'**
-  String get navVault;
-
-  /// No description provided for @navGenerator.
-  ///
-  /// In en, this message translates to:
-  /// **'Generator'**
-  String get navGenerator;
-
-  /// No description provided for @navHealth.
-  ///
-  /// In en, this message translates to:
-  /// **'Health'**
-  String get navHealth;
-
-  /// No description provided for @navSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get navSettings;
-
   /// No description provided for @errWrongCredentials.
   ///
   /// In en, this message translates to:
@@ -819,6 +783,810 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong.'**
   String get errInternal;
+
+  /// No description provided for @actionCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get actionCancel;
+
+  /// No description provided for @typeLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get typeLogin;
+
+  /// No description provided for @typeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure note'**
+  String get typeNote;
+
+  /// No description provided for @typeCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Card'**
+  String get typeCard;
+
+  /// No description provided for @typeIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get typeIdentity;
+
+  /// No description provided for @fieldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get fieldTitle;
+
+  /// No description provided for @fieldUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get fieldUsername;
+
+  /// No description provided for @fieldPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get fieldPassword;
+
+  /// No description provided for @fieldTotpSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticator code'**
+  String get fieldTotpSeed;
+
+  /// No description provided for @fieldNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get fieldNotes;
+
+  /// No description provided for @fieldBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get fieldBody;
+
+  /// No description provided for @fieldCardHolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Cardholder'**
+  String get fieldCardHolder;
+
+  /// No description provided for @fieldCardNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Card number'**
+  String get fieldCardNumber;
+
+  /// No description provided for @fieldCardExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiry'**
+  String get fieldCardExpiry;
+
+  /// No description provided for @fieldCardCvv.
+  ///
+  /// In en, this message translates to:
+  /// **'Security code'**
+  String get fieldCardCvv;
+
+  /// No description provided for @fieldCardPin.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN'**
+  String get fieldCardPin;
+
+  /// No description provided for @fieldFirstName.
+  ///
+  /// In en, this message translates to:
+  /// **'First name'**
+  String get fieldFirstName;
+
+  /// No description provided for @fieldMiddleName.
+  ///
+  /// In en, this message translates to:
+  /// **'Middle name'**
+  String get fieldMiddleName;
+
+  /// No description provided for @fieldLastName.
+  ///
+  /// In en, this message translates to:
+  /// **'Last name'**
+  String get fieldLastName;
+
+  /// No description provided for @fieldEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get fieldEmail;
+
+  /// No description provided for @fieldPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get fieldPhone;
+
+  /// No description provided for @fieldAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get fieldAddress;
+
+  /// No description provided for @fieldIds.
+  ///
+  /// In en, this message translates to:
+  /// **'ID numbers'**
+  String get fieldIds;
+
+  /// No description provided for @searchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get searchLabel;
+
+  /// No description provided for @searchClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get searchClear;
+
+  /// No description provided for @newItem.
+  ///
+  /// In en, this message translates to:
+  /// **'New item'**
+  String get newItem;
+
+  /// No description provided for @newItemTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New {type}'**
+  String newItemTitle(String type);
+
+  /// No description provided for @editItemTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit item'**
+  String get editItemTitle;
+
+  /// No description provided for @itemListLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get itemListLabel;
+
+  /// No description provided for @loadingItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading items…'**
+  String get loadingItems;
+
+  /// No description provided for @noMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching items.'**
+  String get noMatches;
+
+  /// No description provided for @emptyVaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first item with the + button.'**
+  String get emptyVaultHint;
+
+  /// No description provided for @resultsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String resultsCount(int count);
+
+  /// No description provided for @resultsCountMore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}+ items'**
+  String resultsCountMore(int count);
+
+  /// No description provided for @selectItemHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an item to see its details.'**
+  String get selectItemHint;
+
+  /// No description provided for @openMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Open menu'**
+  String get openMenu;
+
+  /// No description provided for @sidebarLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Vault navigation'**
+  String get sidebarLabel;
+
+  /// No description provided for @allItems.
+  ///
+  /// In en, this message translates to:
+  /// **'All items'**
+  String get allItems;
+
+  /// No description provided for @favoritesView.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get favoritesView;
+
+  /// No description provided for @foldersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Folders'**
+  String get foldersTitle;
+
+  /// No description provided for @manageFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage folders'**
+  String get manageFolders;
+
+  /// No description provided for @tagsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get tagsLabel;
+
+  /// No description provided for @noTagsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags appear here once items with tags have loaded.'**
+  String get noTagsYet;
+
+  /// No description provided for @trashTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash'**
+  String get trashTitle;
+
+  /// No description provided for @trashRetention.
+  ///
+  /// In en, this message translates to:
+  /// **'Items stay in the trash until their purge date, then they are deleted for good.'**
+  String get trashRetention;
+
+  /// No description provided for @trashEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The trash is empty.'**
+  String get trashEmpty;
+
+  /// No description provided for @purgesOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted for good on {date}'**
+  String purgesOn(String date);
+
+  /// No description provided for @restore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get restore;
+
+  /// No description provided for @deleteForever.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete forever'**
+  String get deleteForever;
+
+  /// No description provided for @emptyTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty trash'**
+  String get emptyTrash;
+
+  /// No description provided for @emptyTrashTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty the trash?'**
+  String get emptyTrashTitle;
+
+  /// No description provided for @emptyTrashBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item will be deleted for good.} other{{count} items will be deleted for good.}} This cannot be undone.'**
+  String emptyTrashBody(int count);
+
+  /// No description provided for @purgeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete forever?'**
+  String get purgeTitle;
+
+  /// No description provided for @purgeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" will be deleted for good. This cannot be undone.'**
+  String purgeBody(String title);
+
+  /// No description provided for @movedToTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" moved to the trash'**
+  String movedToTrash(String title);
+
+  /// No description provided for @undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
+
+  /// No description provided for @favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites'**
+  String get favorite;
+
+  /// No description provided for @unfavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get unfavorite;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @moveToTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to trash'**
+  String get moveToTrash;
+
+  /// No description provided for @otherVersionsBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Other versions'**
+  String get otherVersionsBadge;
+
+  /// No description provided for @history.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get history;
+
+  /// No description provided for @copyField.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy {field}'**
+  String copyField(String field);
+
+  /// No description provided for @revealField.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {field}'**
+  String revealField(String field);
+
+  /// No description provided for @hideField.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide {field}'**
+  String hideField(String field);
+
+  /// No description provided for @hiddenValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden value'**
+  String get hiddenValue;
+
+  /// No description provided for @copiedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied; clears in {seconds} s'**
+  String copiedToast(int seconds);
+
+  /// No description provided for @totpLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticator codes arrive in a later version.'**
+  String get totpLater;
+
+  /// No description provided for @urlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get urlLabel;
+
+  /// No description provided for @openUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Open website'**
+  String get openUrl;
+
+  /// No description provided for @urlsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Websites'**
+  String get urlsLabel;
+
+  /// No description provided for @addUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Add website'**
+  String get addUrl;
+
+  /// No description provided for @removeUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove website'**
+  String get removeUrl;
+
+  /// No description provided for @folderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get folderLabel;
+
+  /// No description provided for @noFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'No folder'**
+  String get noFolder;
+
+  /// No description provided for @createdOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Created {date}'**
+  String createdOn(String date);
+
+  /// No description provided for @updatedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {date}'**
+  String updatedOn(String date);
+
+  /// No description provided for @linkNotOpenable.
+  ///
+  /// In en, this message translates to:
+  /// **'This link can\'t be opened.'**
+  String get linkNotOpenable;
+
+  /// No description provided for @openLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this link?'**
+  String get openLinkTitle;
+
+  /// No description provided for @openLinkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This opens {url} in your browser.'**
+  String openLinkBody(String url);
+
+  /// No description provided for @openInsecureLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open an unencrypted link?'**
+  String get openInsecureLinkTitle;
+
+  /// No description provided for @openInsecureLinkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{url} does not use HTTPS, so what you send and receive can be read or changed on the way. Open it anyway?'**
+  String openInsecureLinkBody(String url);
+
+  /// No description provided for @openLinkConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get openLinkConfirm;
+
+  /// No description provided for @markdownImage.
+  ///
+  /// In en, this message translates to:
+  /// **'image not loaded'**
+  String get markdownImage;
+
+  /// No description provided for @markdownTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is long; only the first part is shown.'**
+  String get markdownTruncated;
+
+  /// No description provided for @titleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'A title is required.'**
+  String get titleRequired;
+
+  /// No description provided for @keepCurrentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to keep the current value.'**
+  String get keepCurrentHint;
+
+  /// No description provided for @willBeRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'This value will be removed when you save.'**
+  String get willBeRemoved;
+
+  /// No description provided for @keepValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the value'**
+  String get keepValue;
+
+  /// No description provided for @removeValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {field}'**
+  String removeValue(String field);
+
+  /// No description provided for @generatePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a password'**
+  String get generatePassword;
+
+  /// No description provided for @sizeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Using {used} of {max}'**
+  String sizeHint(String used, String max);
+
+  /// No description provided for @tagsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags ({count} of {max})'**
+  String tagsCount(int count, int max);
+
+  /// No description provided for @addTagLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New tag'**
+  String get addTagLabel;
+
+  /// No description provided for @addTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tag'**
+  String get addTag;
+
+  /// No description provided for @removeTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove tag {tag}'**
+  String removeTag(String tag);
+
+  /// No description provided for @customFieldsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom fields ({count} of {max})'**
+  String customFieldsCount(int count, int max);
+
+  /// No description provided for @customLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get customLabel;
+
+  /// No description provided for @customValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get customValue;
+
+  /// No description provided for @removeCustomField.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove custom field'**
+  String get removeCustomField;
+
+  /// No description provided for @kindText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get kindText;
+
+  /// No description provided for @kindHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden'**
+  String get kindHidden;
+
+  /// No description provided for @kindUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get kindUrl;
+
+  /// No description provided for @kindDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get kindDate;
+
+  /// No description provided for @addCustomField.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {kind} field'**
+  String addCustomField(String kind);
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get saving;
+
+  /// No description provided for @discardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get discardTitle;
+
+  /// No description provided for @discardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes. If you leave, they are lost.'**
+  String get discardBody;
+
+  /// No description provided for @discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discard;
+
+  /// No description provided for @historyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'History: {title}'**
+  String historyTitle(String title);
+
+  /// No description provided for @noHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'No earlier versions of this field.'**
+  String get noHistory;
+
+  /// No description provided for @currentVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get currentVersion;
+
+  /// No description provided for @otherVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Other version'**
+  String get otherVersion;
+
+  /// No description provided for @concurrentVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited on another device'**
+  String get concurrentVersion;
+
+  /// No description provided for @thisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get thisDevice;
+
+  /// No description provided for @otherDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Another device'**
+  String get otherDevice;
+
+  /// No description provided for @restoreThisVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this version'**
+  String get restoreThisVersion;
+
+  /// No description provided for @versionRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Version restored.'**
+  String get versionRestored;
+
+  /// No description provided for @compare.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare'**
+  String get compare;
+
+  /// No description provided for @compareTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare: {field}'**
+  String compareTitle(String field);
+
+  /// No description provided for @keepAsSeparateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep as separate note'**
+  String get keepAsSeparateNote;
+
+  /// No description provided for @keptAsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as a new note.'**
+  String get keptAsNote;
+
+  /// No description provided for @otherVersionNoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} (other version)'**
+  String otherVersionNoteTitle(String title);
+
+  /// No description provided for @newFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'New folder'**
+  String get newFolder;
+
+  /// No description provided for @folderNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name'**
+  String get folderNameLabel;
+
+  /// No description provided for @create.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
+  /// No description provided for @renameFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename {name}'**
+  String renameFolder(String name);
+
+  /// No description provided for @renameFolderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename folder'**
+  String get renameFolderTitle;
+
+  /// No description provided for @deleteFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}'**
+  String deleteFolder(String name);
+
+  /// No description provided for @deleteFolderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the folder \"{name}\"?'**
+  String deleteFolderTitle(String name);
+
+  /// No description provided for @deleteFolderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The items in this folder are not deleted. They move to \"No folder\".'**
+  String get deleteFolderBody;
+
+  /// No description provided for @deleteFolderConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder'**
+  String get deleteFolderConfirm;
+
+  /// No description provided for @noFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'No folders yet.'**
+  String get noFolders;
 }
 
 class _AppLocalizationsDelegate
