@@ -188,10 +188,11 @@ class _ItemListPaneState extends ConsumerState<ItemListPane> {
                           PopupMenuItem<ItemType>(
                             value: t,
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: <Widget>[
                                 Icon(itemTypeIcon(t)),
                                 const SizedBox(width: 12),
-                                Text(itemTypeLabel(l10n, t)),
+                                Flexible(child: Text(itemTypeLabel(l10n, t))),
                               ],
                             ),
                           ),
@@ -502,14 +503,19 @@ class _ItemRow extends ConsumerWidget {
               ),
             ),
           ),
-          IconButton(
-            tooltip: item.favorite ? l10n.unfavorite : l10n.favorite,
-            icon: Icon(item.favorite ? Icons.star : Icons.star_border),
-            color: selected
-                ? scheme.onPrimaryContainer
-                : scheme.onSurfaceVariant,
-            onPressed: () =>
-                ref.read(itemActionsProvider).toggleFavorite(item.id),
+          // Not a tab stop: a keyboard user would otherwise cross one per row
+          // to get from the list to the detail. The same toggle is in the
+          // detail pane; screen readers still reach this one.
+          ExcludeFocus(
+            child: IconButton(
+              tooltip: item.favorite ? l10n.unfavorite : l10n.favorite,
+              icon: Icon(item.favorite ? Icons.star : Icons.star_border),
+              color: selected
+                  ? scheme.onPrimaryContainer
+                  : scheme.onSurfaceVariant,
+              onPressed: () =>
+                  ref.read(itemActionsProvider).toggleFavorite(item.id),
+            ),
           ),
         ],
       ),
@@ -528,20 +534,23 @@ class _TagPills extends StatelessWidget {
     return Row(
       children: <Widget>[
         for (final String t in tags.take(3))
-          Container(
-            margin: const EdgeInsetsDirectional.only(end: 4, top: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            decoration: BoxDecoration(
-              border: Border.all(color: scheme.outline),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              t,
-              maxLines: 1,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: selected
-                    ? scheme.onPrimaryContainer
-                    : scheme.onSurfaceVariant,
+          Flexible(
+            child: Container(
+              margin: const EdgeInsetsDirectional.only(end: 4, top: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                border: Border.all(color: scheme.outline),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                t,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: selected
+                      ? scheme.onPrimaryContainer
+                      : scheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),
@@ -586,15 +595,15 @@ class _TrashList extends ConsumerWidget {
       children: <Widget>[
         Padding(
           padding: EdgeInsets.all(tokens.gap),
-          child: Row(
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text(
-                    l10n.trashTitle,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+              Semantics(
+                header: true,
+                child: Text(
+                  l10n.trashTitle,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               TextButton.icon(

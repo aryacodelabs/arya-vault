@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/reveal.dart';
 import '../../state/vault_actions.dart';
 import '../../state/vault_query.dart';
+import '../../state/vault_session.dart';
 import '../../theme/app_theme.dart';
 import '../shell/adaptive_shell.dart';
 import '../widgets/l10n_ext.dart';
@@ -46,6 +47,8 @@ class _VaultShellState extends ConsumerState<VaultShell>
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final AppTokens tokens = context.tokens;
+    // Keep the vault settings (reveal and clipboard timings) loaded.
+    ref.watch(appSettingsProvider);
     final String? selected = ref.watch(
       vaultQueryProvider.select((VaultQueryState s) => s.selectedId),
     );
@@ -65,25 +68,33 @@ class _VaultShellState extends ConsumerState<VaultShell>
             ),
             body: Row(
               children: <Widget>[
-                const SizedBox(width: 240, child: VaultSidebar()),
+                SizedBox(
+                  width: 240,
+                  child: FocusTraversalGroup(child: const VaultSidebar()),
+                ),
                 const VerticalDivider(width: 1),
-                const SizedBox(width: 380, child: ItemListPane()),
+                SizedBox(
+                  width: 380,
+                  child: FocusTraversalGroup(child: const ItemListPane()),
+                ),
                 const VerticalDivider(width: 1),
                 Expanded(
-                  child: selected == null
-                      ? Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(tokens.gap),
-                            child: Text(
-                              l10n.selectItemHint,
-                              textAlign: TextAlign.center,
+                  child: FocusTraversalGroup(
+                    child: selected == null
+                        ? Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(tokens.gap),
+                              child: Text(
+                                l10n.selectItemHint,
+                                textAlign: TextAlign.center,
+                              ),
                             ),
+                          )
+                        : ItemDetailPane(
+                            key: ValueKey<String>(selected),
+                            itemId: selected,
                           ),
-                        )
-                      : ItemDetailPane(
-                          key: ValueKey<String>(selected),
-                          itemId: selected,
-                        ),
+                  ),
                 ),
               ],
             ),

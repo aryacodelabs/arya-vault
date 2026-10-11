@@ -45,28 +45,66 @@ Future<String?> promptDialog(
   required String label,
   required String confirmLabel,
   String initial = '',
-}) {
-  final TextEditingController controller = TextEditingController(text: initial);
-  return showDialog<String>(
-    context: context,
-    builder: (BuildContext ctx) => AlertDialog(
-      title: Text(title),
+}) => showDialog<String>(
+  context: context,
+  builder: (BuildContext ctx) => _PromptDialog(
+    title: title,
+    label: label,
+    confirmLabel: confirmLabel,
+    initial: initial,
+  ),
+);
+
+/// Owns its controller, so it is disposed with the dialog's own element and not
+/// while the dialog is still animating out.
+class _PromptDialog extends StatefulWidget {
+  const _PromptDialog({
+    required this.title,
+    required this.label,
+    required this.confirmLabel,
+    required this.initial,
+  });
+
+  final String title;
+  final String label;
+  final String confirmLabel;
+  final String initial;
+
+  @override
+  State<_PromptDialog> createState() => _PromptDialogState();
+}
+
+class _PromptDialogState extends State<_PromptDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         autofocus: true,
-        decoration: InputDecoration(labelText: label),
-        onSubmitted: (String v) => Navigator.of(ctx).pop(v.trim()),
+        decoration: InputDecoration(labelText: widget.label),
+        onSubmitted: (String v) => Navigator.of(context).pop(v.trim()),
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: Text(ctx.l10n.actionCancel),
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.actionCancel),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-          child: Text(confirmLabel),
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: Text(widget.confirmLabel),
         ),
       ],
-    ),
-  ).whenComplete(controller.dispose);
+    );
+  }
 }

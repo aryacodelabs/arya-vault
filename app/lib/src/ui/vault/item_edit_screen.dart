@@ -108,8 +108,12 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     _load();
   }
 
+  bool _disposed = false;
+
   @override
   void dispose() {
+    // Clearing the controllers below notifies _markDirty; it must not setState.
+    _disposed = true;
     for (final TextEditingController c in _c.values) {
       if (c is SecretTextController) c.clearSecret();
       c.dispose();
@@ -136,7 +140,9 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
   }
 
   void _markDirty() {
-    if (!_dirty) setState(() => _dirty = true);
+    if (!_dirty && !_disposed) {
+      setState(() => _dirty = true);
+    }
   }
 
   Future<void> _load() async {
@@ -741,6 +747,7 @@ class _ItemEditScreenState extends ConsumerState<ItemEditScreen> {
     final List<Folder> folders =
         ref.watch(foldersProvider).value ?? const <Folder>[];
     return DropdownButtonFormField<String?>(
+      isExpanded: true,
       initialValue: folders.any((Folder f) => f.id == _folderId)
           ? _folderId
           : null,

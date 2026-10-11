@@ -284,15 +284,26 @@ bool _canToggleItalic(String s, int i, bool open) {
   return !nextIsSpace && s.indexOf(c, i + 1) > 0;
 }
 
-/// `[text](url)` starting at [start] (which must be `[`).
+/// `[text](url)` starting at [start] (which must be `[`). Parentheses inside
+/// the URL must balance, as in `[a](https://x.invalid/a_(b))`.
 ({String text, String url, int end})? _linkAt(String s, int start) {
   final int close = s.indexOf(']', start + 1);
   if (close < 0 || close + 1 >= s.length || s[close + 1] != '(') return null;
-  final int endParen = s.indexOf(')', close + 2);
-  if (endParen < 0) return null;
+  var depth = 1;
+  var i = close + 2;
+  while (i < s.length && depth > 0) {
+    final String c = s[i];
+    if (c == '(') {
+      depth++;
+    } else if (c == ')') {
+      depth--;
+    }
+    i++;
+  }
+  if (depth != 0) return null;
   return (
     text: s.substring(start + 1, close),
-    url: s.substring(close + 2, endParen).trim(),
-    end: endParen + 1,
+    url: s.substring(close + 2, i - 1).trim(),
+    end: i,
   );
 }

@@ -21,6 +21,7 @@ void main() {
   );
   runApp(
     ProviderScope(
+      retry: noAutoRetry,
       overrides: [vaultApiProvider.overrideWithValue(api)],
       child: const AryaVaultApp(),
     ),

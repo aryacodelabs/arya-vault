@@ -519,11 +519,17 @@ class _CustomRow extends ConsumerWidget {
     final bool revealed = ref.watch(revealProvider).contains(key);
     return _RowShell(
       label: field.label,
-      content: Text(
-        revealed
-            ? _decode(ref.read(revealProvider.notifier).copyOf(key))
-            : _mask,
-        style: const TextStyle(fontFamily: 'monospace'),
+      content: Semantics(
+        label: revealed ? null : l10n.hiddenValue,
+        child: ExcludeSemantics(
+          excluding: !revealed,
+          child: Text(
+            revealed
+                ? _decode(ref.read(revealProvider.notifier).copyOf(key))
+                : _mask,
+            style: const TextStyle(fontFamily: 'monospace'),
+          ),
+        ),
       ),
       actions: <Widget>[
         IconButton(
