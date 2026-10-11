@@ -33,6 +33,9 @@ Every call can throw `AppError { code: AppErrorCode, message: String, field: Str
 VaultStatus   { exists: bool, locked: bool, onboardingComplete: bool, formatVersion: int,
                 quickUnlock: QuickUnlockStatus }
 QuickUnlockStatus { supported: bool, enabled: bool, kind: none|windowsHello|touchId|faceId|biometric|osKeyring }
+RecoveryKeyResult { recoveryKey: Uint8List, groups: int, challenge: List<int> }
+              // challenge: zero-based, ascending indices of the key groups confirmRecoveryKey will ask for
+GroupAnswer   { index: int, text: String }
 
 ItemType      = login | note | card | identity
 StdField      = title | username | password | notes | body | totpSeed | cardHolder | cardNumber | cardExpiry
@@ -64,14 +67,15 @@ AppSettings   { autoLockMinutes: int (1-60; no "never" in v1), lockOnSleep, lock
 | Operation | Signature (Dart) | Notes |
 |---|---|---|
 | `status` | `Future<VaultStatus> status()` | Works while locked |
-| `createVault` | `Future<RecoveryKeyResult> createVault({Uint8List password, KdfProfile profile})` -> `RecoveryKeyResult{ recoveryKey: Uint8List, groups: int }` | Vault is created **unlocked**; recovery key is returned **once**; `onboardingComplete = false` until `confirmRecoveryKey` passes |
-| `confirmRecoveryKey` | `Future<bool> confirmRecoveryKey(List<GroupAnswer{index:int, text:String}> answers)` | Core compares with the pending key it still holds in memory (3 random groups, doc 07 §3 step H); on success sets `onboardingComplete`; on failure returns `false` (UI re-shows key). No retries limit. |
+| `createVault` | `Future<RecoveryKeyResult> createVault({Uint8List password, KdfProfile profile})` -> `RecoveryKeyResult` (§3) | Vault is created **unlocked**; recovery key is returned **once**; `onboardingComplete = false` until `confirmRecoveryKey` passes. `challenge` names the 3 groups to re-enter first. |
+| `confirmRecoveryKey` | `Future<bool> confirmRecoveryKey(List<GroupAnswer> answers)` | Core compares with the pending key it still holds in memory (doc 07 §3 step H). `answers` must cover **exactly** the groups of the current challenge, else `validation` with `field = "answers"`. On success sets `onboardingComplete`. On a mismatch it returns `false` (UI re-shows the key; no retry limit) **and the core draws 3 new random groups**, so the next attempt asks for different ones: fetch them with `recoveryChallenge`. |
+| `recoveryChallenge` | `Future<List<int>> recoveryChallenge()` | The groups (zero-based, ascending) the next `confirmRecoveryKey` must cover: the `challenge` of the last `createVault` / `regenerateRecoveryKey`, or the redrawn one after a mismatch. Throws `locked` while locked and `validation` if no recovery key is pending (nothing to confirm). Reveals no part of the key. |
 | `unlock` | `Future<void> unlock(Uint8List password)` | Throws `wrongCredentials`; applies local failure-delay (cosmetic, doc 07 §4) |
 | `unlockQuick` | `Future<void> unlockQuick()` | Uses the platform quick-unlock provider **inside Rust** (the raw vault key never reaches Dart); throws `quickUnlockUnavailable` |
 | `lock` | `Future<void> lock()` | Zeroizes keys, closes DB. Idempotent |
 | `changePassword` | `Future<void> changePassword({Uint8List oldPassword, Uint8List newPassword, bool rotateKeys})` | `rotateKeys=true` = "Change password and rotate keys" (SEC-A06) |
 | `recoverWithKey` | `Future<void> recoverWithKey({Uint8List recoveryKey, Uint8List newPassword})` | Leaves vault unlocked; doc 04 §9 |
-| `regenerateRecoveryKey` | `Future<RecoveryKeyResult> regenerateRecoveryKey({Uint8List password, bool rotateKeys})` | Sets `onboardingComplete=false` until confirmed again |
+| `regenerateRecoveryKey` | `Future<RecoveryKeyResult> regenerateRecoveryKey({Uint8List password, bool rotateKeys})` | Sets `onboardingComplete=false` until confirmed again; returns a new pending key and its `challenge` |
 | `quickUnlockEnable` / `quickUnlockDisable` | `Future<void> quickUnlockEnable()` ... | Requires unlocked; user presence prompt shown by the platform |
 | `verifyPassword` | `Future<bool> verifyPassword(Uint8List password)` | For re-auth before sensitive actions (view recovery key, export) |
 
