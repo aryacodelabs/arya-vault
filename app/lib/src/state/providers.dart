@@ -24,6 +24,11 @@ final Provider<PrintService> printServiceProvider = Provider<PrintService>(
   (Ref ref) => const UnavailablePrintService(),
 );
 
+final Provider<UrlLauncherService> urlLauncherServiceProvider =
+    Provider<UrlLauncherService>(
+      (Ref ref) => const UnavailableUrlLauncherService(),
+    );
+
 final Provider<PlatformEvents> platformEventsProvider =
     Provider<PlatformEvents>((Ref ref) => const NoPlatformEvents());
 

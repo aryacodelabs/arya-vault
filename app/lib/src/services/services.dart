@@ -38,6 +38,13 @@ abstract interface class PlatformEvents {
   Stream<PlatformEvent> get events;
 }
 
+/// Opens a URL in the user's browser. The caller has already asked for
+/// confirmation where it matters (non-https, links from notes).
+abstract interface class UrlLauncherService {
+  /// Returns false if nothing could handle the URL.
+  Future<bool> open(Uri uri);
+}
+
 /// Thrown by the default services until L01 provides real ones.
 class ServiceUnavailable implements Exception {
   const ServiceUnavailable(this.service);
@@ -75,6 +82,13 @@ class UnavailablePrintService implements PrintService {
     required String title,
     required Uint8List body,
   }) async => throw const ServiceUnavailable('print');
+}
+
+class UnavailableUrlLauncherService implements UrlLauncherService {
+  const UnavailableUrlLauncherService();
+  @override
+  Future<bool> open(Uri uri) async =>
+      throw const ServiceUnavailable('url launcher');
 }
 
 class NoPlatformEvents implements PlatformEvents {

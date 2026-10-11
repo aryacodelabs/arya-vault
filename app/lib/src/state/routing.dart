@@ -15,6 +15,9 @@ import '../ui/screens/recovery_key_screen.dart';
 import '../ui/screens/splash_screen.dart';
 import '../ui/screens/verify_screen.dart';
 import '../ui/screens/welcome_screen.dart';
+import '../ui/vault/folders_screen.dart';
+import '../ui/vault/history_screen.dart';
+import '../ui/vault/item_edit_screen.dart';
 import 'onboarding_state.dart';
 import 'vault_status.dart';
 
@@ -31,6 +34,11 @@ abstract final class AppRoutes {
   static const String recover = '/recover';
   static const String forgot = '/forgot';
   static const String home = '/home';
+  static const String newItem = '/home/new';
+  static const String edit = '/home/edit';
+  static const String history = '/home/history';
+  static const String compare = '/home/compare';
+  static const String folders = '/home/folders';
 
   static const List<String> all = <String>[
     splash,
@@ -45,6 +53,11 @@ abstract final class AppRoutes {
     recover,
     forgot,
     home,
+    newItem,
+    edit,
+    history,
+    compare,
+    folders,
   ];
 }
 
@@ -98,7 +111,11 @@ String? redirectFor({
   if (onboarding.quickOfferPending) {
     return goto(AppRoutes.quickOffer);
   }
-  return goto(AppRoutes.home);
+  // The vault screens are /home and everything below it.
+  if (location == AppRoutes.home || location.startsWith('${AppRoutes.home}/')) {
+    return null;
+  }
+  return AppRoutes.home;
 }
 
 String _onboardingStep(OnboardingState o) {
@@ -114,6 +131,13 @@ String _onboardingStep(OnboardingState o) {
 
 class _RouterRefresh extends ChangeNotifier {
   void poke() => notifyListeners();
+}
+
+T? _enumByName<T extends Enum>(List<T> values, String? name) {
+  for (final T v in values) {
+    if (v.name == name) return v;
+  }
+  return null;
 }
 
 final Provider<GoRouter> routerProvider = Provider<GoRouter>((Ref ref) {
@@ -147,7 +171,62 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((Ref ref) {
       route(AppRoutes.lock, LockScreen.new),
       route(AppRoutes.recover, RecoverScreen.new),
       route(AppRoutes.forgot, ForgotBothScreen.new),
-      route(AppRoutes.home, HomeScreen.new),
+      GoRoute(
+        path: AppRoutes.home,
+        builder: (BuildContext context, GoRouterState state) =>
+            const HomeScreen(),
+        routes: <RouteBase>[
+          GoRoute(
+            path: 'new/:type',
+            builder: (BuildContext context, GoRouterState state) =>
+                ItemEditScreen(
+                  newType:
+                      _enumByName(
+                        ItemType.values,
+                        state.pathParameters['type'],
+                      ) ??
+                      ItemType.login,
+                ),
+          ),
+          GoRoute(
+            path: 'edit/:id',
+            builder: (BuildContext context, GoRouterState state) =>
+                ItemEditScreen(itemId: state.pathParameters['id']),
+          ),
+          GoRoute(
+            path: 'history/:id/:field',
+            builder: (BuildContext context, GoRouterState state) =>
+                HistoryScreen(
+                  itemId: state.pathParameters['id']!,
+                  field:
+                      _enumByName(
+                        StdField.values,
+                        state.pathParameters['field'],
+                      ) ??
+                      StdField.title,
+                ),
+          ),
+          GoRoute(
+            path: 'compare/:id/:field/:hlc',
+            builder: (BuildContext context, GoRouterState state) =>
+                CompareScreen(
+                  itemId: state.pathParameters['id']!,
+                  field:
+                      _enumByName(
+                        StdField.values,
+                        state.pathParameters['field'],
+                      ) ??
+                      StdField.title,
+                  hlc: int.tryParse(state.pathParameters['hlc'] ?? '') ?? 0,
+                ),
+          ),
+          GoRoute(
+            path: 'folders',
+            builder: (BuildContext context, GoRouterState state) =>
+                const FoldersScreen(),
+          ),
+        ],
+      ),
     ],
   );
 });

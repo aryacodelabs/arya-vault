@@ -69,3 +69,14 @@ class FakePlatformEvents implements PlatformEvents {
   @override
   Stream<PlatformEvent> get events => _controller.stream;
 }
+
+class FakeUrlLauncherService implements UrlLauncherService {
+  final List<Uri> opened = <Uri>[];
+  bool result = true;
+
+  @override
+  Future<bool> open(Uri uri) async {
+    opened.add(uri);
+    return result;
+  }
+}
