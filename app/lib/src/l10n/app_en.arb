@@ -1,0 +1,172 @@
+{
+  "@@locale": "en",
+  "appName": "AryaVault",
+  "actionContinue": "Continue",
+  "actionBack": "Back",
+  "actionTryAgain": "Try again",
+  "actionLock": "Lock now",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
+  "loadingVault": "Loading your vault…",
+  "loadFailed": "Couldn't read the vault status.",
+  "welcomeTitle": "Welcome to AryaVault",
+  "welcomeTagline": "Your passwords and notes, encrypted on this device. No account and no server.",
+  "welcomeCreate": "Create a new vault",
+  "welcomeAddDevice": "Add this device to an existing vault",
+  "welcomeAddDeviceUnavailable": "Available with sync",
+  "createTitle": "Create your vault",
+  "createIntro": "Choose a master password. It is the only thing that unlocks your vault on this device.",
+  "masterPasswordLabel": "Master password",
+  "confirmPasswordLabel": "Confirm master password",
+  "passwordMismatch": "The two passwords don't match.",
+  "passphraseTip": "Tip: a passphrase of 16 or more characters is much stronger.",
+  "createSubmit": "Create vault",
+  "createWorking": "Creating your vault…",
+  "advancedTitle": "Advanced",
+  "kdfLabel": "Key-derivation strength",
+  "kdfHelp": "Stronger settings make password guessing slower for an attacker but use more memory. Choose Low only on very old devices.",
+  "kdfLow": "Low memory use",
+  "kdfDefault": "Balanced (recommended)",
+  "kdfHigh": "High (slower, more memory)",
+  "strengthLabel": "Password strength",
+  "strengthVeryWeak": "Very weak",
+  "strengthWeak": "Weak",
+  "strengthFair": "Fair",
+  "strengthGood": "Good",
+  "strengthStrong": "Strong",
+  "strengthSemantics": "Password strength: {level}",
+  "@strengthSemantics": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "policyMet": "Meets the requirements.",
+  "policyEmpty": "Enter a password of at least 12 characters.",
+  "explainerTitle": "There is no password reset",
+  "explainerBody": "AryaVault can't reset your password — we don't have your data or a server. Your recovery key is the only backup. Store it somewhere safe and separate from this device.",
+  "explainerPoint": "Without your master password or your recovery key, nobody can open your data, including us.",
+  "explainerContinue": "Show my recovery key",
+  "recoveryTitle": "Your recovery key",
+  "recoveryIntro": "Write it down or print it, and keep it somewhere safe and separate from this device. It is shown only now.",
+  "recoveryShowKey": "Show key",
+  "recoveryHideKey": "Hide key",
+  "recoveryHiddenPlaceholder": "Recovery key hidden",
+  "recoveryGroupSemantics": "Group {n} of {total}: {chars}",
+  "@recoveryGroupSemantics": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "chars": {
+        "type": "String"
+      }
+    }
+  },
+  "recoveryChecksumSemantics": "Checksum group: {chars}",
+  "@recoveryChecksumSemantics": {
+    "placeholders": {
+      "chars": {
+        "type": "String"
+      }
+    }
+  },
+  "recoveryChecksumLabel": "Checksum",
+  "recoveryPrint": "Print",
+  "recoverySave": "Save as file",
+  "recoveryNoCopy": "This screen has no copy button on purpose: other apps can read the clipboard.",
+  "recoveryCaptureWarning": "Don't screenshot or photograph this key into a cloud-synced folder. Anyone who sees it, together with a copy of your vault file, can open your vault.",
+  "recoveryStoredCheck": "I stored it",
+  "recoveryContinue": "Continue",
+  "recoverySaved": "Saved.",
+  "recoverySaveFailed": "Couldn't save the file.",
+  "recoveryPrintFailed": "Couldn't print.",
+  "recoveryServiceUnavailable": "This is not available in this build yet.",
+  "recoverySheetTitle": "AryaVault recovery key",
+  "recoverySheetBody": "Keep this sheet somewhere safe, separate from your device. Anyone with this key and a copy of your vault file can open your vault.",
+  "recoverySheetKeyLabel": "Recovery key:",
+  "recoveryFileName": "aryavault-recovery-key.txt",
+  "recoveryRegenTitle": "Create a new recovery key",
+  "recoveryRegenBody": "Your earlier recovery key was never confirmed, so it can't be shown again. Enter your master password to create a new one.",
+  "recoveryRegenSubmit": "Create recovery key",
+  "verifyTitle": "Check your recovery key",
+  "verifyIntro": "Type the groups below from your saved copy. This proves you can use it later.",
+  "verifyGroupField": "Group {n}",
+  "@verifyGroupField": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "verifyGroupHelp": "Five letters or digits",
+  "verifySubmit": "Verify",
+  "verifyMismatch": "That doesn't match. Look at your key again, then retry.",
+  "verifyShowKeyAgain": "Show my key again",
+  "quickOfferTitle": "Unlock faster?",
+  "quickOfferBody": "Unlock this vault with {method} instead of typing your master password. You will still need your master password after a restart.",
+  "@quickOfferBody": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "quickEnable": "Turn on",
+  "quickNotNow": "Not now",
+  "quickKindWindowsHello": "Windows Hello",
+  "quickKindTouchId": "Touch ID",
+  "quickKindFaceId": "Face ID",
+  "quickKindBiometric": "biometrics",
+  "quickKindOsKeyring": "your system keyring",
+  "quickKindNone": "quick unlock",
+  "lockTitle": "Unlock your vault",
+  "lockSubmit": "Unlock",
+  "lockWorking": "Unlocking…",
+  "lockQuick": "Unlock with {method}",
+  "@lockQuick": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "lockUseRecovery": "Use recovery key",
+  "recoverTitle": "Recover with your recovery key",
+  "recoverKeyLabel": "Recovery key",
+  "recoverKeyHint": "Spaces, dashes and lowercase letters are fine.",
+  "recoverNewPasswordTitle": "Choose a new master password",
+  "recoverSubmit": "Recover vault",
+  "recoverNoKey": "I don't have my recovery key",
+  "forgotTitle": "If you have neither",
+  "forgotBody1": "Your data is encrypted with keys protected by your master password and your recovery key. Without either one, nobody can recover it, including us.",
+  "forgotBody2": "If you remember an older master password, an older snapshot of your vault may still open with it.",
+  "forgotBody3": "As a last resort you will be able to erase this device's vault and start fresh. Erasing is permanent. This option comes in a later version.",
+  "homeTitle": "Your vault",
+  "homeUnlockedMessage": "Your vault is unlocked.",
+  "homeListPlaceholder": "Items will appear here.",
+  "homeDetailPlaceholder": "Select an item to see its details.",
+  "navVault": "Vault",
+  "navGenerator": "Generator",
+  "navHealth": "Health",
+  "navSettings": "Settings",
+  "errWrongCredentials": "That didn't work. Check your password and try again.",
+  "errWrongRecoveryKey": "That recovery key doesn't open this vault.",
+  "errRecoveryKeyMalformed": "That recovery key doesn't look right. Check it for typos and try again.",
+  "errWeakPassword": "That password is too weak.",
+  "errLocked": "The vault is locked.",
+  "errNotFound": "That item no longer exists.",
+  "errValidation": "Some input isn't valid.",
+  "errLimitReached": "A size or count limit was reached.",
+  "errCorruptVault": "The vault data failed an integrity check. It was not opened.",
+  "errUnsupportedFormat": "This vault was made by a newer version of AryaVault. Update the app to open it.",
+  "errQuickUnlockUnavailable": "Quick unlock isn't available right now. Use your master password.",
+  "errAlreadyExists": "A vault already exists here.",
+  "errIo": "Couldn't read or write the vault files.",
+  "errBusy": "Too many attempts. Wait a moment, then try again.",
+  "errInternal": "Something went wrong."
+}
