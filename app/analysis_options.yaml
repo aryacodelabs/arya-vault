@@ -1,0 +1,34 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "lib/src/l10n/gen/**"
+    - "lib/src/rust/**"
+    - build/**
+    - android/**
+    - windows/**
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    # Security-relevant: never ignore these.
+    avoid_print: error
+    unawaited_futures: error
+    depend_on_referenced_packages: error
+
+linter:
+  rules:
+    - avoid_print
+    - unawaited_futures
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - prefer_final_locals
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - directives_ordering
+    - use_super_parameters
+    - require_trailing_commas
+    - sort_pub_dependencies
+    - cancel_subscriptions
+    - close_sinks
