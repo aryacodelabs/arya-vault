@@ -135,6 +135,48 @@ pub(crate) fn backup_before_migration(
     Ok(dest_path)
 }
 
+/// Whether `rest` (the file name after `<db>.bak-v`) is `<from>-<ts>[-n]`, optionally followed by a
+/// SQLite sidecar suffix. Anything else is not ours and is never deleted.
+fn is_backup_name(rest: &str) -> bool {
+    let rest = rest
+        .strip_suffix("-wal")
+        .or_else(|| rest.strip_suffix("-shm"))
+        .unwrap_or(rest);
+    let mut parts = rest.split('-');
+    let (Some(from), Some(ts)) = (parts.next(), parts.next()) else {
+        return false;
+    };
+    from.parse::<u32>().is_ok()
+        && ts.parse::<u64>().is_ok()
+        && parts.next().is_none_or(|n| n.parse::<u32>().is_ok())
+        && parts.next().is_none()
+}
+
+/// Delete **every** pre-migration backup of `db_path`, with its sidecars, whatever its age.
+///
+/// A backup is encrypted under the database key of its time. After a vault-key rotation that key
+/// is retired on purpose (docs/04 §10), so a backup that outlived the rotation would keep the
+/// pre-rotation data readable with the old key. Best effort; returns the number of files removed.
+pub fn remove_all_backups(db_path: &Path) -> usize {
+    let (Some(prefix), Some(dir)) = (backup_prefix(db_path), db_path.parent()) else {
+        return 0;
+    };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(rest) = name.to_str().and_then(|n| n.strip_prefix(&prefix)) else {
+            continue;
+        };
+        if is_backup_name(rest) && std::fs::remove_file(entry.path()).is_ok() {
+            removed += 1;
+        }
+    }
+    removed
+}
+
 /// Delete backups of `db_path` older than [`BACKUP_RETENTION`]. Best effort;
 /// returns the number removed.
 pub(crate) fn prune_backups(db_path: &Path) -> usize {

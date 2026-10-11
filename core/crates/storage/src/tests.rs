@@ -1369,3 +1369,35 @@ fn second_writer_gets_busy_not_a_hang() {
     assert!(matches!(r, Err(StorageError::Busy)), "{r:?}");
     assert_eq!(pragmas::BUSY_TIMEOUT_MS, 5_000);
 }
+
+#[test]
+fn remove_all_backups_removes_only_this_databases_backups_whatever_their_age() {
+    let t = tempfile::tempdir().unwrap();
+    let db = t.path().join("vault.db");
+    let mine = [
+        "vault.db.bak-v1-5",
+        "vault.db.bak-v2-1700000000-3",
+        "vault.db.bak-v1-5-wal",
+        "vault.db.bak-v1-5-shm",
+    ];
+    let not_mine = [
+        "vault.db",
+        "vault.db.bak-v1",
+        "vault.db.bak-vX-5",
+        "vault.db.bak-v1-5-x",
+        "vault.db.bak-v1-5-1-2",
+        "vault.db.bak-v1-5.txt",
+        "other.db.bak-v1-5",
+    ];
+    for n in mine.iter().chain(&not_mine) {
+        std::fs::write(t.path().join(n), b"x").unwrap();
+    }
+    assert_eq!(crate::remove_all_backups(&db), mine.len());
+    for n in mine {
+        assert!(!t.path().join(n).exists(), "{n}");
+    }
+    for n in not_mine {
+        assert!(t.path().join(n).exists(), "{n}");
+    }
+    assert_eq!(crate::remove_all_backups(&db), 0);
+}
