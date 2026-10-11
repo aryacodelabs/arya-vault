@@ -1,16 +1,38 @@
-// Platform-service seams (docs/02 §3). B01 defines the interfaces and test
+// Platform-service seams (docs/02 §3). B01/B03 define the interfaces and test
 // fakes only; the Windows implementations come in L01. Nothing here touches the
 // network.
 import 'dart:async';
 import 'dart:typed_data';
 
-/// Clipboard access with auto-clear (B03 builds the clear timer on top).
-abstract interface class ClipboardService {
-  /// Puts [text] on the clipboard. The recovery-key screen must never call
-  /// this (docs/14 §8 question 3).
-  Future<void> copy(String text);
+/// Raw clipboard access of the platform (L01 implements it for Windows).
+///
+/// Everything with logic (the timed clear, "only if still ours", clear on lock)
+/// lives in `ClipboardManager`; this seam stays dumb so it can be faked.
+abstract interface class ClipboardPlatform {
+  /// Puts [bytes] (UTF-8 text) on the clipboard. With [sensitive] the platform
+  /// must keep it out of clipboard history and cloud sync (SEC-H01). The
+  /// caller wipes [bytes] after the call returns.
+  Future<void> write(Uint8List bytes, {required bool sensitive});
 
+  /// An opaque fingerprint (for example a salted hash computed inside the
+  /// platform layer) of what is on the clipboard right now, or null if it is
+  /// empty, not text, or the platform cannot tell. It never contains the
+  /// content itself, because the manager keeps it in memory.
+  Future<String?> contentFingerprint();
+
+  /// Empties the clipboard.
   Future<void> clear();
+}
+
+/// Blocks screenshots and screen recording of the app window (SEC-H02).
+/// L01 implements it (Windows: exclude from capture).
+abstract interface class CaptureProtection {
+  /// False when this build has no implementation; the settings screen then says
+  /// so instead of showing a toggle that does nothing.
+  bool get available;
+
+  /// Turns the block on or off for the app's windows.
+  Future<void> setBlocked(bool blocked);
 }
 
 /// File dialogs; the core only ever sees bytes.
@@ -31,8 +53,15 @@ abstract interface class PrintService {
   Future<void> printText({required String title, required Uint8List body});
 }
 
-/// OS events the auto-lock logic reacts to (B03 consumes them).
-enum PlatformEvent { sleep, resume, screenLocked, screenUnlocked }
+/// OS events the auto-lock logic reacts to.
+enum PlatformEvent {
+  sleep,
+  resume,
+  screenLocked,
+  screenUnlocked,
+  windowMinimized,
+  windowRestored,
+}
 
 abstract interface class PlatformEvents {
   Stream<PlatformEvent> get events;
@@ -53,13 +82,25 @@ class ServiceUnavailable implements Exception {
   String toString() => 'ServiceUnavailable($service)';
 }
 
-class UnavailableClipboardService implements ClipboardService {
-  const UnavailableClipboardService();
+class UnavailableClipboardPlatform implements ClipboardPlatform {
+  const UnavailableClipboardPlatform();
   @override
-  Future<void> copy(String text) async =>
+  Future<void> write(Uint8List bytes, {required bool sensitive}) async =>
       throw const ServiceUnavailable('clipboard');
   @override
+  Future<String?> contentFingerprint() async => null;
+  @override
   Future<void> clear() async => throw const ServiceUnavailable('clipboard');
+}
+
+/// Reports `available == false`: the settings screen shows "not available on
+/// this build" and nothing pretends to block capture.
+class UnavailableCaptureProtection implements CaptureProtection {
+  const UnavailableCaptureProtection();
+  @override
+  bool get available => false;
+  @override
+  Future<void> setBlocked(bool blocked) async {}
 }
 
 class UnavailableFilePickerService implements FilePickerService {

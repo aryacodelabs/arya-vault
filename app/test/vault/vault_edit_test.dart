@@ -572,12 +572,15 @@ void main() {
       );
     });
 
-    testWidgets('the default generator asks the core', (
+    testWidgets('the default generator opens the sheet; Use fills the field', (
       WidgetTester tester,
     ) async {
       final SpyApi api = await unlockedVault(samples: false);
       await openNew(tester, api, ItemType.login);
       await tapOn(tester, find.byTooltip(l10n.generatePassword));
+      expect(find.text(l10n.generatorSheetTitle), findsOneWidget);
+      await tapOn(tester, find.text(l10n.generatorUse));
+      expect(find.text(l10n.generatorSheetTitle), findsNothing);
       expect(
         tester
             .widget<TextField>(fieldLabelled(l10n.fieldPassword))
@@ -585,6 +588,22 @@ void main() {
             .text
             .length,
         20,
+      );
+    });
+
+    testWidgets('cancelling the generator sheet leaves the field alone', (
+      WidgetTester tester,
+    ) async {
+      final SpyApi api = await unlockedVault(samples: false);
+      await openNew(tester, api, ItemType.login);
+      await tapOn(tester, find.byTooltip(l10n.generatePassword));
+      await tapOn(tester, find.text(l10n.actionCancel));
+      expect(
+        tester
+            .widget<TextField>(fieldLabelled(l10n.fieldPassword))
+            .controller!
+            .text,
+        isEmpty,
       );
     });
   });

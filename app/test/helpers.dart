@@ -52,7 +52,7 @@ class Harness {
 }
 
 class Services {
-  final FakeClipboardService clipboard = FakeClipboardService();
+  final FakeClipboardPlatform clipboard = FakeClipboardPlatform();
   final FakeFilePickerService filePicker = FakeFilePickerService();
   final FakePrintService printer = FakePrintService();
   final FakePlatformEvents events = FakePlatformEvents();
@@ -82,7 +82,7 @@ Future<Harness> pumpApp(
       retry: noAutoRetry,
       overrides: [
         vaultApiProvider.overrideWithValue(fake),
-        clipboardServiceProvider.overrideWithValue(s.clipboard),
+        clipboardPlatformProvider.overrideWithValue(s.clipboard),
         filePickerServiceProvider.overrideWithValue(s.filePicker),
         printServiceProvider.overrideWithValue(s.printer),
         platformEventsProvider.overrideWithValue(s.events),

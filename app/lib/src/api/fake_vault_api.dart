@@ -67,6 +67,38 @@ class _FakeItem {
   int? deletedAt;
 }
 
+class _FakeImportItem {
+  const _FakeImportItem(
+    this.title,
+    this.username,
+    this.password,
+    this.url,
+    this.notes,
+    this.folder,
+  );
+  final String title;
+  final String username;
+  final String password;
+  final String url;
+  final String notes;
+  final String folder;
+}
+
+class _FakePreview {
+  const _FakePreview(
+    this.format,
+    this.items,
+    this.skipped,
+    this.warnings,
+    this.folders,
+  );
+  final String format;
+  final List<_FakeImportItem> items;
+  final List<SkippedRecord> skipped;
+  final List<ImportWarning> warnings;
+  final Set<String> folders;
+}
+
 class FakeVaultApi implements VaultApi {
   FakeVaultApi({
     DateTime Function()? clock,
@@ -385,6 +417,11 @@ class FakeVaultApi implements VaultApi {
     }
     _checkPolicy(newPassword);
     _setPassword(newPassword);
+    if (rotateKeys) {
+      // Like the core (ffi `change_password`): the rotation leaves a new
+      // recovery key pending and onboarding incomplete until it is confirmed.
+      _startPending();
+    }
   }
 
   @override
@@ -1298,7 +1335,184 @@ class FakeVaultApi implements VaultApi {
     );
   }
 
-  // ------------------------------------------------- 4.4 import / export (stub)
+  // ------------------------------------------------------- 4.4 import / export
+
+  /// Largest file `importPreview` accepts (the core's bound is in docs/13).
+  int importByteLimit = 5 * 1024 * 1024;
+
+  /// Test hook: most items a vault may hold before an import hits `limitReached`.
+  int importItemLimit = 100000;
+
+  final Map<String, _FakePreview> _previews = <String, _FakePreview>{};
+  int _previewCounter = 0;
+
+  static const String _exportMagic = 'AVEX-FAKE';
+
+  /// Minimal CSV reader: quotes, doubled quotes, CRLF. Not the core's parser.
+  static List<List<String>> _parseCsv(String text) {
+    final List<List<String>> rows = <List<String>>[];
+    List<String> row = <String>[];
+    final StringBuffer cell = StringBuffer();
+    var quoted = false;
+    for (var i = 0; i < text.length; i++) {
+      final String c = text[i];
+      if (quoted) {
+        if (c == '"') {
+          if (i + 1 < text.length && text[i + 1] == '"') {
+            cell.write('"');
+            i++;
+          } else {
+            quoted = false;
+          }
+        } else {
+          cell.write(c);
+        }
+      } else if (c == '"') {
+        quoted = true;
+      } else if (c == ',') {
+        row.add(cell.toString());
+        cell.clear();
+      } else if (c == '\n' || c == '\r') {
+        if (c == '\r' && i + 1 < text.length && text[i + 1] == '\n') i++;
+        row.add(cell.toString());
+        cell.clear();
+        if (row.any((String v) => v.isNotEmpty) || row.length > 1) {
+          rows.add(row);
+        }
+        row = <String>[];
+      } else {
+        cell.write(c);
+      }
+    }
+    if (cell.isNotEmpty || row.isNotEmpty) {
+      row.add(cell.toString());
+      rows.add(row);
+    }
+    return rows;
+  }
+
+  static String _csvCell(String v) =>
+      v.contains(RegExp('["\n\r,]')) ? '"${v.replaceAll('"', '""')}"' : v;
+
+  bool _isDuplicate(String title, String? username) => _items.values.any(
+    (_FakeItem i) =>
+        i.deletedAt == null &&
+        i.title == title &&
+        (i.fields[StdField.username] ?? '') == (username ?? ''),
+  );
+
+  _FakePreview _parseImport(ImportFormat format, Uint8List file) {
+    final String text = utf8.decode(file, allowMalformed: true);
+    final List<_FakeImportItem> items = <_FakeImportItem>[];
+    final List<SkippedRecord> skipped = <SkippedRecord>[];
+    final List<ImportWarning> warnings = <ImportWarning>[];
+    final Set<String> folders = <String>{};
+    if (format == ImportFormat.csv) {
+      final List<List<String>> rows = _parseCsv(text);
+      if (rows.isEmpty) {
+        throw const AppError(
+          AppErrorCode.validation,
+          'the file has no header row',
+          field: 'file',
+        );
+      }
+      final List<String> header = rows.first
+          .map((String h) => h.trim().toLowerCase())
+          .toList();
+      int col(List<String> names) => header.indexWhere(names.contains);
+      final int title = col(<String>['name', 'title']);
+      final int user = col(<String>['username', 'login_username']);
+      final int pass = col(<String>['password', 'login_password']);
+      final int url = col(<String>['url', 'login_uri', 'website']);
+      final int notes = col(<String>['notes']);
+      final int folder = col(<String>['folder']);
+      if (title < 0) {
+        throw const AppError(
+          AppErrorCode.validation,
+          'the file has no name column',
+          field: 'file',
+        );
+      }
+      String at(List<String> r, int c) =>
+          c >= 0 && c < r.length ? r[c].trim() : '';
+      for (var n = 1; n < rows.length; n++) {
+        final List<String> r = rows[n];
+        final String name = at(r, title);
+        if (name.isEmpty) {
+          skipped.add(SkippedRecord(record: n, reason: 'missing name'));
+          continue;
+        }
+        if (at(r, pass).isEmpty) {
+          warnings.add(ImportWarning(record: n, message: 'no password'));
+        }
+        final String f = at(r, folder);
+        if (f.isNotEmpty) folders.add(f);
+        items.add(
+          _FakeImportItem(
+            name,
+            at(r, user),
+            at(r, pass),
+            at(r, url),
+            at(r, notes),
+            f,
+          ),
+        );
+      }
+    } else {
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(text);
+      } on FormatException {
+        throw const AppError(
+          AppErrorCode.validation,
+          'the file is not valid JSON',
+          field: 'file',
+        );
+      }
+      if (decoded is! Map<String, Object?> || decoded['items'] is! List) {
+        throw const AppError(
+          AppErrorCode.validation,
+          'the file has no items list',
+          field: 'file',
+        );
+      }
+      final Object? rawFolders = decoded['folders'];
+      final Map<String, String> folderNames = <String, String>{
+        if (rawFolders is List<Object?>)
+          for (final Object? f in rawFolders)
+            if (f is Map<String, Object?>) '${f['id']}': '${f['name']}',
+      };
+      var n = 0;
+      for (final Object? raw in decoded['items'] as List<Object?>) {
+        n++;
+        if (raw is! Map<String, Object?> || '${raw['name'] ?? ''}'.isEmpty) {
+          skipped.add(SkippedRecord(record: n, reason: 'missing name'));
+          continue;
+        }
+        final Object? login = raw['login'];
+        final Map<String, Object?> l = login is Map<String, Object?>
+            ? login
+            : <String, Object?>{};
+        final Object? uris = l['uris'];
+        final String url = uris is List<Object?> && uris.isNotEmpty
+            ? '${(uris.first as Map<String, Object?>)['uri'] ?? ''}'
+            : '';
+        final String f = folderNames['${raw['folderId']}'] ?? '';
+        if (f.isNotEmpty) folders.add(f);
+        items.add(
+          _FakeImportItem(
+            '${raw['name']}',
+            '${l['username'] ?? ''}',
+            '${l['password'] ?? ''}',
+            url,
+            '${raw['notes'] ?? ''}',
+            f,
+          ),
+        );
+      }
+    }
+    return _FakePreview(format.name, items, skipped, warnings, folders);
+  }
 
   @override
   Future<ImportPreview> importPreview({
@@ -1306,14 +1520,82 @@ class FakeVaultApi implements VaultApi {
     required Uint8List file,
   }) async {
     _requireUnlocked();
+    if (file.length > importByteLimit) {
+      throw const AppError(
+        AppErrorCode.limitReached,
+        'the file is too large',
+        field: 'file',
+      );
+    }
+    final _FakePreview p = _parseImport(format, file);
+    final String token = 'preview-${++_previewCounter}';
+    _previews[token] = p;
     return ImportPreview(
-      format: format.name,
-      itemCount: 0,
-      folderCount: 0,
-      duplicates: 0,
-      warnings: const <ImportWarning>[],
-      skipped: const <SkippedRecord>[],
-      previewToken: 'fake-preview-token',
+      format: p.format,
+      itemCount: p.items.length,
+      folderCount: p.folders.length,
+      duplicates: p.items
+          .where((_FakeImportItem i) => _isDuplicate(i.title, i.username))
+          .length,
+      warnings: p.warnings,
+      skipped: p.skipped,
+      previewToken: token,
+    );
+  }
+
+  ImportResult _commit(_FakePreview p, ImportOptions options) {
+    final int visible = _items.values
+        .where((_FakeItem i) => i.deletedAt == null)
+        .length;
+    if (visible + p.items.length > importItemLimit) {
+      throw const AppError(
+        AppErrorCode.limitReached,
+        'the vault item limit would be exceeded',
+      );
+    }
+    var created = 0;
+    var duplicates = 0;
+    var foldersCreated = 0;
+    final Map<String, String> folderIds = <String, String>{};
+    for (final String name in p.folders) {
+      final String? existing = _folders.values
+          .where((Folder f) => f.name == name)
+          .map((Folder f) => f.id)
+          .firstOrNull;
+      if (existing != null) {
+        folderIds[name] = existing;
+      } else {
+        folderIds[name] = _addFolder(name);
+        foldersCreated++;
+      }
+    }
+    for (final _FakeImportItem it in p.items) {
+      if (options.skipDuplicates && _isDuplicate(it.title, it.username)) {
+        duplicates++;
+        continue;
+      }
+      final _FakeItem item = _FakeItem(
+        id: _newId(),
+        type: ItemType.login,
+        title: it.title,
+        createdAt: _nowMs,
+      );
+      item.fields[StdField.title] = it.title;
+      if (it.username.isNotEmpty) item.fields[StdField.username] = it.username;
+      if (it.password.isNotEmpty) item.fields[StdField.password] = it.password;
+      if (it.notes.isNotEmpty) item.fields[StdField.notes] = it.notes;
+      if (it.url.isNotEmpty) item.urls[_newId()] = it.url;
+      item.folderId = options.targetFolder ?? folderIds[it.folder];
+      _items[item.id] = item;
+      created++;
+    }
+    _bump();
+    return ImportResult(
+      created: created,
+      foldersCreated: foldersCreated,
+      duplicates: duplicates,
+      invalid: p.skipped.length,
+      skipped: 0,
     );
   }
 
@@ -1323,13 +1605,38 @@ class FakeVaultApi implements VaultApi {
     required ImportOptions options,
   }) async {
     _requireUnlocked();
-    return const ImportResult(
-      created: 0,
-      foldersCreated: 0,
-      duplicates: 0,
-      invalid: 0,
-      skipped: 0,
-    );
+    final _FakePreview? p = _previews[previewToken];
+    if (p == null) {
+      throw const AppError(
+        AppErrorCode.notFound,
+        'unknown or already used preview',
+      );
+    }
+    if (options.targetFolder != null &&
+        !_folders.containsKey(options.targetFolder)) {
+      throw const AppError(AppErrorCode.notFound, 'unknown folder');
+    }
+    final ImportResult r = _commit(p, options);
+    _previews.remove(previewToken);
+    return r;
+  }
+
+  /// All visible logins as CSV text (obviously not the core's exporter).
+  String _csvText() {
+    final StringBuffer out = StringBuffer('name,username,password,url,notes\n');
+    for (final _FakeItem i in _byNewest) {
+      if (i.deletedAt != null || i.type != ItemType.login) continue;
+      out.writeln(
+        <String>[
+          i.title,
+          i.fields[StdField.username] ?? '',
+          i.fields[StdField.password] ?? '',
+          i.urls.values.firstOrNull ?? '',
+          i.fields[StdField.notes] ?? '',
+        ].map(_csvCell).join(','),
+      );
+    }
+    return out.toString();
   }
 
   @override
@@ -1342,13 +1649,32 @@ class FakeVaultApi implements VaultApi {
         field: 'token',
       );
     }
-    return Uint8List.fromList(utf8.encode('FAKE-CSV-EXPORT'));
+    return Uint8List.fromList(utf8.encode(_csvText()));
+  }
+
+  /// FAKE container tag of a password (not a KDF, not a MAC).
+  static String _tag(Uint8List password) {
+    var h = 7;
+    for (final int b in password) {
+      h = (h * 131 + b) & 0x7fffffff;
+    }
+    return h.toRadixString(16);
   }
 
   @override
   Future<Uint8List> exportEncrypted(Uint8List exportPassword) async {
     _requireUnlocked();
-    return Uint8List.fromList(utf8.encode('FAKE-ENCRYPTED-EXPORT'));
+    if (exportPassword.isEmpty) {
+      throw const AppError(
+        AppErrorCode.validation,
+        'the export password is empty',
+        field: 'exportPassword',
+      );
+    }
+    final String body = base64Encode(utf8.encode(_csvText()));
+    return Uint8List.fromList(
+      utf8.encode('$_exportMagic\n${_tag(exportPassword)}\n$body'),
+    );
   }
 
   @override
@@ -1357,13 +1683,27 @@ class FakeVaultApi implements VaultApi {
     required Uint8List exportPassword,
   }) async {
     _requireUnlocked();
-    return const ImportResult(
-      created: 0,
-      foldersCreated: 0,
-      duplicates: 0,
-      invalid: 0,
-      skipped: 0,
+    final List<String> parts = utf8
+        .decode(file, allowMalformed: true)
+        .split('\n');
+    if (parts.length != 3 || parts[0] != _exportMagic) {
+      throw const AppError(
+        AppErrorCode.corruptVault,
+        'not an AryaVault export',
+      );
+    }
+    if (parts[1] != _tag(exportPassword)) {
+      throw const AppError(
+        AppErrorCode.wrongCredentials,
+        'wrong export password or damaged file',
+      );
+    }
+    final String csv = utf8.decode(base64Decode(parts[2]));
+    final _FakePreview p = _parseImport(
+      ImportFormat.csv,
+      Uint8List.fromList(utf8.encode(csv)),
     );
+    return _commit(p, const ImportOptions());
   }
 
   // ------------------------------------------------- 4.5 settings, 4.6 info

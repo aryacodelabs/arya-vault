@@ -1,12 +1,13 @@
 # Golden images
 
-27 images:
+35 images:
 
 - B01 (15): Welcome, Create (with strength feedback), Recovery key, Verify and
   Lock (with quick unlock), each in light, dark and 200% text.
 - B02 (12): list with detail, detail masked, detail revealed (fake canary), edit
   login, trash and history compare, each in light and dark
   (`goldens/vault_*.png`).
+- B03 (8): Generator, Health, Security settings and Import preview, each in light\n  and dark (`goldens/tools_*.png`).
 
 ## Regenerate
 
@@ -40,5 +41,6 @@ for tests with `FontLoader` from the asset bundle and regenerate every image.
 Goldens are generated and verified on **Linux** (CI job `flutter`). Software
 rasterization can differ in anti-aliasing by a few pixels on Windows or macOS, so
 a local failure there is not necessarily a bug; regenerate on Linux (for example
-in a container) before committing. Run the rest of the suite without goldens
+in an `ubuntu:24.04` container with the pinned Flutter tarball, checksum-verified as in
+CI) before committing. Run the rest of the suite without goldens
 with `flutter test --exclude-tags golden`.
