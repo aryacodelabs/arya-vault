@@ -9,6 +9,7 @@
 
 mod common;
 
+#[cfg(target_os = "linux")]
 use std::path::Path;
 
 use arya_vault_session::{Session, SessionState};
@@ -30,6 +31,7 @@ fn open_handles_on(target: &Path) -> usize {
 #[test]
 fn sec_a04_lock_closes_the_database_and_with_vault_refuses_afterwards() {
     let (_t, dir, _key) = fixture_copy(BIN);
+    #[cfg(target_os = "linux")]
     let db = dir.join("vault.db");
     let mut s = Session::open_dir(&dir).unwrap();
     s.unlock(PW).unwrap();
