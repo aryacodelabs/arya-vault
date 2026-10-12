@@ -6,18 +6,19 @@ of §3 is a plain struct or enum in `src/api/dto.rs`. Everything else in the cra
 
 ## Status of the Dart bindings
 
-**Not generated yet.** The cloud session that wrote this crate has no Dart/Flutter toolchain, and
-generated code must not be written by hand. What exists:
+**Generated.** `src/frb_generated.rs` and `app/lib/src/rust/` come from
+`flutter_rust_bridge_codegen` 2.13.0 (pinned in `tools/codegen/FRB_VERSION`); regenerate with
+`tools/codegen.ps1` (Windows) or `tools/codegen.sh`, never edit by hand. The app wraps them in
+`app/lib/src/api/ffi_vault_api.dart` (`FfiVaultApi`), and `app/test/api/contract_suite.dart` runs
+the same docs/14 scenarios against the fake and, with `ARYA_FFI_LIB` set to the built library,
+against this crate.
 
-* the `api` module (compiled and tested through plain Rust calls, not through Dart),
-* `app/flutter_rust_bridge.yaml`, `tools/codegen.sh`, `tools/codegen.ps1` and the pinned version in
-  `tools/codegen/FRB_VERSION` (2.13.0),
-* no `flutter_rust_bridge` dependency in `Cargo.toml` and no `src/frb_generated.rs`: both arrive with
-  the generated code (task L01, which also adds the CI job that runs `tools/codegen.sh --check`).
+`unsafe`: none in hand-written code. The crate sets `unsafe_code = "deny"` (the workspace says
+`forbid`, which cannot be relaxed per module) and the one owner-approved `#[allow(unsafe_code)]`
+is on `mod frb_generated`.
 
-`unsafe`: none in this crate today. The owner-approved exception covers the generated module only.
-When it lands, the crate swaps the workspace `forbid(unsafe_code)` for `deny(unsafe_code)` and puts
-one `#[allow(unsafe_code)]` on `mod frb_generated`.
+Known gap: docs/14 lists `recoveryChallenge`; the session has it (`recovery_challenge`) but this
+crate does not expose it yet, so the app cannot learn the redrawn groups after a mismatch.
 
 ## Build outputs
 

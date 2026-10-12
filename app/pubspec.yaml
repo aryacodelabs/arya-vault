@@ -15,15 +15,22 @@ dependencies:
     sdk: flutter
   # State management (docs/09). Providers hold only DTOs and UI state, never keys.
   flutter_riverpod: ^3.4.3
+  # Pinned exactly to the codegen and the Rust crate (tools/codegen/FRB_VERSION).
+  flutter_rust_bridge: 2.13.0
+  # Runtime annotations for the freezed classes the generated bindings use.
+  freezed_annotation: ^3.1.0
   # Declarative routing with a redirect guard driven by VaultStatus.
   go_router: ^18.0.2
   # Required by flutter_localizations / gen-l10n.
   intl: ^0.20.3
 
 dev_dependencies:
+  # Only to build the generated bindings (tools/codegen.sh); not shipped.
+  build_runner: ^2.4.0
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  freezed: ^3.1.0
 
 flutter:
   uses-material-design: true
