@@ -193,3 +193,60 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed .
       - run: flutter analyze
       - run: flutter test
+
+  bindings:
+    # L01: the generated flutter_rust_bridge bindings are current, and the app's shared docs/14
+    # contract suite passes against the real core (not just the fake). Linux only.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+    env:
+      # Same pin and checksum as the `flutter` job.
+      FLUTTER_VERSION: 3.47.7
+      FLUTTER_SHA256: af7455f540df951184c7953fbe3cf884766e7541dacf8571f9f582db03dd6230
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # v1
+        with:
+          toolchain: stable
+      # cache-bin (default) keeps the cargo-installed codegen between runs.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: core
+      # flutter_rust_bridge_codegen shells out to `cargo expand`.
+      - uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
+        with:
+          tool: cargo-expand@1.0.127
+      - name: Install Flutter (pinned, checksum-verified)
+        run: |
+          test "$(cat app/.flutter-version)" = "${FLUTTER_VERSION}"
+          curl -sSfL -o "$RUNNER_TEMP/flutter.tar.xz" \
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+          echo "${FLUTTER_SHA256}  $RUNNER_TEMP/flutter.tar.xz" | sha256sum --check --strict
+          tar -xf "$RUNNER_TEMP/flutter.tar.xz" -C "$RUNNER_TEMP"
+          rm "$RUNNER_TEMP/flutter.tar.xz"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - name: Verify the version and turn analytics off
+        run: |
+          flutter --version | head -1 | grep -F "Flutter ${FLUTTER_VERSION} "
+          flutter config --no-analytics
+      - run: flutter pub get --enforce-lockfile
+        working-directory: app
+      - name: The Rust API version and the app's expected version agree
+        run: bash tools/codegen/check-api-version.sh
+      - name: Generated bindings are up to date
+        run: bash tools/codegen.sh --check
+      - name: Build the core library
+        run: cargo build -p arya-vault-ffi --release --locked
+        working-directory: core
+      - name: Contract suite against the real core
+        run: |
+          lib="$GITHUB_WORKSPACE/core/target/release/libarya_vault_ffi.so"
+          test -f "$lib"
+          ARYA_FFI_LIB="$lib" flutter test test/api/contract_ffi_test.dart --reporter expanded
+        working-directory: app
