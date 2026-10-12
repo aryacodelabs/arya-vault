@@ -28,3 +28,15 @@ description = "Fake wrong-password canary in the B03 security settings test (ear
 condition = "AND"
 paths = ['''^app/test/settings/security_settings_test\.dart$''']
 regexes = ['''CANARY-wrong-pw-123''']
+
+# The shared docs/14 contract suite (app/test/api/contract_suite.dart) types fake passwords
+# into FakeVaultApi and the real core. The master password has to pass the core's strength
+# policy, so it cannot carry an obvious CANARY marker; it exists only in this test file.
+[[allowlists]]
+description = "Fake passwords in the shared contract suite (test data only)"
+condition = "AND"
+paths = ['''^app/test/api/contract_suite\.dart$''']
+regexes = [
+  '''Tangerine-Quasar-vinyl-48-Hollow-Mitten''',
+  '''CANARY-item-secret-[12]''',
+]
