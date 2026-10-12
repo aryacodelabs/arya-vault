@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +7,7 @@ import 'src/api/fake_vault_api.dart';
 import 'src/api/ffi_vault_api.dart';
 import 'src/api/vault_api.dart';
 import 'src/app.dart';
+import 'src/services/windows_platform.dart';
 import 'src/startup_failed_app.dart';
 import 'src/state/providers.dart';
 
@@ -42,7 +44,20 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       retry: noAutoRetry,
-      overrides: [vaultApiProvider.overrideWithValue(api)],
+      overrides: [
+        vaultApiProvider.overrideWithValue(api),
+        // Clipboard hygiene, capture exclusion and lock/sleep events come from the
+        // Windows runner (app/windows/runner/platform_channel.cpp).
+        if (defaultTargetPlatform == TargetPlatform.windows) ...[
+          clipboardPlatformProvider.overrideWithValue(
+            const WindowsClipboardPlatform(),
+          ),
+          captureProtectionProvider.overrideWithValue(
+            const WindowsCaptureProtection(),
+          ),
+          platformEventsProvider.overrideWithValue(WindowsPlatformEvents()),
+        ],
+      ],
       child: const AryaVaultApp(),
     ),
   );

@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "platform_channel.h"
+
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -28,6 +30,9 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  // Clipboard hygiene, capture exclusion and OS lock/sleep events for the Dart side.
+  std::unique_ptr<PlatformChannel> platform_channel_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
