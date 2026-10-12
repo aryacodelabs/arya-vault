@@ -9,6 +9,7 @@ const Map<String, List<String>> _contract = <String, List<String>>{
     'status',
     'createVault',
     'confirmRecoveryKey',
+    'recoveryChallenge',
     'unlock',
     'unlockQuick',
     'lock',
@@ -90,7 +91,7 @@ void main() {
       hasLength(declared.toSet().length),
       reason: 'no overloads',
     );
-    expect(declared, hasLength(61));
+    expect(declared, hasLength(62));
   });
 
   test('declaration order follows the contract sections', () {

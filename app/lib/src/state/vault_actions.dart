@@ -30,7 +30,13 @@ class VaultActions {
         .read(vaultApiProvider)
         .confirmRecoveryKey(answers);
     if (!ok) {
-      _ref.read(onboardingProvider.notifier).backToKey(failed: true);
+      // The core drew new groups for the next attempt (docs/14 section 4.1).
+      final List<int> next = await _ref
+          .read(vaultApiProvider)
+          .recoveryChallenge();
+      _ref
+          .read(onboardingProvider.notifier)
+          .backToKey(failed: true, challenge: next);
       return false;
     }
     final VaultStatus status = await _ref.read(vaultApiProvider).status();

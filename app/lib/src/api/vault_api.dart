@@ -11,7 +11,7 @@ import 'dtos.dart';
 
 /// Expected `info().apiVersion` (docs/14 §7). The app asserts equality at
 /// startup; a mismatch is a fatal developer error screen.
-const int expectedApiVersion = 1;
+const int expectedApiVersion = 2;
 
 abstract interface class VaultApi {
   // -------------------------------------------------- 4.1 lifecycle, credentials
@@ -29,6 +29,12 @@ abstract interface class VaultApi {
   /// Compares [answers] with the pending key the core still holds. On success
   /// sets `onboardingComplete`; on mismatch returns false (no retry limit).
   Future<bool> confirmRecoveryKey(List<GroupAnswer> answers);
+
+  /// The groups (zero-based, ascending) the next [confirmRecoveryKey] must
+  /// cover: the `challenge` of the last create / regenerate, or the redrawn one
+  /// after a mismatch. Throws `locked` while locked and `validation` when no key
+  /// is pending.
+  Future<List<int>> recoveryChallenge();
 
   /// Throws [AppErrorCode.wrongCredentials] (or [AppErrorCode.busy] while the
   /// local failure delay runs).
