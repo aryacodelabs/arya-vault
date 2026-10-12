@@ -34,6 +34,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loadingVault => 'Loading your vault…';
 
   @override
+  String get startupFailedTitle => 'AryaVault can\'t start';
+
+  @override
+  String get startupFailedBody =>
+      'The security core could not be loaded, or it does not match this version of the app. Reinstall AryaVault. Your vault file has not been touched.';
+
+  @override
   String get loadFailed => 'Couldn\'t read the vault status.';
 
   @override

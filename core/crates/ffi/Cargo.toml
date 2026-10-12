@@ -17,6 +17,8 @@ arya-vault-session = { path = "../session", version = "0.0.0" }
 arya-vault-vault = { path = "../vault", version = "0.0.0" }
 arya-vault-generator = { path = "../generator", version = "0.0.0" }
 zeroize = "1.9.1"
+# Pinned exactly: the generated code and the Dart package must match (tools/codegen/FRB_VERSION).
+flutter_rust_bridge = "=2.13.0"
 
 [features]
 default = []
@@ -28,5 +30,16 @@ tempfile = "3.27.0"
 # Integration tests need the test-support items.
 arya-vault-ffi = { path = ".", features = ["test-support"] }
 
-[lints]
-workspace = true
+# Same as the workspace lints, except unsafe_code is `deny` (not `forbid`) so that the
+# flutter_rust_bridge-generated module can carry one targeted `allow` (owner-approved exception).
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+dbg_macro = "deny"
+print_stdout = "warn"

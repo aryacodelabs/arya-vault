@@ -8,6 +8,8 @@
   "showPassword": "Show password",
   "hidePassword": "Hide password",
   "loadingVault": "Loading your vault…",
+  "startupFailedTitle": "AryaVault can't start",
+  "startupFailedBody": "The security core could not be loaded, or it does not match this version of the app. Reinstall AryaVault. Your vault file has not been touched.",
   "loadFailed": "Couldn't read the vault status.",
   "welcomeTitle": "Welcome to AryaVault",
   "welcomeTagline": "Your passwords and notes, encrypted on this device. No account and no server.",
