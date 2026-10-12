@@ -1,0 +1,31 @@
+# M2 Windows evidence (L01)
+
+Evidence for `docs/cloud-tasks/m2/L01-windows-integration.md`, recorded as work lands. Machine: Windows 11
+(10.0.26300), Flutter 3.47.7, Visual Studio 2026, release build. Fake canary data only. Items not listed
+as verified are **not verified**.
+
+## Verified
+
+| What | Result | Source |
+|---|---|---|
+| App uses the real core (`FfiVaultApi`), `API_VERSION` asserted at start | API version 2 on both sides; CI job `bindings` fails if they differ | PR #30, #32 |
+| docs/14 contract suite against the real core | 17 scenarios pass against `FakeVaultApi` and the real core (Linux in CI, Windows locally) | PR #30, #32 |
+| Generated bindings are current | `tools/codegen.sh --check` in CI; Windows-generated files equal Linux-generated ones | PR #32 |
+| Recovery-key redraw after a mismatch (`recoveryChallenge`) | ffi tests, contract suite, onboarding widget test | PR #31 |
+| `flutter build windows --release` links the core | Builds in about 82 s; CMake installs `arya_vault_ffi.dll` next to the exe and fails if it is missing | PR #33 |
+| Bundle sizes | `arya_vault.exe` 88 KB, `flutter_windows.dll` 20.8 MB, `arya_vault_ffi.dll` 9.6 MB, total 38.4 MB | PR #33 |
+| First launch with the real core | Starts, window shown, about 208 MB working set after 8 s (single measurement, release build) | local run |
+| Manual flow on the real core | Create vault, read and verify recovery key (wrong then right answers), add an item, lock, unlock with wrong and right password: worked as far as the owner tested | owner, local run |
+| Vault file at rest | `vault.db` does not start with the SQLite plaintext header; the 336-byte header file holds only key-wrap parameters; the WAL was empty | local scan of the test vault |
+
+The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was deleted afterwards.
+
+## Not verified yet (L01 goals still open)
+
+- Windows Hello quick unlock (spike S4: signatures deterministic in one run and across processes; reboot and failure paths untested), clipboard hygiene and capture exclusion (spike S5 partly reported; Win+V, PrintScreen and screen-share results missing), lifecycle events.
+- Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
+- Installer layout, unsigned MSIX, portable zip; DLL search-path hijack test.
+- Disk scan with canary secrets over `%LOCALAPPDATA%`, temp and crash-dump folders; the scan above looked at file headers only, not at the text of the owner's items.
+- 20,000-item scroll and search, cold start time, memory use on a real vault.
+- `flutter test integration_test -d windows`.
+- Window title still `arya_vault`.
