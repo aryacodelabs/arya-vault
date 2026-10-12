@@ -107,6 +107,10 @@ class FfiVaultApi implements VaultApi {
   );
 
   @override
+  Future<List<int>> recoveryChallenge() async =>
+      List<int>.of(await _run(lc.recoveryChallenge));
+
+  @override
   Future<void> unlock(Uint8List password) =>
       _run(() => lc.unlock(password: password));
 

@@ -77,13 +77,15 @@ void main() {
 
       // Step H, wrong answers: back to the key screen with a message.
       expect(textOf(l10n.verifyTitle), findsOneWidget);
-      final List<int> challenge = pendingChallenge(h);
       await typeAnswers(tester, <String>['AAAAA', 'BBBBB', 'CCCCC']);
       await tapOn(tester, buttonText(l10n.verifySubmit));
       expect(textOf(l10n.recoveryTitle), findsOneWidget);
       expect(textOf(l10n.verifyMismatch), findsOneWidget);
       expect(api.confirmResults, <bool>[false]);
       expect((await api.status()).onboardingComplete, isFalse);
+      // The core drew new groups on the mismatch; the app asked for them.
+      final List<int> challenge = pendingChallenge(h);
+      expect(challenge, await api.recoveryChallenge());
 
       // Step H, right answers (lowercase is fine): unlocked home.
       await storeKeyAndContinue(tester);

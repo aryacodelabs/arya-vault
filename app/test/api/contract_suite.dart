@@ -87,20 +87,23 @@ void runContractSuite(String name, Future<VaultApi> Function() open) {
       expect(bad, isFalse);
       expect((await api.status()).onboardingComplete, isFalse);
 
-      // A mismatch makes the core draw new groups (docs/14 section 4.1). A fresh key has a
-      // challenge both implementations agree on.
-      recovery = await api.regenerateRecoveryKey(
-        password: pw,
-        rotateKeys: false,
-      );
+      // A mismatch makes the core draw new groups (docs/14 section 4.1); the next
+      // attempt must cover exactly those.
+      final List<int> next = await api.recoveryChallenge();
+      expect(next, hasLength(3));
+      expect(next.toSet(), hasLength(3));
+      expect(next, orderedEquals(<int>[...next]..sort()));
       final List<String> groups = String.fromCharCodes(recovery.recoveryKey)
           .split('-');
       final bool ok = await api.confirmRecoveryKey(<GroupAnswer>[
-        for (final int i in recovery.challenge)
-          GroupAnswer(index: i, text: groups[i]),
+        for (final int i in next) GroupAnswer(index: i, text: groups[i]),
       ]);
       expect(ok, isTrue);
       expect((await api.status()).onboardingComplete, isTrue);
+      await expectLater(
+        api.recoveryChallenge(),
+        throwsCode(AppErrorCode.validation),
+      );
     });
 
     test(

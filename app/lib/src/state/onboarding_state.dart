@@ -41,6 +41,7 @@ class OnboardingState {
   final bool quickOfferPending;
 
   OnboardingState copyWith({
+    List<int>? challenge,
     bool? explainerSeen,
     bool? keySaved,
     bool? verifyFailed,
@@ -48,7 +49,7 @@ class OnboardingState {
   }) => OnboardingState(
     key: key,
     groups: groups,
-    challenge: challenge,
+    challenge: challenge ?? this.challenge,
     explainerSeen: explainerSeen ?? this.explainerSeen,
     keySaved: keySaved ?? this.keySaved,
     verifyFailed: verifyFailed ?? this.verifyFailed,
@@ -102,9 +103,14 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   void keySavedContinue() =>
       state = state.copyWith(keySaved: true, verifyFailed: false);
 
-  /// Back to the key screen, optionally flagging a failed verification.
-  void backToKey({bool failed = false}) =>
-      state = state.copyWith(keySaved: false, verifyFailed: failed);
+  /// Back to the key screen, optionally flagging a failed verification. A
+  /// mismatch makes the core draw new groups, so [challenge] replaces the old.
+  void backToKey({bool failed = false, List<int>? challenge}) =>
+      state = state.copyWith(
+        keySaved: false,
+        verifyFailed: failed,
+        challenge: challenge == null ? null : List<int>.unmodifiable(challenge),
+      );
 
   /// Verification passed: the key is no longer needed anywhere.
   void finish({required bool offerQuickUnlock}) {

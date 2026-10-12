@@ -17,9 +17,6 @@ against this crate.
 `forbid`, which cannot be relaxed per module) and the one owner-approved `#[allow(unsafe_code)]`
 is on `mod frb_generated`.
 
-Known gap: docs/14 lists `recoveryChallenge`; the session has it (`recovery_challenge`) but this
-crate does not expose it yet, so the app cannot learn the redrawn groups after a mismatch.
-
 ## Build outputs
 
 `crate-type = ["cdylib", "staticlib", "rlib"]`.

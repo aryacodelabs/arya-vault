@@ -259,16 +259,18 @@ class FakeVaultApi implements VaultApi {
     return out.toString();
   }
 
+  /// Three new random groups (docs/14 section 4.1), also drawn after a mismatch.
+  void _drawChallenge() {
+    final List<int> pool = <int>[for (var i = 0; i < _confirmationPool; i++) i]
+      ..shuffle(_random);
+    _challenge = pool.take(_confirmationGroups).toList()..sort();
+  }
+
   RecoveryKeyResult _startPending() {
     final String text = _generateKeyText();
     _pendingKey = text;
     _recoveryKey = _normalize(text).substring(0, _keyChars);
-    // Contract text: a failed confirmation re-shows the key and asks again.
-    // (The real core also redraws the groups on a mismatch and the FFI has no
-    // call to fetch them; this fake keeps them. See the PR "Spec questions".)
-    final List<int> pool = <int>[for (var i = 0; i < _confirmationPool; i++) i]
-      ..shuffle(_random);
-    _challenge = pool.take(_confirmationGroups).toList()..sort();
+    _drawChallenge();
     _onboardingComplete = false;
     return RecoveryKeyResult(
       recoveryKey: Uint8List.fromList(utf8.encode(text)),
@@ -342,12 +344,25 @@ class FakeVaultApi implements VaultApi {
       }
     }
     if (!allMatch) {
+      _drawChallenge();
       return false;
     }
     _pendingKey = null;
     _onboardingComplete = true;
     confirmSuccessCount++;
     return true;
+  }
+
+  @override
+  Future<List<int>> recoveryChallenge() async {
+    _requireUnlocked();
+    if (_pendingKey == null) {
+      throw const AppError(
+        AppErrorCode.validation,
+        'there is no recovery key to confirm',
+      );
+    }
+    return List<int>.of(_challenge);
   }
 
   @override

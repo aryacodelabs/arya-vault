@@ -19,6 +19,7 @@ const EXPECTED: &[&str] = &[
     "status",
     "createVault",
     "confirmRecoveryKey",
+    "recoveryChallenge",
     "unlock",
     "unlockQuick",
     "lock",
@@ -169,8 +170,8 @@ fn every_contract_name_occurs_in_docs_14_section_4() {
 }
 
 #[test]
-fn api_version_is_one() {
-    assert_eq!(arya_vault_ffi::API_VERSION, 1);
+fn api_version_is_two() {
+    assert_eq!(arya_vault_ffi::API_VERSION, 2);
 }
 
 /// Compile-time: adding a field to either type breaks these destructurings, which forces the

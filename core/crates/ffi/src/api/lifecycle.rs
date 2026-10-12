@@ -86,6 +86,22 @@ pub fn confirm_recovery_key(answers: Vec<GroupAnswer>) -> Result<bool, AppError>
     host::call(|h| Ok(h.session()?.confirm_recovery_key(answers)?))
 }
 
+/// `recoveryChallenge`: the groups (zero-based, ascending) the next `confirm_recovery_key` must
+/// cover: the challenge of the last `create_vault` / `regenerate_recovery_key`, or the redrawn one
+/// after a mismatch. Reveals no part of the key.
+///
+/// # Errors
+/// `locked`; `validation` if no recovery key is pending.
+pub fn recovery_challenge() -> Result<Vec<u32>, AppError> {
+    host::call(|h| {
+        Ok(h.session()?
+            .recovery_challenge()?
+            .into_iter()
+            .map(|g| u32::try_from(g).unwrap_or(u32::MAX))
+            .collect())
+    })
+}
+
 /// `unlock`: applies the local failure delay (cosmetic, docs/07 §4).
 ///
 /// # Errors

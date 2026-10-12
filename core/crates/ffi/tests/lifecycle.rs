@@ -109,6 +109,55 @@ fn confirm_without_a_pending_key_is_a_validation_error() {
 }
 
 #[test]
+fn recovery_challenge_follows_the_pending_key_and_redraws_after_a_miss() {
+    let _g = serial();
+    let _f = unlocked();
+    let r = lifecycle::regenerate_recovery_key(pw(PASSWORD), false).unwrap();
+    // The challenge of the last key is what the call reports.
+    assert_eq!(lifecycle::recovery_challenge().unwrap(), r.challenge);
+
+    // A miss redraws: three valid, ascending, distinct groups that can be answered from the key.
+    let wrong = r
+        .challenge
+        .iter()
+        .map(|i| GroupAnswer {
+            index: *i,
+            text: "AAAAA".into(),
+        })
+        .collect();
+    assert!(!lifecycle::confirm_recovery_key(wrong).unwrap());
+    let next = lifecycle::recovery_challenge().unwrap();
+    assert_eq!(next.len(), 3);
+    assert!(next.windows(2).all(|w| w[0] < w[1]), "ascending: {next:?}");
+    assert!(next.iter().all(|g| *g < r.groups - 2), "answerable groups");
+
+    let text = String::from_utf8(r.recovery_key.clone()).unwrap();
+    let groups: Vec<&str> = text.split('-').collect();
+    let right = next
+        .iter()
+        .map(|i| GroupAnswer {
+            index: *i,
+            text: groups[*i as usize].to_string(),
+        })
+        .collect();
+    assert!(lifecycle::confirm_recovery_key(right).unwrap());
+
+    // Confirmed: nothing is pending any more.
+    assert_eq!(
+        code(lifecycle::recovery_challenge()),
+        AppErrorCode::Validation
+    );
+}
+
+#[test]
+fn recovery_challenge_while_locked_says_locked() {
+    let _g = serial();
+    let _f = unlocked();
+    lifecycle::lock().unwrap();
+    assert_eq!(code(lifecycle::recovery_challenge()), AppErrorCode::Locked);
+}
+
+#[test]
 fn weak_and_malformed_inputs_map_to_their_codes() {
     let _g = serial();
     let _dir = empty();

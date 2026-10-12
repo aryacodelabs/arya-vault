@@ -45,6 +45,15 @@ Future<RecoveryKeyResult> createVault({
 Future<bool> confirmRecoveryKey({required List<GroupAnswer> answers}) =>
     RustLib.instance.api.crateApiLifecycleConfirmRecoveryKey(answers: answers);
 
+/// `recoveryChallenge`: the groups (zero-based, ascending) the next `confirm_recovery_key` must
+/// cover: the challenge of the last `create_vault` / `regenerate_recovery_key`, or the redrawn one
+/// after a mismatch. Reveals no part of the key.
+///
+/// # Errors
+/// `locked`; `validation` if no recovery key is pending.
+Future<Uint32List> recoveryChallenge() =>
+    RustLib.instance.api.crateApiLifecycleRecoveryChallenge();
+
 /// `unlock`: applies the local failure delay (cosmetic, docs/07 §4).
 ///
 /// # Errors

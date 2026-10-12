@@ -50,9 +50,13 @@ void main() {
         expect(wrong, isFalse);
         expect((await api.status()).onboardingComplete, isFalse);
 
+        // A mismatch redraws the groups (docs/14 section 4.1).
+        final List<int> next = await api.recoveryChallenge();
+        expect(next, hasLength(3));
+
         // Tolerant formatting: lowercase and stray spaces/hyphens.
         final bool right = await api.confirmRecoveryKey(<GroupAnswer>[
-          for (final int i in r.challenge)
+          for (final int i in next)
             GroupAnswer(index: i, text: ' ${groups[i].toLowerCase()}-'),
         ]);
         expect(right, isTrue);

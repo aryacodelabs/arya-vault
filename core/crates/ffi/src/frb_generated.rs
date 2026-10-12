@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1731590178;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1022940608;
 
 // Section: executor
 
@@ -1377,6 +1377,38 @@ fn wire__crate__api__lifecycle__recover_with_key_impl(
                         api_recovery_key,
                         api_new_password,
                     )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__lifecycle__recovery_challenge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "recovery_challenge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::dto::AppError>((move || {
+                    let output_ok = crate::api::lifecycle::recovery_challenge()?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -3340,34 +3372,37 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__lifecycle__quick_unlock_enable_impl(port, ptr, rust_vec_len, data_len)
         }
         40 => wire__crate__api__lifecycle__recover_with_key_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__lifecycle__regenerate_recovery_key_impl(
+        41 => {
+            wire__crate__api__lifecycle__recovery_challenge_impl(port, ptr, rust_vec_len, data_len)
+        }
+        42 => wire__crate__api__lifecycle__regenerate_recovery_key_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__items__remove_custom_field_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__items__remove_tag_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__items__remove_url_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__items__rename_folder_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__items__restore_item_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__items__restore_version_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__items__reveal_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__items__reveal_custom_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__items__reveal_version_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__items__search_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__items__set_custom_label_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__items__set_custom_value_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__items__set_field_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__items__set_fields_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__settings__set_settings_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__items__set_url_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__lifecycle__status_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__tools__strength_impl(port, ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__items__toggle_favorite_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__lifecycle__unlock_impl(port, ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__lifecycle__unlock_quick_impl(port, ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__lifecycle__verify_password_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__items__remove_custom_field_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__items__remove_tag_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__items__remove_url_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__items__rename_folder_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__items__restore_item_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__items__restore_version_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__items__reveal_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__items__reveal_custom_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__items__reveal_version_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__items__search_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__items__set_custom_label_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__items__set_custom_value_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__items__set_field_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__items__set_fields_impl(port, ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__settings__set_settings_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__items__set_url_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__lifecycle__status_impl(port, ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__tools__strength_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__items__toggle_favorite_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__lifecycle__unlock_impl(port, ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__lifecycle__unlock_quick_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__lifecycle__verify_password_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
