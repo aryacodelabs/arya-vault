@@ -142,6 +142,18 @@ abstract class AppLocalizations {
   /// **'Loading your vault…'**
   String get loadingVault;
 
+  /// No description provided for @startupFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AryaVault can\'t start'**
+  String get startupFailedTitle;
+
+  /// No description provided for @startupFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The security core could not be loaded, or it does not match this version of the app. Reinstall AryaVault. Your vault file has not been touched.'**
+  String get startupFailedBody;
+
   /// No description provided for @loadFailed.
   ///
   /// In en, this message translates to:

@@ -18,7 +18,7 @@ void main() {
 
   test('no network, no reflection, no analytics (SEC-H04, hard rule 6)', () {
     final RegExp forbidden = RegExp(
-      r'''dart:io|dart:html|dart:js|dart:mirrors|package:http/|package:dio|HttpClient|WebSocket|Socket\b|firebase|crashlytics|sentry|analytics|package:url_launcher''',
+      r'''dart:html|dart:js|dart:mirrors|package:http/|package:dio|HttpClient|WebSocket|Socket\b|firebase|crashlytics|sentry|analytics|package:url_launcher''',
       caseSensitive: false,
     );
     final List<String> hits = <String>[];
@@ -30,6 +30,18 @@ void main() {
     }
     expect(hits, isEmpty);
   });
+
+  test(
+    'dart:io is imported only by the FFI-backed api (library and data paths)',
+    () {
+      final List<String> users = <String>[
+        for (final File f in sources)
+          if (RegExp(r"import\s+'dart:io'").hasMatch(f.readAsStringSync()))
+            f.path.replaceAll(r'\', '/'),
+      ];
+      expect(users, <String>['lib/src/api/ffi_vault_api.dart']);
+    },
+  );
 
   test('pubspec has no networking, analytics or crash-reporting packages', () {
     final String pubspec = File('pubspec.yaml').readAsStringSync();
@@ -46,6 +58,9 @@ void main() {
       'flutter',
       'flutter_localizations',
       'flutter_riverpod',
+      // The generated bindings to the Rust core (L01); pinned, see tools/codegen.
+      'flutter_rust_bridge',
+      'freezed_annotation',
       'go_router',
       'intl',
     }, reason: 'a new dependency needs a justification in the PR');

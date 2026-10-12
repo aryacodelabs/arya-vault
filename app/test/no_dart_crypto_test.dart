@@ -20,15 +20,19 @@ final RegExp _cryptoImport = RegExp(
   r"import\s+'(package:(crypto|cryptography|pointycastle|encrypt|steel_crypto|hashlib)\b|dart:ffi|dart:mirrors)",
 );
 
-Iterable<File> _libFiles() => Directory('lib')
-    .listSync(recursive: true)
-    .whereType<File>()
-    .where((File f) => f.path.endsWith('.dart'))
-    .where(
-      (File f) => !f.path.contains(
-        '${Platform.pathSeparator}gen${Platform.pathSeparator}',
-      ),
-    );
+/// `lib/src/rust/` is flutter_rust_bridge output (tools/codegen.sh), the one sanctioned FFI
+/// path; it is generated, never edited, and the last test limits who may import it.
+bool _isGenerated(File f) {
+  final String p = _rel(f);
+  return p.contains('/gen/') || p.startsWith('lib/src/rust/');
+}
+
+Iterable<File> _libFiles() =>
+    Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((File f) => f.path.endsWith('.dart'))
+        .where((File f) => !_isGenerated(f));
 
 String _rel(File f) => f.path.replaceAll(r'\', '/');
 
@@ -64,6 +68,21 @@ void main() {
       if (f.readAsStringSync().contains('fake_vault_api.dart')) users.add(path);
     }
     expect(users, <String>['lib/main.dart']);
+  });
+
+  test('only the FFI-backed api imports the generated bindings', () {
+    final List<String> users = <String>[];
+    for (final File f in _libFiles()) {
+      if (RegExp(r"import\s+'(\.\./)*(\./)?(src/)?rust/")
+          .hasMatch(f.readAsStringSync())) {
+        users.add(_rel(f));
+      }
+    }
+    users.sort();
+    expect(users, <String>[
+      'lib/src/api/ffi_mappers.dart',
+      'lib/src/api/ffi_vault_api.dart',
+    ]);
   });
 
   test('the scanner would catch a violation', () {
