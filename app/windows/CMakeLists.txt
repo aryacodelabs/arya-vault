@@ -78,6 +78,20 @@ install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)
 
+# The Rust core (docs/14). It is installed next to the executable, the only place the app loads
+# it from (FfiVaultApi opens it by absolute path, so the DLL search order is never used).
+# Build it first:  cargo build -p arya-vault-ffi --release --locked   (in core/)
+set(ARYA_CORE_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../../core/target/release/arya_vault_ffi.dll"
+    CACHE FILEPATH "Path of the built arya_vault_ffi.dll")
+if(NOT EXISTS "${ARYA_CORE_DLL}")
+  message(FATAL_ERROR
+    "arya_vault_ffi.dll not found at ${ARYA_CORE_DLL}. Build it first: "
+    "cargo build -p arya-vault-ffi --release --locked (in core/), "
+    "or pass -DARYA_CORE_DLL=<path>.")
+endif()
+install(FILES "${ARYA_CORE_DLL}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
+
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
