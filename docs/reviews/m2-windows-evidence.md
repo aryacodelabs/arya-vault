@@ -18,11 +18,16 @@ as verified are **not verified**.
 | Manual flow on the real core | Create vault, read and verify recovery key (wrong then right answers), add an item, lock, unlock with wrong and right password: worked as far as the owner tested | owner, local run |
 | Vault file at rest | `vault.db` does not start with the SQLite plaintext header; the 336-byte header file holds only key-wrap parameters; the WAL was empty | local scan of the test vault |
 
+| Windows clipboard hygiene, capture exclusion, lifecycle events (runner C++ `PlatformChannel`) | Manual checks run by the owner on a release build: copied secret kept out of Win+V history, auto-clear, capture blocked and unblocked, lock on workstation lock, lock on sleep. Reported as passing; **not itemized**, so per-check detail (for example exact clear timing) is not recorded | PR #36, owner |
+| System Save and Open dialogs (runner C++) | Save as file for the recovery key checked by the owner; reported as working. Contents of the saved file not inspected by Claude | PR #36, owner |
+
 The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was deleted afterwards.
 
 ## Not verified yet (L01 goals still open)
 
-- Windows Hello quick unlock (spike S4: signatures deterministic in one run and across processes; reboot and failure paths untested), clipboard hygiene and capture exclusion (spike S5 partly reported; Win+V, PrintScreen and screen-share results missing), lifecycle events.
+- Windows Hello quick unlock: spike S4 showed deterministic signatures across processes and (2026-10-13) a fresh Hello prompt on each of 5 signatures; reboot persistence and the failure paths (cancel, Hello not set up, credential deleted) are not verified. The provider is not written yet (spec change merged in PR #35).
+- Print on Windows (the recovery sheet's Print button still reports "unavailable").
+- PrintScreen and Teams/Zoom share results for capture exclusion, and the cloud-clipboard check from spike S5.
 - Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
 - Installer layout, unsigned MSIX, portable zip; DLL search-path hijack test.
 - Disk scan with canary secrets over `%LOCALAPPDATA%`, temp and crash-dump folders; the scan above looked at file headers only, not at the text of the owner's items.

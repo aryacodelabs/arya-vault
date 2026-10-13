@@ -13,6 +13,7 @@ Spike programs were throwaway code kept outside the repo. Canary strings only.
 | Reopen with `OpenAsync` in a new process | Success; 3 of 3 identical to the first process |
 | Signature length | 256 bytes (enough input for HKDF, docs/04 section 8) |
 | Prompt latency | about 5 s per signature |
+| Fresh user-presence prompt on every signature | **Verified** (2026-10-13, 5 of 5 signatures in a new process): the owner saw 5 Hello prompts; signatures took 9.5, 9.8, 10.4, 4.9 and 4.1 s and were byte-identical (hash prefix `0205656e`, same as the first run). This closes open question 1 of PR #35 |
 | After reboot | NOT YET TESTED (owner action) |
 | Cancelled prompt, Hello not set up, credential deleted | NOT YET TESTED (do in L01) |
 
