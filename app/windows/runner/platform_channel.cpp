@@ -1,9 +1,11 @@
 #include "platform_channel.h"
 
+#include <shobjidl.h>
 #include <wtsapi32.h>
 
 #include <flutter/standard_method_codec.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -50,6 +52,83 @@ bool SetBytes(UINT format, const void* data, size_t size) {
   return true;
 }
 
+enum class Choice { kChosen, kCancelled, kFailed };
+
+// The system file dialog (save or open). Nothing but the chosen path leaves it. The filter
+// shows the patterns themselves (for example "*.csv"), so the native layer has no
+// user-visible text of its own to translate.
+Choice ChooseFile(HWND owner, bool save, const std::wstring& suggested_name,
+                  const std::vector<std::wstring>& extensions,
+                  std::wstring* path) {
+  IFileDialog* dialog = nullptr;
+  HRESULT hr = CoCreateInstance(
+      save ? CLSID_FileSaveDialog : CLSID_FileOpenDialog, nullptr,
+      CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+  if (FAILED(hr)) {
+    return Choice::kFailed;
+  }
+  Choice outcome = Choice::kFailed;
+  DWORD options = 0;
+  if (SUCCEEDED(dialog->GetOptions(&options))) {
+    options |= FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST |
+               (save ? FOS_OVERWRITEPROMPT : FOS_FILEMUSTEXIST);
+    dialog->SetOptions(options);
+  }
+  std::wstring pattern;
+  for (const std::wstring& ext : extensions) {
+    if (!pattern.empty()) {
+      pattern += L";";
+    }
+    pattern += L"*." + ext;
+  }
+  COMDLG_FILTERSPEC spec = {pattern.c_str(), pattern.c_str()};
+  if (!pattern.empty()) {
+    dialog->SetFileTypes(1, &spec);
+    dialog->SetFileTypeIndex(1);
+    if (save) {
+      dialog->SetDefaultExtension(extensions.front().c_str());
+    }
+  }
+  if (save && !suggested_name.empty()) {
+    dialog->SetFileName(suggested_name.c_str());
+  }
+  hr = dialog->Show(owner);
+  if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
+    outcome = Choice::kCancelled;
+  } else if (SUCCEEDED(hr)) {
+    IShellItem* item = nullptr;
+    if (SUCCEEDED(dialog->GetResult(&item))) {
+      PWSTR name = nullptr;
+      if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &name))) {
+        *path = name;
+        CoTaskMemFree(name);
+        outcome = Choice::kChosen;
+      }
+      item->Release();
+    }
+  }
+  dialog->Release();
+  return outcome;
+}
+
+std::wstring ToWide(const std::string& utf8) {
+  if (utf8.empty()) {
+    return std::wstring();
+  }
+  const int n = MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
+                                    static_cast<int>(utf8.size()), nullptr, 0);
+  if (n <= 0) {
+    return std::wstring();
+  }
+  std::wstring out(static_cast<size_t>(n), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()),
+                      out.data(), n);
+  return out;
+}
+
+// Largest file the picker hands to Dart (import files; docs/05 limits are far lower).
+constexpr LONGLONG kMaxPickBytes = 64LL * 1024 * 1024;
+
 }  // namespace
 
 PlatformChannel::PlatformChannel(flutter::BinaryMessenger* messenger,
@@ -83,6 +162,10 @@ void PlatformChannel::Handle(const Call& call, std::unique_ptr<Result> result) {
     ClearClipboard(std::move(result));
   } else if (name == "capture.setBlocked") {
     SetCaptureBlocked(call, std::move(result));
+  } else if (name == "file.save") {
+    SaveFile(call, std::move(result));
+  } else if (name == "file.pick") {
+    PickFile(call, std::move(result));
   } else {
     result->NotImplemented();
   }
@@ -192,6 +275,132 @@ void PlatformChannel::SetCaptureBlocked(const Call& call,
   } else {
     result->Error("capture_failed", "could not change capture protection");
   }
+}
+
+// Asks where to save, then writes the bytes there. Returns false if the user cancelled.
+void PlatformChannel::SaveFile(const Call& call,
+                               std::unique_ptr<Result> result) {
+  const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
+  if (args == nullptr) {
+    result->Error("bad_args", "expected a map");
+    return;
+  }
+  auto name_it = args->find(flutter::EncodableValue("name"));
+  auto bytes_it = args->find(flutter::EncodableValue("bytes"));
+  if (name_it == args->end() || bytes_it == args->end()) {
+    result->Error("bad_args", "name and bytes are required");
+    return;
+  }
+  const auto* name = std::get_if<std::string>(&name_it->second);
+  const auto* bytes = std::get_if<std::vector<uint8_t>>(&bytes_it->second);
+  if (name == nullptr || bytes == nullptr) {
+    result->Error("bad_args", "wrong argument types");
+    return;
+  }
+  const std::wstring suggested = ToWide(*name);
+  std::vector<std::wstring> extensions;
+  const size_t dot = suggested.find_last_of(L'.');
+  if (dot != std::wstring::npos && dot + 1 < suggested.size()) {
+    extensions.push_back(suggested.substr(dot + 1));
+  }
+  std::wstring path;
+  const Choice choice = ChooseFile(window_, true, suggested, extensions, &path);
+  if (choice == Choice::kCancelled) {
+    result->Success(flutter::EncodableValue(false));
+    return;
+  }
+  if (choice == Choice::kFailed) {
+    result->Error("dialog_failed", "could not show the save dialog");
+    return;
+  }
+  HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr,
+                            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (file == INVALID_HANDLE_VALUE) {
+    result->Error("save_failed", "could not create the file");
+    return;
+  }
+  bool ok = true;
+  size_t written_total = 0;
+  while (written_total < bytes->size()) {
+    DWORD written = 0;
+    const DWORD chunk = static_cast<DWORD>(
+        std::min<size_t>(bytes->size() - written_total, 1u << 20));
+    if (!WriteFile(file, bytes->data() + written_total, chunk, &written,
+                   nullptr) ||
+        written == 0) {
+      ok = false;
+      break;
+    }
+    written_total += written;
+  }
+  ok = CloseHandle(file) && ok;
+  if (ok) {
+    result->Success(flutter::EncodableValue(true));
+  } else {
+    result->Error("save_failed", "could not write the file");
+  }
+}
+
+// Asks for a file and returns its bytes, or null if the user cancelled.
+void PlatformChannel::PickFile(const Call& call,
+                               std::unique_ptr<Result> result) {
+  std::vector<std::wstring> extensions;
+  if (const auto* args = std::get_if<flutter::EncodableList>(call.arguments())) {
+    for (const flutter::EncodableValue& v : *args) {
+      if (const auto* s = std::get_if<std::string>(&v)) {
+        extensions.push_back(ToWide(*s));
+      }
+    }
+  }
+  std::wstring path;
+  const Choice choice = ChooseFile(window_, false, L"", extensions, &path);
+  if (choice == Choice::kCancelled) {
+    result->Success(flutter::EncodableValue());
+    return;
+  }
+  if (choice == Choice::kFailed) {
+    result->Error("dialog_failed", "could not show the open dialog");
+    return;
+  }
+  HANDLE file =
+      CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (file == INVALID_HANDLE_VALUE) {
+    result->Error("read_failed", "could not open the file");
+    return;
+  }
+  LARGE_INTEGER size = {};
+  if (!GetFileSizeEx(file, &size)) {
+    CloseHandle(file);
+    result->Error("read_failed", "could not read the file size");
+    return;
+  }
+  if (size.QuadPart > kMaxPickBytes) {
+    CloseHandle(file);
+    result->Error("too_large", "the file is too large");
+    return;
+  }
+  std::vector<uint8_t> data(static_cast<size_t>(size.QuadPart));
+  size_t done = 0;
+  bool ok = true;
+  while (done < data.size()) {
+    DWORD read = 0;
+    const DWORD chunk =
+        static_cast<DWORD>(std::min<size_t>(data.size() - done, 1u << 20));
+    if (!ReadFile(file, data.data() + done, chunk, &read, nullptr) ||
+        read == 0) {
+      ok = false;
+      break;
+    }
+    done += read;
+  }
+  CloseHandle(file);
+  if (!ok) {
+    SecureZeroMemory(data.data(), data.size());
+    result->Error("read_failed", "could not read the file");
+    return;
+  }
+  result->Success(flutter::EncodableValue(std::move(data)));
 }
 
 void PlatformChannel::Emit(const char* event) {

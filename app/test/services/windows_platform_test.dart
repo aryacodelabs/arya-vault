@@ -1,3 +1,4 @@
+import 'package:arya_vault/src/api/app_error.dart';
 import 'package:arya_vault/src/services/services.dart';
 import 'package:arya_vault/src/services/windows_platform.dart';
 import 'package:flutter/services.dart';
@@ -127,5 +128,75 @@ void main() {
       PlatformEvent.windowRestored,
     ]);
     await sub.cancel();
+  });
+
+  group('file dialogs', () {
+    test('saveFile passes the name and bytes and reports the choice', () async {
+      reply = true;
+      final Uint8List bytes = Uint8List.fromList(<int>[9, 8]);
+      final bool saved = await const WindowsFilePickerService().saveFile(
+        suggestedName: 'key.txt',
+        bytes: bytes,
+      );
+      expect(saved, isTrue);
+      expect(calls.single.method, 'file.save');
+      final Map<Object?, Object?> args =
+          calls.single.arguments as Map<Object?, Object?>;
+      expect(args['name'], 'key.txt');
+      expect(args['bytes'], bytes);
+    });
+
+    test('a cancelled save is false, not an error', () async {
+      reply = false;
+      expect(
+        await const WindowsFilePickerService().saveFile(
+          suggestedName: 'a.txt',
+          bytes: Uint8List(1),
+        ),
+        isFalse,
+      );
+      reply = null;
+      expect(
+        await const WindowsFilePickerService().saveFile(
+          suggestedName: 'a.txt',
+          bytes: Uint8List(1),
+        ),
+        isFalse,
+      );
+    });
+
+    test(
+      'pickFile sends the extensions and returns the bytes or null',
+      () async {
+        reply = Uint8List.fromList(<int>[1, 2, 3]);
+        expect(
+          await const WindowsFilePickerService().pickFile(
+            extensions: <String>['csv'],
+          ),
+          Uint8List.fromList(<int>[1, 2, 3]),
+        );
+        expect(calls.single.method, 'file.pick');
+        expect(calls.single.arguments, <String>['csv']);
+        reply = null;
+        expect(await const WindowsFilePickerService().pickFile(), isNull);
+      },
+    );
+
+    test('a file that is too large becomes limitReached', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            throw PlatformException(code: 'too_large');
+          });
+      await expectLater(
+        const WindowsFilePickerService().pickFile(),
+        throwsA(
+          isA<AppError>().having(
+            (AppError e) => e.code,
+            'code',
+            AppErrorCode.limitReached,
+          ),
+        ),
+      );
+    });
   });
 }

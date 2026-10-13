@@ -37,6 +37,8 @@ class PlatformChannel {
   void Fingerprint(std::unique_ptr<Result> result);
   void ClearClipboard(std::unique_ptr<Result> result);
   void SetCaptureBlocked(const Call& call, std::unique_ptr<Result> result);
+  void SaveFile(const Call& call, std::unique_ptr<Result> result);
+  void PickFile(const Call& call, std::unique_ptr<Result> result);
   void Emit(const char* event);
 
   HWND window_;

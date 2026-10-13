@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../api/app_error.dart';
 import 'services.dart';
 
 /// Name shared with the C++ side.
@@ -33,6 +34,41 @@ class WindowsClipboardPlatform implements ClipboardPlatform {
 
   @override
   Future<void> clear() => _channel.invokeMethod<void>('clipboard.clear');
+}
+
+/// The system save and open dialogs. The runner shows the dialog and does the file I/O, so
+/// Dart (which has no `dart:io` here) only ever holds the bytes. Cancelling is not an error.
+class WindowsFilePickerService implements FilePickerService {
+  const WindowsFilePickerService();
+
+  @override
+  Future<bool> saveFile({
+    required String suggestedName,
+    required Uint8List bytes,
+  }) async {
+    final bool? saved = await _channel.invokeMethod<bool>(
+      'file.save',
+      <String, Object>{'name': suggestedName, 'bytes': bytes},
+    );
+    return saved ?? false;
+  }
+
+  @override
+  Future<Uint8List?> pickFile({
+    List<String> extensions = const <String>[],
+  }) async {
+    try {
+      return await _channel.invokeMethod<Uint8List>('file.pick', extensions);
+    } on PlatformException catch (e) {
+      if (e.code == 'too_large') {
+        throw const AppError(
+          AppErrorCode.limitReached,
+          'the file is too large',
+        );
+      }
+      rethrow;
+    }
+  }
 }
 
 /// `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` on the main window (SEC-H02).

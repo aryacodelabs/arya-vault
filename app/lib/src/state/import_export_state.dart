@@ -80,6 +80,10 @@ class ImportController extends ChangeNotifier {
       pickerUnavailable = true;
       notifyListeners();
       return false;
+    } on AppError catch (e) {
+      error = e;
+      notifyListeners();
+      return false;
     }
     if (bytes == null) {
       pickCancelled = true;

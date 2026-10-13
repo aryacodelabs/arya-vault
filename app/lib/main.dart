@@ -56,6 +56,9 @@ Future<void> main() async {
             const WindowsCaptureProtection(),
           ),
           platformEventsProvider.overrideWithValue(WindowsPlatformEvents()),
+          filePickerServiceProvider.overrideWithValue(
+            const WindowsFilePickerService(),
+          ),
         ],
       ],
       child: const AryaVaultApp(),
