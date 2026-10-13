@@ -1,0 +1,34 @@
+[package]
+name = "arya-vault-platform-windows"
+description = "Windows quick unlock: a QuickUnlockProvider over Windows Hello KeyCredentialManager (docs/04 section 8)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+arya-vault-crypto = { path = "../crypto", version = "0.0.0" }
+arya-vault-session = { path = "../session", version = "0.0.0" }
+zeroize = "1.9.1"
+
+# WinRT bindings for KeyCredentialManager (Windows Hello). Windows only; on other systems the
+# crate holds just the platform-independent sealing logic, which is tested on every OS.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Foundation", "Security_Credentials", "Security_Cryptography", "Storage_Streams", "Win32_System_SystemInformation"] }
+
+# The workspace lints, except unsafe_code is `deny` (the workspace says `forbid`, which cannot be
+# relaxed per item) so that the one call of GetTickCount64 in windows_hello.rs can carry a
+# commented `allow`. Platform glue only (CLAUDE.md hard rule 3); needs maintainer approval.
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+dbg_macro = "deny"
+print_stdout = "warn"
