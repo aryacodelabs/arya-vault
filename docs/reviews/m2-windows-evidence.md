@@ -25,7 +25,7 @@ The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was delet
 
 ## Not verified yet (L01 goals still open)
 
-- Windows Hello quick unlock: spike S4 showed deterministic signatures in one run and across processes; per-call user presence, reboot persistence and the failure paths are not verified. The provider is not written yet (spec change merged in PR #35).
+- Windows Hello quick unlock: spike S4 showed deterministic signatures across processes and (2026-10-13) a fresh Hello prompt on each of 5 signatures; reboot persistence and the failure paths (cancel, Hello not set up, credential deleted) are not verified. The provider is not written yet (spec change merged in PR #35).
 - Print on Windows (the recovery sheet's Print button still reports "unavailable").
 - PrintScreen and Teams/Zoom share results for capture exclusion, and the cloud-clipboard check from spike S5.
 - Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
