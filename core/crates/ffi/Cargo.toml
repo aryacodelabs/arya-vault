@@ -17,6 +17,10 @@ arya-vault-session = { path = "../session", version = "0.0.0" }
 arya-vault-vault = { path = "../vault", version = "0.0.0" }
 arya-vault-generator = { path = "../generator", version = "0.0.0" }
 zeroize = "1.9.1"
+
+# The Windows Hello quick-unlock provider, registered at start-up on Windows (docs/04 section 8).
+[target.'cfg(windows)'.dependencies]
+arya-vault-platform-windows = { path = "../platform-windows", version = "0.0.0" }
 # Pinned exactly: the generated code and the Dart package must match (tools/codegen/FRB_VERSION).
 flutter_rust_bridge = "=2.13.0"
 

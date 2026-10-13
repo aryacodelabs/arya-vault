@@ -138,6 +138,7 @@ version = "0.0.0"
 dependencies = [
  "arya-vault-ffi",
  "arya-vault-generator",
+ "arya-vault-platform-windows",
  "arya-vault-session",
  "arya-vault-vault",
  "flutter_rust_bridge",
