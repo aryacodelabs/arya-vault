@@ -6,7 +6,7 @@
 //!
 //! Expect Windows Hello prompts: while enabling (create + two signatures) and once for the
 //! unseal. Approve each one. It creates and then deletes the credential
-//! `aryavault/quick-unlock/v1`, so run it only on a machine where that is acceptable (it would
+//! `aryavault-quick-unlock-v1`, so run it only on a machine where that is acceptable (it would
 //! remove a real quick-unlock credential of AryaVault).
 #![cfg(windows)]
 #![allow(

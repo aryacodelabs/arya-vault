@@ -17,8 +17,10 @@ use windows::core::{Array, HSTRING};
 use crate::{HelloError, HelloPlatform};
 
 /// Name of the credential (docs/04 section 8). One per Windows user, so one vault per user for
-/// now (the single-vault MVP).
-const CREDENTIAL_NAME: &str = "aryavault/quick-unlock/v1";
+/// now (the single-vault MVP). It must not contain `/` or `\`: Windows rejects such a name with
+/// "The parameter is incorrect" (0x80090027), found when the first build tried to enable quick
+/// unlock with `aryavault/quick-unlock/v1`.
+const CREDENTIAL_NAME: &str = "aryavault-quick-unlock-v1";
 
 /// Windows Hello through `KeyCredentialManager`.
 #[derive(Debug, Default, Clone, Copy)]
@@ -111,5 +113,16 @@ impl HelloPlatform for WindowsHello {
         let up = uptime_secs();
         let boot_minute = now.checked_sub(up)? / 60;
         Some(boot_minute.to_be_bytes().to_vec())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CREDENTIAL_NAME;
+
+    #[test]
+    fn the_credential_name_has_no_path_separators() {
+        assert!(!CREDENTIAL_NAME.contains(['/', '\\']));
+        assert!(!CREDENTIAL_NAME.is_empty());
     }
 }
