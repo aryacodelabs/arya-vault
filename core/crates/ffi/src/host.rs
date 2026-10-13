@@ -54,6 +54,18 @@ fn platform_provider() -> Option<Box<dyn QuickUnlockProvider>> {
     None
 }
 
+/// Creates the vault directory and restricts it to the current user, excluded from indexing
+/// (L01 goal 7). Best effort: a failure here (a file system without ACLs, a stripped Windows)
+/// must not lock the user out of their vault, and the vault content is encrypted regardless.
+/// Not in test builds, which use temporary directories and must not shell out.
+#[cfg(all(windows, not(any(test, feature = "test-support"))))]
+fn secure_vault_dir(dir: &std::path::Path) {
+    let _ = arya_vault_platform_windows::dir_security::secure_directory(dir);
+}
+
+#[cfg(not(all(windows, not(any(test, feature = "test-support")))))]
+fn secure_vault_dir(_dir: &std::path::Path) {}
+
 static HOST: Mutex<Host> = Mutex::new(Host::new());
 static LOCK_HANDLE: Mutex<Option<LockRequestHandle>> = Mutex::new(None);
 
@@ -85,6 +97,7 @@ impl Host {
         self.session = None;
         self.preview = None;
         *lock_handle() = None;
+        secure_vault_dir(&dir);
         self.dir = Some(dir);
         Ok(())
     }
