@@ -206,23 +206,21 @@ class _ItemListPaneState extends ConsumerState<ItemListPane> {
               horizontal: tokens.gap,
               vertical: tokens.gap / 2,
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: <Widget>[
-                  for (final ItemType t in ItemType.values)
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(end: 8),
-                      child: FilterChip(
-                        label: Text(itemTypeLabel(l10n, t)),
-                        avatar: Icon(itemTypeIcon(t), size: 18),
-                        selected: q.types.contains(t),
-                        onSelected: (_) =>
-                            ref.read(vaultQueryProvider.notifier).toggleType(t),
-                      ),
-                    ),
-                ],
-              ),
+            // Wraps instead of scrolling sideways: in a narrow list pane the last chip
+            // (Identity) used to sit half outside the pane with nothing to say it scrolls.
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: <Widget>[
+                for (final ItemType t in ItemType.values)
+                  FilterChip(
+                    label: Text(itemTypeLabel(l10n, t)),
+                    avatar: Icon(itemTypeIcon(t), size: 18),
+                    selected: q.types.contains(t),
+                    onSelected: (_) =>
+                        ref.read(vaultQueryProvider.notifier).toggleType(t),
+                  ),
+              ],
             ),
           ),
         ],
