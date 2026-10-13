@@ -40,6 +40,20 @@ pub(crate) struct Host {
     pub(crate) profile: CoreProfile,
 }
 
+/// The platform's own quick-unlock provider, used when none was registered (docs/04 section 8).
+/// Windows: Windows Hello. Not in test builds, which must not prompt a person or see a real
+/// credential; they register the fake provider explicitly.
+#[cfg(all(windows, not(any(test, feature = "test-support"))))]
+fn platform_provider() -> Option<Box<dyn QuickUnlockProvider>> {
+    use arya_vault_platform_windows::{HelloProvider, windows_hello::WindowsHello};
+    Some(Box::new(HelloProvider::new(WindowsHello)))
+}
+
+#[cfg(not(all(windows, not(any(test, feature = "test-support")))))]
+fn platform_provider() -> Option<Box<dyn QuickUnlockProvider>> {
+    None
+}
+
 static HOST: Mutex<Host> = Mutex::new(Host::new());
 static LOCK_HANDLE: Mutex<Option<LockRequestHandle>> = Mutex::new(None);
 
@@ -103,7 +117,7 @@ impl Host {
                 AppError::new(AppErrorCode::Internal, "the core has not been initialised")
             })?;
             let mut s = Session::open_dir(dir)?;
-            if let Some(p) = self.provider.take() {
+            if let Some(p) = self.provider.take().or_else(platform_provider) {
                 s = s.with_provider(p);
             }
             *lock_handle() = Some(s.lock_request_handle());

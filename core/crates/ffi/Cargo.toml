@@ -20,6 +20,10 @@ zeroize = "1.9.1"
 # Pinned exactly: the generated code and the Dart package must match (tools/codegen/FRB_VERSION).
 flutter_rust_bridge = "=2.13.0"
 
+# The Windows Hello quick-unlock provider, registered at start-up on Windows (docs/04 section 8).
+[target.'cfg(windows)'.dependencies]
+arya-vault-platform-windows = { path = "../platform-windows", version = "0.0.0" }
+
 [features]
 default = []
 # A function that panics on purpose and the fake quick-unlock provider, for tests only.
