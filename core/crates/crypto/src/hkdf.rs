@@ -3,6 +3,8 @@
 //! * `KEK_pw = HKDF(salt = vault_id, ikm = MK, info = "aryavault/kek-pw/v1")`
 //! * `KEK_rk = HKDF(salt = vault_id, ikm = RK, info = "aryavault/kek-rk/v1")`
 //! * `SubKey = HKDF(salt = vault_id, ikm = VK, info = label ‖ epoch_be32)`
+//! * `KEK_qu = HKDF(salt = blob salt, ikm = platform signature, info = "aryavault/kek-qu/v1")`
+//!   (Windows quick unlock, docs/04 §8)
 //!
 //! **`info` encoding for sub-keys (specified here, tested below):** the ASCII bytes of
 //! the label (`"db/v1"`, `"log/v1"`, `"snapshot/v1"`, `"manifest/v1"`, `"history/v1"`)
@@ -22,6 +24,13 @@ use crate::secret::Secret;
 pub const INFO_KEK_PW: &[u8] = b"aryavault/kek-pw/v1";
 /// `info` for `KEK_rk` (docs/04 §2).
 pub const INFO_KEK_RK: &[u8] = b"aryavault/kek-rk/v1";
+/// `info` for `KEK_qu`, the Windows quick-unlock wrapping key (docs/04 §8).
+pub const INFO_KEK_QU: &[u8] = b"aryavault/kek-qu/v1";
+/// Length of the random salt kept in the quick-unlock blob.
+pub const QUICK_UNLOCK_SALT_LEN: usize = 16;
+/// Shortest platform signature accepted as input key material. A Hello signature is 256 bytes;
+/// anything much shorter is not a signature and must not be turned into a key.
+pub const QUICK_UNLOCK_MIN_SIGNATURE_LEN: usize = 32;
 
 /// Error from key derivation. HKDF-Expand to 32 bytes cannot fail for SHA-256; this
 /// exists so no code path has to panic or fall back to a zero key.
@@ -89,6 +98,22 @@ pub fn kek_pw(mk: &MasterKey, vault_id: &VaultId) -> Result<Kek, HkdfError> {
 /// Derives `KEK_rk` from the recovery key (160 bits of entropy, so no Argon2 is needed).
 pub fn kek_rk(rk: &RecoveryKey, vault_id: &VaultId) -> Result<Kek, HkdfError> {
     derive32(vault_id, rk.expose_secret(), INFO_KEK_RK).map(Kek::from_secret)
+}
+
+/// Derives `KEK_qu` (Windows quick unlock, docs/04 §8) from a deterministic platform signature and
+/// the random salt stored in the blob.
+///
+/// The signature is the only secret input; it never leaves the process that computed it. Fails
+/// (rather than deriving a weak key) if the signature is shorter than
+/// [`QUICK_UNLOCK_MIN_SIGNATURE_LEN`].
+pub fn kek_quick_unlock(
+    signature: &[u8],
+    salt: &[u8; QUICK_UNLOCK_SALT_LEN],
+) -> Result<Kek, HkdfError> {
+    if signature.len() < QUICK_UNLOCK_MIN_SIGNATURE_LEN {
+        return Err(HkdfError);
+    }
+    derive32(salt, signature, INFO_KEK_QU).map(Kek::from_secret)
 }
 
 /// Derives the purpose-specific sub-key for `label` at key `epoch` from the vault key.
@@ -228,5 +253,57 @@ cc30c58179ec3e87c14c01d5c1f3434f1d87"
         let a = kek_pw(&MasterKey::from_bytes([0x33; 32]), &VID).unwrap();
         let b = kek_rk(&RecoveryKey::from_bytes([0x33; 20]), &VID).unwrap();
         assert_ne!(a.expose_secret(), b.expose_secret());
+    }
+
+    // docs/04 §8 (Windows): the vector below was computed independently with HMAC-SHA256 in
+    // Python (RFC 5869: PRK = HMAC(salt, ikm); OKM = HMAC(PRK, info || 0x01)); the same vector is
+    // checked by tools/crosscheck/test_kek_qu.py.
+    fn qu_signature() -> Vec<u8> {
+        (0..256u32).map(|i| ((i * 7 + 3) % 256) as u8).collect()
+    }
+
+    fn qu_salt() -> [u8; QUICK_UNLOCK_SALT_LEN] {
+        core::array::from_fn(|i| 0x10 + i as u8)
+    }
+
+    #[test]
+    fn kek_quick_unlock_known_answer() {
+        let sig = qu_signature();
+        let kek = kek_quick_unlock(&sig, &qu_salt()).unwrap();
+        assert_eq!(
+            hex::encode(kek.expose_secret()),
+            "e0747f3958f7a982e4852354b075cb11969b6a0b148b024f96d17d6fc44c09c1"
+        );
+    }
+
+    #[test]
+    fn kek_quick_unlock_depends_on_both_inputs_and_the_label() {
+        let sig = qu_signature();
+        let base = kek_quick_unlock(&sig, &qu_salt()).unwrap();
+        let mut other_salt = qu_salt();
+        other_salt[0] ^= 1;
+        let mut other_sig = sig.clone();
+        other_sig[255] ^= 1;
+        assert_ne!(
+            base.expose_secret(),
+            kek_quick_unlock(&sig, &other_salt).unwrap().expose_secret()
+        );
+        assert_ne!(
+            base.expose_secret(),
+            kek_quick_unlock(&other_sig, &qu_salt())
+                .unwrap()
+                .expose_secret()
+        );
+        // Domain separation: the same bytes under the password-KEK label give another key.
+        let as_pw = derive32(&qu_salt(), &sig, INFO_KEK_PW).unwrap();
+        assert_ne!(base.expose_secret(), as_pw.as_bytes());
+    }
+
+    #[test]
+    fn kek_quick_unlock_refuses_a_short_signature() {
+        let short = vec![7u8; QUICK_UNLOCK_MIN_SIGNATURE_LEN - 1];
+        assert_eq!(kek_quick_unlock(&short, &qu_salt()).err(), Some(HkdfError));
+        assert_eq!(kek_quick_unlock(&[], &qu_salt()).err(), Some(HkdfError));
+        assert!(kek_quick_unlock(&[7u8; QUICK_UNLOCK_MIN_SIGNATURE_LEN], &qu_salt()).is_ok());
     }
 }

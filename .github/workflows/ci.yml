@@ -151,6 +151,8 @@ jobs:
         run: '"$RUNNER_TEMP/crosscheck-venv/bin/python" -I tools/crosscheck/crosscheck.py core/testdata/golden'
       - name: Tampered copies must be rejected
         run: '"$RUNNER_TEMP/crosscheck-venv/bin/python" -I tools/crosscheck/test_negative.py core/testdata/golden'
+      - name: Quick-unlock KEK vector (docs/04 section 8)
+        run: '"$RUNNER_TEMP/crosscheck-venv/bin/python" -I tools/crosscheck/test_kek_qu.py'
 
   flutter:
     # B01: the Flutter app over the fake API (docs/cloud-tasks/m2/B01). Linux only; goldens are
