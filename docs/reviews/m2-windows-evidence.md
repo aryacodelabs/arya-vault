@@ -23,7 +23,7 @@ as verified are **not verified**.
 
 | Windows Hello quick unlock in the app (PR #43 fix) | Owner turned it on in Settings and unlocked with Hello on a release build: **works**. Cancel, credential removal and reboot not reported, so not recorded as verified. Claude saw the resulting files: `quick-unlock.blob` 121 bytes and `quick-unlock.policy` 52 bytes next to `vault.db` | owner, local run |
 | Vault folder ACL on a real vault (PR #44 build) | `icacls` shows only `<PC>\<user>:(OI)(CI)(F)`; the folder and `vault.db` carry the NotContentIndexed attribute | local run (Claude) |
-| Portable zip and unsigned MSIX (`tools/package/package-windows.ps1`) | Zip 16.5 MB and MSIX 16.5 MB, checksums in `SHA256SUMS.txt`; the extracted zip runs from a fresh folder (title "AryaVault"). The MSIX was **built** (`makeappx` succeeded) but **not installed or run** | local run (Claude) |
+| Portable zip and unsigned MSIX (`tools/package/package-windows.ps1`) | Zip 16.5 MB and MSIX 16.5 MB, checksums in `SHA256SUMS.txt`; the extracted zip runs from a fresh folder (title "AryaVault"). The MSIX was **built** (`makeappx` succeeded) but **cannot be installed unsigned** (see "MSIX install test") | local run (Claude) |
 
 The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was deleted afterwards.
 
@@ -42,7 +42,7 @@ The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was delet
 - Print on Windows (the recovery sheet's Print button still reports "unavailable").
 - PrintScreen and Teams/Zoom share results for capture exclusion, and the cloud-clipboard check from spike S5.
 - Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
-- Installing and running the MSIX (and what uninstalling does to the vault data); a DLL search-path hijack test; code signing.
+- What uninstalling a *signed* MSIX does to the vault data (an unsigned one cannot be installed); a DLL search-path hijack test; code signing.
 - Disk scan with canary secrets over `%LOCALAPPDATA%`, temp and crash-dump folders; the scan above looked at file headers only, not at the text of the owner's items.
 - Memory with the 20,000-item vault *unlocked*, and scrolling that list in the UI (the core-side numbers and the lock-screen start numbers are in the next sections).
 - Window title still `arya_vault`.
@@ -105,3 +105,20 @@ Limits, stated plainly:
   holds dumps of other programs), and a crash of an *unlocked* AryaVault would be dumped in full by
   that policy, which the app's own WER flags cannot override (see the hardening section).
 - It was the debug build, not the packaged release build, which nobody could unlock by script.
+
+## MSIX install test (2026-10-14)
+
+Windows 11 Pro 10.0.26300, `Add-AppxPackage -AllowUnsigned`, package built by
+`tools/package/package-windows.ps1`:
+
+1. As built (publisher `CN=AryaCode Labs (unsigned preview)`): refused, 0x80073D2C, "its publisher
+   is not in the unsigned namespace".
+2. A test copy with the publisher changed to the unsigned namespace
+   (`..., OID.2.25.311729368913984317654407730594956997722=1`): refused, 0x80073D2B, "an unsigned
+   package cannot include Executable activations".
+
+So an unsigned MSIX of a desktop executable cannot be installed on this Windows version at all. Making
+it installable means signing it and having the machine trust the certificate (a system security
+change that was deliberately not made for this test). Consequences: the MSIX should not be offered
+in the 0.1 alpha prerelease (zip only) until M9 signing; the vault-data-on-uninstall question
+stays open. Nothing was installed, so nothing needed removing.
