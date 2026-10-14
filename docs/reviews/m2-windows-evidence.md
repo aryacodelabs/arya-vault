@@ -22,7 +22,7 @@ as verified are **not verified**.
 | System Save and Open dialogs (runner C++) | Save as file for the recovery key checked by the owner; reported as working. Contents of the saved file not inspected by Claude | PR #36, owner |
 
 | Windows Hello quick unlock in the app (PR #43 fix) | Owner turned it on in Settings and unlocked with Hello on a release build: **works**. Cancel, credential removal and reboot not reported, so not recorded as verified. Claude saw the resulting files: `quick-unlock.blob` 121 bytes and `quick-unlock.policy` 52 bytes next to `vault.db` | owner, local run |
-| Vault folder ACL on a real vault (PR #44 build) | `icacls` shows only `ANURAG-PC\snehi:(OI)(CI)(F)`; the folder and `vault.db` carry the NotContentIndexed attribute | local run (Claude) |
+| Vault folder ACL on a real vault (PR #44 build) | `icacls` shows only `<PC>\<user>:(OI)(CI)(F)`; the folder and `vault.db` carry the NotContentIndexed attribute | local run (Claude) |
 | Portable zip and unsigned MSIX (`tools/package/package-windows.ps1`) | Zip 16.5 MB and MSIX 16.5 MB, checksums in `SHA256SUMS.txt`; the extracted zip runs from a fresh folder (title "AryaVault"). The MSIX was **built** (`makeappx` succeeded) but **not installed or run** | local run (Claude) |
 
 The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was deleted afterwards.
