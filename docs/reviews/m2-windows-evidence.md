@@ -84,3 +84,20 @@ yet investigated.
 - Not measured: memory after unlocking the 20,000-item vault and scrolling it. A scripted
   keystroke attempt did not reach the window, so the working set did not change; it needs a person
   at the keyboard. "Window exists" is not "first frame drawn", so these times are a lower bound.
+
+## Temp and crash-dump scan (2026-10-14)
+
+After one run of the integration test (the debug build against the real core: unlock, item
+shown, lock), every file modified since the run began under `%TEMP%`, `%LOCALAPPDATA%`,
+`%APPDATA%`, `%PROGRAMDATA%` (including the WER report folders), `C:\Windows\Temp`, `Minidump` and
+`LiveKernelReports` was searched for the item title, the user name and the master password, as
+UTF-8 and UTF-16LE. 363 files, 942 MB: no match.
+
+Limits, stated plainly:
+- 268 files could not be opened (locked by running programs) and were not searched.
+- The pagefile, hibernation file and live process memory were not searched.
+- No dump of AryaVault itself existed, because the app did not crash. This is not a test of the
+  crash path: the machine has a machine-wide `LocalDumps` policy (`%LOCALAPPDATA%\CrashDumps`
+  holds dumps of other programs), and a crash of an *unlocked* AryaVault would be dumped in full by
+  that policy, which the app's own WER flags cannot override (see the hardening section).
+- It was the debug build, not the packaged release build, which nobody could unlock by script.
