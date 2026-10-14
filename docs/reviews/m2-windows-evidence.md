@@ -122,3 +122,26 @@ it installable means signing it and having the machine trust the certificate (a 
 change that was deliberately not made for this test). Consequences: the MSIX should not be offered
 in the 0.1 alpha prerelease (zip only) until M9 signing; the vault-data-on-uninstall question
 stays open. Nothing was installed, so nothing needed removing.
+
+## Why a list page costs about 75 ms (2026-10-14)
+
+`l02_bench` now also times the list by page size and `get_item`. On a busier run than the table
+above (everything about 1.6x slower): `list` with limit 1, 10 and 50 takes 119, 113 and 122 ms;
+limit 200 takes 195 ms; 50 x `get_item` takes 33 ms. So the cost does not depend on how many rows
+are asked for (limit 1 costs as much as 50): there is a fixed price of roughly 100 ms per call on
+a 20,000-item vault, and the 50 row reads are the small part.
+
+Cause, from reading the code (not yet confirmed with a profiler): `Vault::list`
+(`core/crates/vault/src/query.rs`) calls `list_items` (`core/crates/storage/src/store.rs`), which
+runs `SELECT ... FROM item WHERE ... ORDER BY updated_hlc DESC, id` and loads **every** row into a
+`Vec`, and only then skips `offset` and stops at `limit`. There is no index on `updated_hlc`, so
+SQLite sorts all 20,000 rows on every call, and tombstones are included because a deleted item can
+become visible again (so the paging cannot simply move into SQL).
+
+Options, none done yet because they touch the schema and `vault`/`storage` semantics (a new
+index is an on-disk change: `format_version`, docs/05 and golden files): (1) an index on
+`item(updated_hlc DESC, id)`, which removes the sort; (2) page in SQL for the common case of no
+tombstones/tag/favorite filter, with the tombstone check kept for the rest; (3) cache the sorted id
+list in the unlocked session and invalidate on write. For the UI, calling `list` once per scroll
+page of 50 means every page pays this price, so (1) plus (2) is the likely fix. Search is not
+affected the same way (31-86 ms, one full-text query).
