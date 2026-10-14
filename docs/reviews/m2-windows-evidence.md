@@ -44,6 +44,47 @@ The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was delet
 - Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
 - Installing and running the MSIX (and what uninstalling does to the vault data); a DLL search-path hijack test; code signing.
 - Disk scan with canary secrets over `%LOCALAPPDATA%`, temp and crash-dump folders; the scan above looked at file headers only, not at the text of the owner's items.
-- 20,000-item scroll and search, cold start time, memory use on a real vault.
-- `flutter test integration_test -d windows`.
+- Memory with the 20,000-item vault *unlocked*, and scrolling that list in the UI (the core-side numbers and the lock-screen start numbers are in the next sections).
 - Window title still `arya_vault`.
+
+## 20,000-item core measurements and text-level canary scan (2026-10-14)
+
+`cargo test -p arya-vault-ffi --test l02_bench -- --ignored --nocapture` with an optimised test
+profile (`CARGO_PROFILE_TEST_OPT_LEVEL=3`; the real release profile cannot build the test-only
+fake provider). Same Windows 11 machine as above; fake canary data only; Argon2id Low profile.
+
+| Measure | Result |
+|---|---|
+| Create 20,000 items (one at a time) | 64.9 s |
+| List, first page of 50 | 79 ms |
+| List, last page of 50 | 73 ms |
+| Search, one exact title | 34 ms |
+| Search, prefix matching 20,000 items | 31 ms |
+| Search, no match | 0.9 ms |
+| Unlock with 20,000 items (Low profile, includes Argon2id) | 155 ms |
+| Item count | 126 ms |
+| Vault folder after the run | 2 files, 42.9 MB |
+
+Canary scan: after locking, all files of the vault folder were searched for the item text
+(`CANARY-L02-zq7`, `password-`, a URL host) and the master password, as UTF-8 and UTF-16LE.
+No match (4 needles x 2 files).
+
+Limits: this is the core through its public API, not the Flutter UI, so it says nothing about
+widget scroll speed, app cold start or app memory. The scan covered the vault folder only, not
+`%TEMP%`, crash dumps or the pagefile. List pages cost about 75 ms each, above the 50 ms an
+interactive list would like; the cause (decrypting 50 rows versus a fixed per-call cost) is not
+yet investigated.
+
+## Integration test and start-up (2026-10-14)
+
+- `flutter test integration_test -d windows` (new `app/integration_test/app_test.dart`) builds the
+  Windows runner and drives the real core in a temporary folder: create and confirm a vault, add an
+  item, show the lock screen, unlock with the master password through the UI, see the item in
+  the list, press "Lock now", see the lock screen and no item text. Passed.
+- Start-up of the packaged portable zip (extracted from `dist/`, release build) pointed at a
+  folder holding the 20,000-item vault: time from process start until the main window exists,
+  first launch after extracting 3.3 s; three warm launches 1.6, 1.6 and 1.8 s. Working set on the
+  lock screen about 205-219 MB.
+- Not measured: memory after unlocking the 20,000-item vault and scrolling it. A scripted
+  keystroke attempt did not reach the window, so the working set did not change; it needs a person
+  at the keyboard. "Window exists" is not "first frame drawn", so these times are a lower bound.

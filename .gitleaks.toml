@@ -40,3 +40,10 @@ regexes = [
   '''Tangerine-Quasar-vinyl-48-Hollow-Mitten''',
   '''CANARY-item-secret-[12]''',
 ]
+
+# The Windows integration test uses a fake master password for a temporary vault.
+[[allowlists]]
+description = "Fake master password in the Windows integration test (test data only)"
+condition = "AND"
+paths = ['''^app/integration_test/app_test\.dart$''']
+regexes = ['''CANARY-integration-Tangerine-Quasar-48-Hollow''']
