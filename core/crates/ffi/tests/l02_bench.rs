@@ -81,6 +81,22 @@ fn twenty_thousand_items() {
     let deep = items::list(filter(), page(N - 50)).unwrap();
     println!("list last page ({} rows): {:?}", deep.len(), t.elapsed());
 
+    for limit in [1u32, 10, 50, 200] {
+        let t = Instant::now();
+        let rows = items::list(filter(), Page { offset: 0, limit }).unwrap();
+        println!(
+            "list limit {limit}: {} rows in {:?}",
+            rows.len(),
+            t.elapsed()
+        );
+    }
+    let ids: Vec<String> = first.iter().map(|r| r.id.clone()).collect();
+    let t = Instant::now();
+    for id in &ids {
+        items::get_item(id.clone()).unwrap();
+    }
+    println!("get_item x{}: {:?}", ids.len(), t.elapsed());
+
     for q in [
         format!("{C}-title-12345"),
         "canary".to_owned(),
