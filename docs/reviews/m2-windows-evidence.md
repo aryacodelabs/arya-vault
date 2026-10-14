@@ -40,8 +40,7 @@ The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was delet
 - Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
 - Installer layout, unsigned MSIX, portable zip; DLL search-path hijack test.
 - Disk scan with canary secrets over `%LOCALAPPDATA%`, temp and crash-dump folders; the scan above looked at file headers only, not at the text of the owner's items.
-- Cold start time and memory use of the app on a real vault; scrolling the 20,000-item list in the UI (the core-side numbers are in the next section).
-- `flutter test integration_test -d windows`.
+- Memory with the 20,000-item vault *unlocked*, and scrolling that list in the UI (the core-side numbers and the lock-screen start numbers are in the next sections).
 - Window title still `arya_vault`.
 
 ## 20,000-item core measurements and text-level canary scan (2026-10-14)
@@ -71,3 +70,17 @@ widget scroll speed, app cold start or app memory. The scan covered the vault fo
 `%TEMP%`, crash dumps or the pagefile. List pages cost about 75 ms each, above the 50 ms an
 interactive list would like; the cause (decrypting 50 rows versus a fixed per-call cost) is not
 yet investigated.
+
+## Integration test and start-up (2026-10-14)
+
+- `flutter test integration_test -d windows` (new `app/integration_test/app_test.dart`) builds the
+  Windows runner and drives the real core in a temporary folder: create and confirm a vault, add an
+  item, show the lock screen, unlock with the master password through the UI, see the item in
+  the list, press "Lock now", see the lock screen and no item text. Passed.
+- Start-up of the packaged portable zip (extracted from `dist/`, release build) pointed at a
+  folder holding the 20,000-item vault: time from process start until the main window exists,
+  first launch after extracting 3.3 s; three warm launches 1.6, 1.6 and 1.8 s. Working set on the
+  lock screen about 205-219 MB.
+- Not measured: memory after unlocking the 20,000-item vault and scrolling it. A scripted
+  keystroke attempt did not reach the window, so the working set did not change; it needs a person
+  at the keyboard. "Window exists" is not "first frame drawn", so these times are a lower bound.

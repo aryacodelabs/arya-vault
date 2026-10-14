@@ -105,6 +105,18 @@ fn twenty_thousand_items() {
     println!("item_count: {:?}", t.elapsed());
     lifecycle::lock().unwrap();
 
+    // `ARYA_BENCH_OUT=<dir>` keeps a copy of the 20,000-item vault for app-level measurements
+    // (the master password is `PASSWORD` in tests/common).
+    if let Some(out) = std::env::var_os("ARYA_BENCH_OUT") {
+        std::fs::create_dir_all(&out).unwrap();
+        let mut src = Vec::new();
+        files(f.dir.path(), &mut src);
+        for p in src {
+            std::fs::copy(&p, Path::new(&out).join(p.file_name().unwrap())).unwrap();
+        }
+        println!("vault copy written to {}", Path::new(&out).display());
+    }
+
     let mut all = Vec::new();
     files(f.dir.path(), &mut all);
     let size: u64 = all
