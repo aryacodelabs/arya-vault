@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "invalid.placeholder" "\0"
-            VALUE "FileDescription", "arya_vault" "\0"
+            VALUE "FileDescription", "AryaVault" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "arya_vault" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 invalid.placeholder. All rights reserved." "\0"
             VALUE "OriginalFilename", "arya_vault.exe" "\0"
-            VALUE "ProductName", "arya_vault" "\0"
+            VALUE "ProductName", "AryaVault" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

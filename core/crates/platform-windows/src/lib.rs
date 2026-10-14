@@ -26,6 +26,8 @@ use arya_vault_session::quick::{Blob, ProviderError, QuickUnlockKind, QuickUnloc
 use zeroize::Zeroizing;
 
 #[cfg(windows)]
+pub mod dir_security;
+#[cfg(windows)]
 pub mod windows_hello;
 
 /// AAD of the sealed vault key (docs/04 section 8).
