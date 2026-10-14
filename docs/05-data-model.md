@@ -109,7 +109,61 @@ CREATE TABLE provider_state (    -- cursor tokens, etags (no secrets)
 CREATE VIRTUAL TABLE item_fts USING fts5(title, username, urls, notes, tags, content='');
 ```
 
-Indexes: `item(type,deleted)`, `item(folder_id)`, `field(item_id)`, `field_history(item_id,key)`.
+Indexes:
+
+| Index | Since schema | Purpose |
+|---|---|---|
+| `item(type,deleted)`, `item(folder_id)`, `field(item_id)`, `field_history(item_id,key)` | 1 | filters, per-item reads |
+| `field_title_cover`, `field_favorite_cover` (partial covering, `key = 'title'` / `'favorite'` only) | 2 | the title and favorite of every item without a table scan |
+| `item_updated(updated_hlc DESC, id)` | **3 (proposed)** | list order without sorting every row (section 5.1) |
+
+Every index holds only data that is already in the same encrypted database, and no secret field is
+copied into one (SEC-S05). `item_updated` holds the item id and its `updated_hlc`, nothing else.
+
+### 5.1 Listing and paging (proposed, schema 3)
+
+**Problem (measured, `docs/reviews/m2-windows-evidence.md`):** with 20,000 items a `list` call costs
+about 75-120 ms *whatever the page size* (1 row costs the same as 50). Cause: the list query
+sorts every `item` row by `updated_hlc DESC, id` and loads them all before the page is cut, because
+there is no index for that order. A scrolling list pays it once per page.
+
+**Required behaviour (unchanged for callers):**
+1. Order: `updated_hlc` descending, then `id` ascending. A page `[offset, offset + limit)` of that
+   order is exactly what it is today; only the cost changes.
+2. Visibility: an item is listed when `deleted = 0`, or when it is a tombstone whose registers say it
+   is visible again (a later undelete wins; section 7). Paging must apply this rule *before*
+   `offset`/`limit` count rows, so that a page never comes back short because of hidden rows.
+3. Filters (type, folder, tag, favorites) apply before paging, as today.
+
+**Change:**
+- Migration `v003`: `CREATE INDEX item_updated ON item(updated_hlc DESC, id);`. Existing vaults get
+  it by the normal migration path (backup first, one transaction, `schema_version = 3`).
+  The index is derived data: it can be dropped and rebuilt, and it is not synced or exported.
+- Query: when the filter is only `type` and/or `folder_id` (no tag, no favorites), read rows in index
+  order with `WHERE deleted = 0` plus a second, separate read for the (rare) tombstones that may be
+  visible again, merge by the same order, and stop at `offset + limit`; filters that need the bulk
+  field scans (tag, favorites) keep the current path.
+- No change to the wire format, the sync protocol, the header or any exported file. A vault written
+  by schema 3 is read by older builds only if they refuse unknown schema versions cleanly (the
+  existing rule: an app never opens a newer schema than it knows).
+
+**Tests required before the code PR merges:**
+- Migration test from a golden schema-2 vault to 3, and the golden schema-1 chain (1 to 2 to 3).
+- Property test: for random vaults (live items, tombstones, undeleted items, equal `updated_hlc`),
+  the paged list equals the current implementation's output for every `(offset, limit)`.
+- Page-never-short test with hidden tombstones before the page.
+- Benchmark kept in `l02_bench`: `list` at 20,000 items must not depend on `limit` (limit 1 within
+  1.5x of limit 50) and the first page must be under 30 ms on the reference laptop (target, to be
+  confirmed; today 75 ms).
+
+**Alternatives considered:** a session-side cache of the sorted id list (no on-disk change, but
+more state to invalidate on every write and on every sync apply, and still a 100 ms first call);
+paging in SQL without the index (still sorts 20,000 rows per call).
+
+**Open questions for review:** (a) is the 30 ms target right, or should the bar be "feels
+instant" at 60 fps scrolling (about 16 ms per page)? (b) tombstones: keep the second read, or add a
+persisted `visible` column maintained on every write (faster, but one more invariant)?
+
 
 Secrets stored outside the DB (OS keystore only): biometric-wrapped VK, OAuth refresh tokens.
 
