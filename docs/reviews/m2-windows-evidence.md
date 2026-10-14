@@ -23,6 +23,15 @@ as verified are **not verified**.
 
 The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was deleted afterwards.
 
+## Hardening (PR for goals 7 and 8)
+
+| What | Result |
+|---|---|
+| Single instance (named mutex `Local\AryaVault.SingleInstance.v1`) | A second launch exited within seconds and left one process (Claude, release build). Bringing the running window to the front was not observed by Claude |
+| Window title and product name | Title reads "AryaVault" (Claude, `MainWindowTitle`) |
+| Vault folder ACL (current user only, no inheritance) and not-content-indexed flag | Two automated Windows tests on a temp folder check the real `icacls` and `attrib` output. **Not yet checked on the folder of a real vault**, and not checked from a second Windows account |
+| Crash reports | `SetErrorMode` plus `WerSetFlags(NOHEAP, NO_UI)`: no dialog and no heap in reports made by this process. **Limit:** a machine-wide WER LocalDumps policy is not overridden, so a crash while unlocked can still write a full dump with keys in it. Locking zeroes the keys, so the exposure is the unlocked time only. A crash was **not** provoked to confirm what is written |
+
 ## Not verified yet (L01 goals still open)
 
 - Windows Hello quick unlock: spike S4 showed deterministic signatures across processes and (2026-10-13) a fresh Hello prompt on each of 5 signatures; reboot persistence and the failure paths (cancel, Hello not set up, credential deleted) are not verified. The provider is not written yet (spec change merged in PR #35).
