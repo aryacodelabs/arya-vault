@@ -62,6 +62,22 @@ pub fn secure_directory(dir: &Path) -> io::Result<()> {
             grant.as_ref(),
         ],
     )?;
+    // `/inheritance:r` only drops *inherited* entries. An elevated administrator's new folder can
+    // also carry explicit SYSTEM and Administrators entries (found on a CI runner), so remove the
+    // broad groups by well-known SID, which works in every language: SYSTEM, Administrators,
+    // Users, Everyone, Authenticated Users. A SID that is not in the list is not an error.
+    run(
+        "icacls.exe",
+        &[
+            dir.as_os_str(),
+            "/remove:g".as_ref(),
+            "*S-1-5-18".as_ref(),
+            "*S-1-5-32-544".as_ref(),
+            "*S-1-5-32-545".as_ref(),
+            "*S-1-1-0".as_ref(),
+            "*S-1-5-11".as_ref(),
+        ],
+    )?;
     run("attrib.exe", &["+I".as_ref(), dir.as_os_str()])
 }
 
@@ -124,6 +140,47 @@ mod tests {
             "not-content-indexed flag missing: {attrs}"
         );
 
+        std::fs::remove_dir_all(dir.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn explicit_entries_for_broad_groups_are_removed_too() {
+        // The CI runner case: the folder already carries explicit SYSTEM, Administrators and
+        // Users entries before we secure it.
+        let dir = temp_dir("explicit").join("vault");
+        std::fs::create_dir_all(&dir).unwrap();
+        run(
+            "icacls.exe",
+            &[
+                dir.as_os_str(),
+                "/grant".as_ref(),
+                "*S-1-5-18:(OI)(CI)F".as_ref(),
+                "*S-1-5-32-544:(OI)(CI)F".as_ref(),
+                "*S-1-5-32-545:(OI)(CI)RX".as_ref(),
+            ],
+        )
+        .unwrap();
+        let before = tool_output("icacls.exe", &dir).to_lowercase();
+        assert!(
+            before.contains("nt authority\\system"),
+            "setup failed: {before}"
+        );
+
+        secure_directory(&dir).unwrap();
+
+        let acl = tool_output("icacls.exe", &dir).to_lowercase();
+        for other in [
+            "nt authority\\system",
+            "builtin\\administrators",
+            "builtin\\users",
+        ] {
+            assert!(!acl.contains(other), "{other} must be gone: {acl}");
+        }
+        let user = std::env::var("USERNAME").unwrap().to_lowercase();
+        assert!(
+            acl.contains(&user),
+            "the current user must keep access: {acl}"
+        );
         std::fs::remove_dir_all(dir.parent().unwrap()).unwrap();
     }
 
