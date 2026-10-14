@@ -44,20 +44,15 @@ parameters. Nothing is sent anywhere: the app makes no network connections.
   *Tools > Export* to make an **encrypted** export now and then, and keep it on another drive.
 - Do not use the plain CSV export except to move data to another tool, and delete that file afterwards.
 
-## MSIX package (unsigned, advanced)
+## MSIX package (not installable while unsigned)
 
-`AryaVault-<version>-windows-x64.msix` is built for completeness. Because it is **unsigned**, Windows
-will not install it by double-click. On Windows 11 24H2 or later it can be installed from an elevated
-PowerShell with developer mode on:
-
-```powershell
-Add-AppxPackage -Path .\AryaVault-<version>-windows-x64.msix -AllowUnsigned
-```
-
-**Caution:** a packaged app's per-user data can live inside the package's private storage, and
-*uninstalling the package may delete it*. For a password manager that is a real risk until this is
-tested, so **use the portable zip** for anything you care about. The MSIX has not been installed or
-tested by the project yet.
+`AryaVault-<version>-windows-x64.msix` is built for completeness, but **it cannot be installed
+yet**. Tested on Windows 11 (build 26300): `Add-AppxPackage -AllowUnsigned` refuses it with
+0x80073D2C (the publisher is not in the unsigned namespace), and even with a publisher that is,
+with 0x80073D2B ("an unsigned package cannot include Executable activations"), which every
+desktop app like this one has. It needs a signing certificate that the machine trusts (planned for
+M9). **Use the portable zip.** Whether uninstalling a signed MSIX would delete the vault data is
+still untested.
 
 ## Update
 

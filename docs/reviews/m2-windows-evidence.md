@@ -23,7 +23,7 @@ as verified are **not verified**.
 
 | Windows Hello quick unlock in the app (PR #43 fix) | Owner turned it on in Settings and unlocked with Hello on a release build: **works**. Cancel, credential removal and reboot not reported, so not recorded as verified. Claude saw the resulting files: `quick-unlock.blob` 121 bytes and `quick-unlock.policy` 52 bytes next to `vault.db` | owner, local run |
 | Vault folder ACL on a real vault (PR #44 build) | `icacls` shows only `<PC>\<user>:(OI)(CI)(F)`; the folder and `vault.db` carry the NotContentIndexed attribute | local run (Claude) |
-| Portable zip and unsigned MSIX (`tools/package/package-windows.ps1`) | Zip 16.5 MB and MSIX 16.5 MB, checksums in `SHA256SUMS.txt`; the extracted zip runs from a fresh folder (title "AryaVault"). The MSIX was **built** (`makeappx` succeeded) but **not installed or run** | local run (Claude) |
+| Portable zip and unsigned MSIX (`tools/package/package-windows.ps1`) | Zip 16.5 MB and MSIX 16.5 MB, checksums in `SHA256SUMS.txt`; the extracted zip runs from a fresh folder (title "AryaVault"). The MSIX was **built** (`makeappx` succeeded) but **cannot be installed unsigned** (see "MSIX install test") | local run (Claude) |
 
 The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was deleted afterwards.
 
@@ -42,7 +42,7 @@ The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was delet
 - Print on Windows (the recovery sheet's Print button still reports "unavailable").
 - PrintScreen and Teams/Zoom share results for capture exclusion, and the cloud-clipboard check from spike S5.
 - Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
-- Installing and running the MSIX (and what uninstalling does to the vault data); a DLL search-path hijack test; code signing.
+- What uninstalling a *signed* MSIX does to the vault data (an unsigned one cannot be installed); a DLL search-path hijack test; code signing.
 - Disk scan with canary secrets over `%LOCALAPPDATA%`, temp and crash-dump folders; the scan above looked at file headers only, not at the text of the owner's items.
 - Memory with the 20,000-item vault *unlocked*, and scrolling that list in the UI (the core-side numbers and the lock-screen start numbers are in the next sections).
 - Window title still `arya_vault`.
@@ -88,3 +88,60 @@ yet investigated.
 - Not measured: memory after unlocking the 20,000-item vault and scrolling it. A scripted
   keystroke attempt did not reach the window, so the working set did not change; it needs a person
   at the keyboard. "Window exists" is not "first frame drawn", so these times are a lower bound.
+
+## Temp and crash-dump scan (2026-10-14)
+
+After one run of the integration test (the debug build against the real core: unlock, item
+shown, lock), every file modified since the run began under `%TEMP%`, `%LOCALAPPDATA%`,
+`%APPDATA%`, `%PROGRAMDATA%` (including the WER report folders), `C:\Windows\Temp`, `Minidump` and
+`LiveKernelReports` was searched for the item title, the user name and the master password, as
+UTF-8 and UTF-16LE. 363 files, 942 MB: no match.
+
+Limits, stated plainly:
+- 268 files could not be opened (locked by running programs) and were not searched.
+- The pagefile, hibernation file and live process memory were not searched.
+- No dump of AryaVault itself existed, because the app did not crash. This is not a test of the
+  crash path: the machine has a machine-wide `LocalDumps` policy (`%LOCALAPPDATA%\CrashDumps`
+  holds dumps of other programs), and a crash of an *unlocked* AryaVault would be dumped in full by
+  that policy, which the app's own WER flags cannot override (see the hardening section).
+- It was the debug build, not the packaged release build, which nobody could unlock by script.
+
+## MSIX install test (2026-10-14)
+
+Windows 11 Pro 10.0.26300, `Add-AppxPackage -AllowUnsigned`, package built by
+`tools/package/package-windows.ps1`:
+
+1. As built (publisher `CN=AryaCode Labs (unsigned preview)`): refused, 0x80073D2C, "its publisher
+   is not in the unsigned namespace".
+2. A test copy with the publisher changed to the unsigned namespace
+   (`..., OID.2.25.311729368913984317654407730594956997722=1`): refused, 0x80073D2B, "an unsigned
+   package cannot include Executable activations".
+
+So an unsigned MSIX of a desktop executable cannot be installed on this Windows version at all. Making
+it installable means signing it and having the machine trust the certificate (a system security
+change that was deliberately not made for this test). Consequences: the MSIX should not be offered
+in the 0.1 alpha prerelease (zip only) until M9 signing; the vault-data-on-uninstall question
+stays open. Nothing was installed, so nothing needed removing.
+
+## Why a list page costs about 75 ms (2026-10-14)
+
+`l02_bench` now also times the list by page size and `get_item`. On a busier run than the table
+above (everything about 1.6x slower): `list` with limit 1, 10 and 50 takes 119, 113 and 122 ms;
+limit 200 takes 195 ms; 50 x `get_item` takes 33 ms. So the cost does not depend on how many rows
+are asked for (limit 1 costs as much as 50): there is a fixed price of roughly 100 ms per call on
+a 20,000-item vault, and the 50 row reads are the small part.
+
+Cause, from reading the code (not yet confirmed with a profiler): `Vault::list`
+(`core/crates/vault/src/query.rs`) calls `list_items` (`core/crates/storage/src/store.rs`), which
+runs `SELECT ... FROM item WHERE ... ORDER BY updated_hlc DESC, id` and loads **every** row into a
+`Vec`, and only then skips `offset` and stops at `limit`. There is no index on `updated_hlc`, so
+SQLite sorts all 20,000 rows on every call, and tombstones are included because a deleted item can
+become visible again (so the paging cannot simply move into SQL).
+
+Options, none done yet because they touch the schema and `vault`/`storage` semantics (a new
+index is an on-disk change: `format_version`, docs/05 and golden files): (1) an index on
+`item(updated_hlc DESC, id)`, which removes the sort; (2) page in SQL for the common case of no
+tombstones/tag/favorite filter, with the tombstone check kept for the rest; (3) cache the sorted id
+list in the unlocked session and invalidate on write. For the UI, calling `list` once per scroll
+page of 50 means every page pays this price, so (1) plus (2) is the likely fix. Search is not
+affected the same way (31-86 ms, one full-text query).
