@@ -21,15 +21,19 @@ as verified are **not verified**.
 | Windows clipboard hygiene, capture exclusion, lifecycle events (runner C++ `PlatformChannel`) | Manual checks run by the owner on a release build: copied secret kept out of Win+V history, auto-clear, capture blocked and unblocked, lock on workstation lock, lock on sleep. Reported as passing; **not itemized**, so per-check detail (for example exact clear timing) is not recorded | PR #36, owner |
 | System Save and Open dialogs (runner C++) | Save as file for the recovery key checked by the owner; reported as working. Contents of the saved file not inspected by Claude | PR #36, owner |
 
+| Windows Hello quick unlock in the app (PR #43 fix) | Owner turned it on in Settings and unlocked with Hello on a release build: **works**. Cancel, credential removal and reboot not reported, so not recorded as verified. Claude saw the resulting files: `quick-unlock.blob` 121 bytes and `quick-unlock.policy` 52 bytes next to `vault.db` | owner, local run |
+| Vault folder ACL on a real vault (PR #44 build) | `icacls` shows only `ANURAG-PC\snehi:(OI)(CI)(F)`; the folder and `vault.db` carry the NotContentIndexed attribute | local run (Claude) |
+| Portable zip and unsigned MSIX (`tools/package/package-windows.ps1`) | Zip 16.5 MB and MSIX 16.5 MB, checksums in `SHA256SUMS.txt`; the extracted zip runs from a fresh folder (title "AryaVault"). The MSIX was **built** (`makeappx` succeeded) but **not installed or run** | local run (Claude) |
+
 The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was deleted afterwards.
 
 ## Not verified yet (L01 goals still open)
 
-- Windows Hello quick unlock: spike S4 showed deterministic signatures across processes and (2026-10-13) a fresh Hello prompt on each of 5 signatures; reboot persistence and the failure paths (cancel, Hello not set up, credential deleted) are not verified. The provider is not written yet (spec change merged in PR #35).
+- Windows Hello: the reboot requirement of the policy (password required after a reboot), cancelling the prompt, a removed or reset credential and "Hello not set up" are not verified. The app shows one message for every quick-unlock failure.
 - Print on Windows (the recovery sheet's Print button still reports "unavailable").
 - PrintScreen and Teams/Zoom share results for capture exclusion, and the cloud-clipboard check from spike S5.
 - Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
-- Installer layout, unsigned MSIX, portable zip; DLL search-path hijack test.
+- Installing and running the MSIX (and what uninstalling does to the vault data); a DLL search-path hijack test; code signing.
 - Disk scan with canary secrets over `%LOCALAPPDATA%`, temp and crash-dump folders; the scan above looked at file headers only, not at the text of the owner's items.
 - 20,000-item scroll and search, cold start time, memory use on a real vault.
 - `flutter test integration_test -d windows`.
