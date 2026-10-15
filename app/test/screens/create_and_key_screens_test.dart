@@ -233,6 +233,16 @@ void main() {
       expect(textOf(groups.first), findsOneWidget);
     });
 
+    testWidgets('no Print button where the platform cannot print', (
+      WidgetTester tester,
+    ) async {
+      final Services services = Services()..printer.available = false;
+      await pumpApp(tester, services: services);
+      await createVaultViaUi(tester);
+      expect(find.text(l10n.recoveryPrint), findsNothing);
+      expect(find.text(l10n.recoverySave), findsOneWidget);
+    });
+
     testWidgets('Print sends the sheet through PrintService', (
       WidgetTester tester,
     ) async {

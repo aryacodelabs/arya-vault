@@ -140,11 +140,12 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
           spacing: tokens.gap,
           runSpacing: tokens.gap / 2,
           children: <Widget>[
-            OutlinedButton.icon(
-              onPressed: () => _print(key),
-              icon: const Icon(Icons.print),
-              label: Text(l10n.recoveryPrint),
-            ),
+            if (ref.watch(printServiceProvider).isAvailable)
+              OutlinedButton.icon(
+                onPressed: () => _print(key),
+                icon: const Icon(Icons.print),
+                label: Text(l10n.recoveryPrint),
+              ),
             OutlinedButton.icon(
               onPressed: () => _save(key),
               icon: const Icon(Icons.save_alt),
