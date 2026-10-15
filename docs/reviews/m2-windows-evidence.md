@@ -162,3 +162,20 @@ The 16 ms bar for a page of 50 is met, but the last page (a deep OFFSET still wa
 19,950 entries) is close to it. Scrolling an infinite list reaches deep offsets only at the very
 end; a keyset cursor (`updated_hlc, id` of the last row) would remove that, and is not done.
 Search and `item_count` were not changed (search 56-60 ms in this run, `item_count` 125 ms).
+
+## Keyset cursor (2026-10-15)
+
+`list` now also pages by cursor (docs/14 section 4.2.1, `API_VERSION` 4; the app's item list uses it).
+Same machine and bench, 20,000 items, page of 50:
+
+| Page | Offset | Cursor |
+|---|---|---|
+| first | 3.4 ms | 3.4 ms |
+| 100th row from the end (deep) | 13.3 ms | 3.7 ms |
+
+(Absolute numbers are a little faster than the earlier table because the machine was quieter.)
+The cost of a page no longer grows with how far down the list it is. Search still pages by offset.
+Real-core contract suite, ffi tests (walk equals the list for page sizes 1 to 200; misuse is
+`validation` with `page.offset` / `page.after`, no echo of the input), vault tests (walk equals
+the list for every filter, a cursor survives an edit of its own row), a fuzz target
+`fuzz_list_cursor` (only compiled here; not run for long).

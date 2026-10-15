@@ -2067,3 +2067,110 @@ proptest! {
         prop_assert_eq!(listed, engine::is_visible(&regs));
     }
 }
+
+// ------------------------------------------------------------------ keyset cursor (docs/14 4.2.1)
+
+/// Walks the list with `list_after`, `limit` rows at a time.
+fn walk_with_cursor(v: &mut Vault, filter: &ListFilter, limit: usize) -> Vec<Id> {
+    let mut out = Vec::new();
+    let mut after: Option<ListCursor> = None;
+    loop {
+        let page = v
+            .list_after(filter, Page { offset: 0, limit }, after)
+            .unwrap();
+        if page.is_empty() {
+            return out;
+        }
+        after = page.last().map(ItemSummary::cursor);
+        out.extend(page.into_iter().map(|s| s.id));
+    }
+}
+
+#[test]
+fn cursor_paging_walks_exactly_the_list_for_every_page_size_and_filter() {
+    let mut e = env();
+    let v = &mut e.v;
+    let folder = v.create_folder("Work", None).unwrap();
+    let mut ids = Vec::new();
+    for n in 0..37 {
+        // Several items share a millisecond, so the id tie-break is exercised.
+        if n % 4 == 0 {
+            e.clock.advance(1_000);
+        }
+        let id = login(v, &format!("Item {n:02}"));
+        if n % 3 == 0 {
+            v.move_to_folder(&id, Some(folder)).unwrap();
+        }
+        if n % 5 == 0 {
+            v.add_tag(&id, "red").unwrap();
+        }
+        if n % 7 == 0 {
+            v.toggle_favorite(&id).unwrap();
+        }
+        ids.push(id);
+    }
+    for &i in &[2usize, 9, 20] {
+        e.clock.advance(1_000);
+        v.delete_item(&ids[i]).unwrap();
+    }
+    let filters = [
+        ListFilter::default(),
+        ListFilter {
+            folder_id: Some(folder),
+            ..Default::default()
+        },
+        ListFilter {
+            tag: Some("red".into()),
+            ..Default::default()
+        },
+        ListFilter {
+            favorites_only: true,
+            ..Default::default()
+        },
+    ];
+    for filter in &filters {
+        let want = paged_ids(v, filter, 0, usize::MAX);
+        assert!(!want.is_empty());
+        for limit in [1usize, 2, 3, 7, 50] {
+            assert_eq!(
+                walk_with_cursor(v, filter, limit),
+                want,
+                "limit {limit}, filter {filter:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_cursor_names_a_position_not_a_row() {
+    let mut e = env();
+    let v = &mut e.v;
+    let mut ids = Vec::new();
+    for n in 0..9 {
+        e.clock.advance(1_000);
+        ids.push(login(v, &format!("Item {n}")));
+    }
+    let first = v
+        .list_after(
+            &ListFilter::default(),
+            Page {
+                offset: 0,
+                limit: 4,
+            },
+            None,
+        )
+        .unwrap();
+    let cursor = first.last().unwrap().cursor();
+    // The row the cursor names is edited (it moves to the top) and another one is deleted.
+    e.clock.advance(1_000);
+    v.set_field(&first.last().unwrap().id, StdField::Notes, "edited")
+        .unwrap();
+    v.delete_item(&first[0].id).unwrap();
+    let rest = v
+        .list_after(&ListFilter::default(), Page::ALL, Some(cursor))
+        .unwrap();
+    // Everything that was after the old position is still there exactly once; the edited row
+    // is not repeated (it now sits before the position).
+    let want: Vec<Id> = ids.iter().rev().skip(4).copied().collect();
+    assert_eq!(rest.iter().map(|s| s.id).collect::<Vec<_>>(), want);
+}

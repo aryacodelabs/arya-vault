@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use arya_vault_storage::{Id, ItemFilter, Store};
 
+use crate::cursor::ListCursor;
 use crate::engine::{self, Regs};
 use crate::error::Result;
 use crate::hlc::Hlc;
@@ -85,6 +86,20 @@ impl Vault {
     /// # Errors
     /// Storage errors.
     pub fn list(&mut self, filter: &ListFilter, page: Page) -> Result<Vec<ItemSummary>> {
+        self.list_after(filter, page, None)
+    }
+
+    /// [`list`](Self::list) starting strictly after `after` in the list order (docs/14 section
+    /// 4.2.1); `page.offset` counts from there. The cost does not grow with the position.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn list_after(
+        &mut self,
+        filter: &ListFilter,
+        page: Page,
+        after: Option<ListCursor>,
+    ) -> Result<Vec<ItemSummary>> {
         self.db.with_read(|tx| {
             // Only type/folder filters: one index range read of exactly the page (docs/05
             // section 5.1). Tag and favorites filters need the bulk field scans and page here.
@@ -93,6 +108,7 @@ impl Vault {
                 let rows = tx.list_visible_items(
                     filter.item_type.map(ItemType::as_str),
                     filter.folder_id,
+                    after.map(|c| (c.hlc, c.id)),
                     page.offset,
                     page.limit,
                 )?;
@@ -143,6 +159,9 @@ impl Vault {
                 };
                 if !row.visible {
                     continue;
+                }
+                if !paged_in_sql && after.is_some_and(|c| !c.is_before(row.updated_hlc, &row.id)) {
+                    continue; // rows up to and including the cursor are not in this page
                 }
                 if filter.favorites_only && !favorites.contains(&row.id) {
                     continue; // favorites_only forces the bulk path

@@ -256,6 +256,7 @@ pub(crate) fn summary_of(view: &cv::ItemView, deleted: bool) -> ItemSummary {
         folder_id: s.folder_id.as_ref().map(hex_id),
         tags: view.tags.clone(),
         updated_at: hlc_ms(s.updated),
+        cursor: s.cursor().encode(),
         has_totp: view.secret_fields.contains(&cv::StdField::TotpSeed),
         deleted,
     }

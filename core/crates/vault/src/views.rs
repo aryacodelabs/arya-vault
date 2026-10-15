@@ -93,6 +93,17 @@ pub struct ListFilter {
     pub favorites_only: bool,
 }
 
+impl ItemSummary {
+    /// This row's position in the list order, for keyset paging (docs/14 section 4.2.1).
+    #[must_use]
+    pub fn cursor(&self) -> crate::ListCursor {
+        crate::ListCursor {
+            hlc: self.updated.to_i64(),
+            id: self.id,
+        }
+    }
+}
+
 /// Pagination for lists.
 #[derive(Debug, Clone, Copy)]
 pub struct Page {

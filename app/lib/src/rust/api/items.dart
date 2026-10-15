@@ -8,7 +8,7 @@ import 'dto.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `check_page`, `core_filter`, `create_in`, `find_version`, `full_view`, `has_other_versions`, `id_of`, `list_in`, `matches_filter`, `scrub`, `set_fields_in`, `summarize_rows`, `summarize`, `versions_of`
+// These functions are ignored because they are not marked as `pub`: `check_page`, `core_filter`, `create_in`, `cursor_of`, `find_version`, `full_view`, `has_other_versions`, `id_of`, `list_in`, `matches_filter`, `scrub`, `set_fields_in`, `summarize_rows`, `summarize`, `versions_of`
 
 /// `list(ListFilter, Page)`.
 ///

@@ -254,6 +254,8 @@ pub struct ItemSummary {
     pub tags: Vec<String>,
     /// Last change, ms since the Unix epoch.
     pub updated_at: i64,
+    /// Opaque position of this row in the list order, for `Page.after` (docs/14 section 4.2.1).
+    pub cursor: String,
     /// A TOTP seed is set.
     pub has_totp: bool,
     /// The item is in the trash.
@@ -383,13 +385,16 @@ pub struct ListFilter {
     pub include_trash: bool,
 }
 
-/// `Page { offset, limit }`; `limit` is at most [`MAX_PAGE_LIMIT`](crate::MAX_PAGE_LIMIT).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// `Page { offset, limit, after }`; `limit` is at most [`MAX_PAGE_LIMIT`](crate::MAX_PAGE_LIMIT).
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Page {
-    /// Rows to skip.
+    /// Rows to skip. Must be 0 when `after` is set.
     pub offset: u32,
     /// Rows to return.
     pub limit: u32,
+    /// `list` only (docs/14 section 4.2.1): rows strictly after the position of this
+    /// [`ItemSummary::cursor`].
+    pub after: Option<String>,
 }
 
 /// `SearchQuery`.
