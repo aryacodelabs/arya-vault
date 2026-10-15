@@ -216,15 +216,7 @@ pub fn search(query: SearchQuery) -> Result<Vec<ItemSummary>, AppError> {
 /// # Errors
 /// `locked`.
 pub fn item_count() -> Result<u64, AppError> {
-    host::call(|h| {
-        h.vault(|v| {
-            let all = cv::Page {
-                offset: 0,
-                limit: usize::MAX,
-            };
-            Ok::<_, AppError>(v.list(&cv::ListFilter::default(), all)?.len() as u64)
-        })
-    })
+    host::call(|h| h.vault(|v| Ok::<_, AppError>(v.visible_item_count()?)))
 }
 
 /// `getItem`: everything about the item except its secrets.

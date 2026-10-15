@@ -2174,3 +2174,54 @@ fn a_cursor_names_a_position_not_a_row() {
     let want: Vec<Id> = ids.iter().rev().skip(4).copied().collect();
     assert_eq!(rest.iter().map(|s| s.id).collect::<Vec<_>>(), want);
 }
+
+#[test]
+fn visible_item_count_and_trash_follow_the_visible_column() {
+    let mut e = env();
+    let v = &mut e.v;
+    let mut ids = Vec::new();
+    for n in 0..10 {
+        e.clock.advance(1_000);
+        ids.push(login(v, &format!("Item {n}")));
+    }
+    assert_eq!(v.visible_item_count().unwrap(), 10);
+    for &i in &[1usize, 3, 5] {
+        e.clock.advance(1_000);
+        v.delete_item(&ids[i]).unwrap();
+    }
+    assert_eq!(v.visible_item_count().unwrap(), 7);
+    assert_eq!(v.list_trash().unwrap().len(), 3);
+    // restore one, purge one, revive one with a late remote edit
+    v.restore_item(&ids[1]).unwrap();
+    v.purge_item(&ids[3]).unwrap();
+    let del = Hlc::from_i64(
+        v.db.with_read(|tx| tx.get_item(&ids[5]))
+            .unwrap()
+            .unwrap()
+            .deleted_hlc
+            .unwrap(),
+    )
+    .unwrap();
+    remote(
+        v,
+        &ids[5],
+        "notes",
+        rtext("late"),
+        h(del.pt() + 9, 0),
+        0xC3,
+        None,
+    );
+    assert_eq!(
+        v.visible_item_count().unwrap(),
+        9,
+        "restored and revived items count"
+    );
+    let trash = v.list_trash().unwrap();
+    assert_eq!(trash.len(), 1);
+    assert_eq!(trash[0].summary.id, ids[3]);
+    assert!(trash[0].purged);
+    assert_eq!(
+        v.visible_item_count().unwrap() as usize,
+        v.list(&ListFilter::default(), Page::ALL).unwrap().len()
+    );
+}
