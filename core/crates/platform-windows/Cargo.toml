@@ -16,7 +16,7 @@ zeroize = "1.9.1"
 # WinRT bindings for KeyCredentialManager (Windows Hello). Windows only; on other systems the
 # crate holds just the platform-independent sealing logic, which is tested on every OS.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Foundation", "Security_Credentials", "Security_Cryptography", "Storage_Streams", "Win32_System_SystemInformation"] }
+windows = { version = "0.62", features = ["Foundation", "Security_Credentials", "Security_Cryptography", "Storage_Streams", "Win32_System_SystemInformation"] }
 
 # The workspace lints, except unsafe_code is `deny` (the workspace says `forbid`, which cannot be
 # relaxed per item) so that the one call of GetTickCount64 in windows_hello.rs can carry a
