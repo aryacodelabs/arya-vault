@@ -161,6 +161,8 @@
   "errCorruptVault": "The vault data failed an integrity check. It was not opened.",
   "errUnsupportedFormat": "This vault was made by a newer version of AryaVault. Update the app to open it.",
   "errQuickUnlockUnavailable": "Quick unlock isn't available right now. Use your master password.",
+  "errQuickUnlockCancelled": "Quick unlock was cancelled.",
+  "errQuickUnlockInvalidated": "Quick unlock was turned off because your device sign-in changed. Use your master password, then turn it on again in Settings.",
   "errAlreadyExists": "A vault already exists here.",
   "errIo": "Couldn't read or write the vault files.",
   "errBusy": "Too many attempts. Wait a moment, then try again.",

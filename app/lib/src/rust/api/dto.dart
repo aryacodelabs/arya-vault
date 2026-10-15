@@ -88,6 +88,12 @@ enum AppErrorCode {
   /// Quick unlock cannot be used; fall back to the password.
   quickUnlockUnavailable,
 
+  /// The user dismissed the platform prompt: stay on the lock screen, show nothing.
+  quickUnlockCancelled,
+
+  /// The platform key is gone or changed; quick unlock was turned off.
+  quickUnlockInvalidated,
+
   /// The target already exists.
   alreadyExists,
 

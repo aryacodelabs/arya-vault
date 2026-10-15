@@ -164,6 +164,52 @@ void main() {
       expect(textOf(l10n.homeUnlockedMessage), findsOneWidget);
     });
 
+    testWidgets(
+      'cancelling the Hello prompt shows nothing and keeps quick unlock',
+      (WidgetTester tester) async {
+        final FakeVaultApi api = await lockedVault(
+          quick: kHello,
+          enableQuick: true,
+        );
+        api.quickUnlockFailsWith = AppErrorCode.quickUnlockCancelled;
+        await pumpApp(tester, api: api);
+        final Finder quick = find.text(
+          l10n.lockQuick(l10n.quickKindWindowsHello),
+        );
+        await tapOn(tester, quick);
+        expect(find.byType(ErrorText), findsNothing);
+        expect(textOf(l10n.lockTitle), findsOneWidget);
+        expect(quick, findsOneWidget, reason: 'quick unlock stays on');
+        await tapOn(tester, quick);
+        expect(textOf(l10n.homeUnlockedMessage), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'an invalidated Hello credential says quick unlock was turned off',
+      (WidgetTester tester) async {
+        final FakeVaultApi api = await lockedVault(
+          quick: kHello,
+          enableQuick: true,
+        );
+        api.quickUnlockFailsWith = AppErrorCode.quickUnlockInvalidated;
+        await pumpApp(tester, api: api);
+        await tapOn(
+          tester,
+          find.text(l10n.lockQuick(l10n.quickKindWindowsHello)),
+        );
+        expect(textOf(l10n.errQuickUnlockInvalidated), findsOneWidget);
+        expect(
+          find.text(l10n.lockQuick(l10n.quickKindWindowsHello)),
+          findsNothing,
+          reason: 'the button goes away with the setting',
+        );
+        await typeInto(tester, l10n.masterPasswordLabel, kPassword);
+        await tapOn(tester, buttonText(l10n.lockSubmit));
+        expect(textOf(l10n.homeUnlockedMessage), findsOneWidget);
+      },
+    );
+
     testWidgets('"Use recovery key" opens the recover flow', (
       WidgetTester tester,
     ) async {

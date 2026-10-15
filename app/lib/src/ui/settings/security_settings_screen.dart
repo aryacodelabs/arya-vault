@@ -352,7 +352,9 @@ class _QuickUnlockTile extends ConsumerWidget {
           return null;
         } on AppError catch (e) {
           handleLockedWidget(ref, e);
-          if (e.code == AppErrorCode.quickUnlockUnavailable) {
+          if (e.code == AppErrorCode.quickUnlockCancelled) return null;
+          if (e.code == AppErrorCode.quickUnlockUnavailable ||
+              e.code == AppErrorCode.quickUnlockInvalidated) {
             m.showSnackBar(SnackBar(content: Text(errorMessage(l10n, e))));
             return null;
           }

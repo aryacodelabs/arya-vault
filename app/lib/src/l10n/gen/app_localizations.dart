@@ -772,6 +772,18 @@ abstract class AppLocalizations {
   /// **'Quick unlock isn\'t available right now. Use your master password.'**
   String get errQuickUnlockUnavailable;
 
+  /// No description provided for @errQuickUnlockCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick unlock was cancelled.'**
+  String get errQuickUnlockCancelled;
+
+  /// No description provided for @errQuickUnlockInvalidated.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick unlock was turned off because your device sign-in changed. Use your master password, then turn it on again in Settings.'**
+  String get errQuickUnlockInvalidated;
+
   /// No description provided for @errAlreadyExists.
   ///
   /// In en, this message translates to:

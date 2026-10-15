@@ -35,6 +35,10 @@ pub enum AppErrorCode {
     UnsupportedFormat,
     /// Quick unlock cannot be used now; fall back to the master password.
     QuickUnlockUnavailable,
+    /// The user dismissed the platform prompt; not an error to show (docs/14 section 7.1).
+    QuickUnlockCancelled,
+    /// The platform key is gone or changed and quick unlock was turned off (docs/14 section 7.1).
+    QuickUnlockInvalidated,
     /// The target already exists.
     AlreadyExists,
     /// Filesystem failure.
@@ -60,6 +64,8 @@ impl AppErrorCode {
             Self::CorruptVault => "corruptVault",
             Self::UnsupportedFormat => "unsupportedFormat",
             Self::QuickUnlockUnavailable => "quickUnlockUnavailable",
+            Self::QuickUnlockCancelled => "quickUnlockCancelled",
+            Self::QuickUnlockInvalidated => "quickUnlockInvalidated",
             Self::AlreadyExists => "alreadyExists",
             Self::Io => "io",
             Self::Busy => "busy",
@@ -214,7 +220,13 @@ impl SessionError {
             Self::WeakPassword(_) => AppErrorCode::WeakPassword,
             // docs/14 has no code for a running delay; see "Spec questions" in the A01 PR.
             Self::Backoff { .. } => AppErrorCode::Busy,
-            Self::QuickUnlockUnavailable(_) => AppErrorCode::QuickUnlockUnavailable,
+            Self::QuickUnlockUnavailable(d) => match d {
+                QuickUnlockDenied::Cancelled => AppErrorCode::QuickUnlockCancelled,
+                QuickUnlockDenied::Invalidated | QuickUnlockDenied::BlobRejected => {
+                    AppErrorCode::QuickUnlockInvalidated
+                }
+                _ => AppErrorCode::QuickUnlockUnavailable,
+            },
             Self::CorruptVault(_) => AppErrorCode::CorruptVault,
             Self::UnsupportedFormat { .. } => AppErrorCode::UnsupportedFormat,
             Self::Storage(s) => storage_code(s),
@@ -274,6 +286,26 @@ mod tests {
             (SessionError::RecoveryKeyMalformed, "recoveryKeyMalformed"),
             (SessionError::WeakPassword(vec!["x".into()]), "weakPassword"),
             (SessionError::Backoff { retry_after_ms: 5 }, "busy"),
+            (
+                SessionError::QuickUnlockUnavailable(QuickUnlockDenied::Cancelled),
+                "quickUnlockCancelled",
+            ),
+            (
+                SessionError::QuickUnlockUnavailable(QuickUnlockDenied::Invalidated),
+                "quickUnlockInvalidated",
+            ),
+            (
+                SessionError::QuickUnlockUnavailable(QuickUnlockDenied::BlobRejected),
+                "quickUnlockInvalidated",
+            ),
+            (
+                SessionError::QuickUnlockUnavailable(QuickUnlockDenied::Failed),
+                "quickUnlockUnavailable",
+            ),
+            (
+                SessionError::QuickUnlockUnavailable(QuickUnlockDenied::TooManyFailures),
+                "quickUnlockUnavailable",
+            ),
             (SessionError::CorruptVault("x"), "corruptVault"),
             (
                 SessionError::QuickUnlockUnavailable(QuickUnlockDenied::Rebooted),
@@ -351,6 +383,8 @@ mod tests {
             (C::CorruptVault, "corruptVault"),
             (C::UnsupportedFormat, "unsupportedFormat"),
             (C::QuickUnlockUnavailable, "quickUnlockUnavailable"),
+            (C::QuickUnlockCancelled, "quickUnlockCancelled"),
+            (C::QuickUnlockInvalidated, "quickUnlockInvalidated"),
             (C::AlreadyExists, "alreadyExists"),
             (C::Io, "io"),
             (C::Busy, "busy"),

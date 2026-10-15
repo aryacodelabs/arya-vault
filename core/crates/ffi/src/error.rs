@@ -23,6 +23,8 @@ impl From<Core> for AppErrorCode {
             Core::CorruptVault => Self::CorruptVault,
             Core::UnsupportedFormat => Self::UnsupportedFormat,
             Core::QuickUnlockUnavailable => Self::QuickUnlockUnavailable,
+            Core::QuickUnlockCancelled => Self::QuickUnlockCancelled,
+            Core::QuickUnlockInvalidated => Self::QuickUnlockInvalidated,
             Core::AlreadyExists => Self::AlreadyExists,
             Core::Io => Self::Io,
             Core::Busy => Self::Busy,

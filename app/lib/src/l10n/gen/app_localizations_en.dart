@@ -385,6 +385,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Quick unlock isn\'t available right now. Use your master password.';
 
   @override
+  String get errQuickUnlockCancelled => 'Quick unlock was cancelled.';
+
+  @override
+  String get errQuickUnlockInvalidated =>
+      'Quick unlock was turned off because your device sign-in changed. Use your master password, then turn it on again in Settings.';
+
+  @override
   String get errAlreadyExists => 'A vault already exists here.';
 
   @override

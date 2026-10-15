@@ -2277,10 +2277,12 @@ impl SseDecode for crate::api::dto::AppErrorCode {
             7 => crate::api::dto::AppErrorCode::CorruptVault,
             8 => crate::api::dto::AppErrorCode::UnsupportedFormat,
             9 => crate::api::dto::AppErrorCode::QuickUnlockUnavailable,
-            10 => crate::api::dto::AppErrorCode::AlreadyExists,
-            11 => crate::api::dto::AppErrorCode::Io,
-            12 => crate::api::dto::AppErrorCode::Busy,
-            13 => crate::api::dto::AppErrorCode::Internal,
+            10 => crate::api::dto::AppErrorCode::QuickUnlockCancelled,
+            11 => crate::api::dto::AppErrorCode::QuickUnlockInvalidated,
+            12 => crate::api::dto::AppErrorCode::AlreadyExists,
+            13 => crate::api::dto::AppErrorCode::Io,
+            14 => crate::api::dto::AppErrorCode::Busy,
+            15 => crate::api::dto::AppErrorCode::Internal,
             _ => unreachable!("Invalid variant for AppErrorCode: {}", inner),
         };
     }
@@ -3469,10 +3471,12 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::AppErrorCode {
             Self::CorruptVault => 7.into_dart(),
             Self::UnsupportedFormat => 8.into_dart(),
             Self::QuickUnlockUnavailable => 9.into_dart(),
-            Self::AlreadyExists => 10.into_dart(),
-            Self::Io => 11.into_dart(),
-            Self::Busy => 12.into_dart(),
-            Self::Internal => 13.into_dart(),
+            Self::QuickUnlockCancelled => 10.into_dart(),
+            Self::QuickUnlockInvalidated => 11.into_dart(),
+            Self::AlreadyExists => 12.into_dart(),
+            Self::Io => 13.into_dart(),
+            Self::Busy => 14.into_dart(),
+            Self::Internal => 15.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -4381,10 +4385,12 @@ impl SseEncode for crate::api::dto::AppErrorCode {
                 crate::api::dto::AppErrorCode::CorruptVault => 7,
                 crate::api::dto::AppErrorCode::UnsupportedFormat => 8,
                 crate::api::dto::AppErrorCode::QuickUnlockUnavailable => 9,
-                crate::api::dto::AppErrorCode::AlreadyExists => 10,
-                crate::api::dto::AppErrorCode::Io => 11,
-                crate::api::dto::AppErrorCode::Busy => 12,
-                crate::api::dto::AppErrorCode::Internal => 13,
+                crate::api::dto::AppErrorCode::QuickUnlockCancelled => 10,
+                crate::api::dto::AppErrorCode::QuickUnlockInvalidated => 11,
+                crate::api::dto::AppErrorCode::AlreadyExists => 12,
+                crate::api::dto::AppErrorCode::Io => 13,
+                crate::api::dto::AppErrorCode::Busy => 14,
+                crate::api::dto::AppErrorCode::Internal => 15,
                 _ => {
                     unimplemented!("");
                 }
