@@ -150,7 +150,7 @@ dependencies = [
 name = "arya-vault-generator"
 version = "0.0.0"
 dependencies = [
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "proptest",
  "thiserror",
  "zeroize",

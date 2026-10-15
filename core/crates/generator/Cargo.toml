@@ -15,7 +15,7 @@ default = []
 deterministic-rng = []
 
 [dependencies]
-getrandom = "0.3"
+getrandom = "0.4"
 thiserror = "2"
 zeroize = "1"
 zxcvbn = { version = "3", default-features = false }
