@@ -25,7 +25,9 @@ Every call can throw `AppError { code: AppErrorCode, message: String, field: Str
 | `limitReached` | Field/item/size limit (doc 05 §10) |
 | `corruptVault` | Authentication or integrity failure of vault data; show diagnostic export option |
 | `unsupportedFormat` | Newer format than this app understands: "update required" mode |
-| `quickUnlockUnavailable` | Hardware/OS key missing, policy expired (72 h / reboot / failures) or invalidated; fall back to password |
+| `quickUnlockUnavailable` | Quick unlock cannot be used now: no provider, not enabled, policy expired (72 h / reboot / failures), clock moved back, or the provider failed; fall back to the password. Show "Use your master password" |
+| `quickUnlockCancelled` | The user dismissed the system prompt (Windows Hello, Touch ID, ...). **Not an error to the user**: stay on the lock screen with the password field focused; show no message |
+| `quickUnlockInvalidated` | The platform key is gone or was invalidated (biometric enrolment changed, Hello credential removed) or the stored data was rejected. Quick unlock has been **turned off**; show "Quick unlock was turned off because your device sign-in changed. Use your master password, then turn it on again in Settings" |
 | `alreadyExists` / `io` / `busy` / `internal` | Self-explanatory; `internal` carries an opaque code, no details |
 
 ## 3. Types (DTOs)
@@ -117,6 +119,17 @@ Core defines `trait QuickUnlockProvider { fn kind(); fn available(); fn seal(&se
 
 ## 7. Versioning
 `API_VERSION` constant in the ffi crate, exposed via `info()`; the Dart side asserts equality at startup (generated bindings and native library must match; a mismatch is a fatal developer error screen).
+
+### 7.1 Quick-unlock denial mapping (`API_VERSION` 3)
+`unlockQuick` maps the core's reason (`QuickUnlockDenied`, `core/crates/session/src/quick/mod.rs`) to a code; the `message` stays the secret-free text of the reason:
+
+| Core reason | Code |
+|---|---|
+| `Cancelled` | `quickUnlockCancelled` |
+| `Invalidated`, `BlobRejected` (quick unlock was disabled by the core) | `quickUnlockInvalidated` |
+| `NotEnabled`, `ProviderUnavailable`, `ProviderChanged`, `Rebooted`, `Expired`, `ClockRolledBack`, `TooManyFailures`, `Failed`, `LockRequested` | `quickUnlockUnavailable` (unchanged) |
+
+Adding two codes changes an exhaustive enum on the Dart side, so `API_VERSION` goes from 2 to 3 in the same change (ffi, generated bindings, `expectedApiVersion`). `status().quickUnlock.enabled` is already `false` after `quickUnlockInvalidated`, which is how the Settings switch shows off. The messages above are UI copy and live in the app's localisation, not in the core.
 
 ## 8. Open questions for the owner
 1. Is a single vault per install enough for v1? (Assumed yes: one default vault directory per user profile.)
