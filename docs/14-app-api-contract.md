@@ -59,7 +59,8 @@ PasswordOptions / PassphraseOptions / Strength / PolicyResult   // mirror core `
 HealthReport  { reused: [ReuseGroup{itemIds[]}], weak: [WeakPassword{itemId, score}], old: [OldPassword{itemId, ageDays}] }
 ImportPreview { format, itemCount, folderCount, duplicates, warnings[], skipped[ {reason} ] }
 AppSettings   { autoLockMinutes: int (1-60; no "never" in v1), lockOnSleep, lockOnScreenLock,
-                clipboardClearSeconds, blockScreenCapture, revealHideSeconds, vaultConfig: VaultConfig }
+                lockOnMinimize (default false), clipboardClearSeconds, blockScreenCapture,
+                revealHideSeconds, vaultConfig: VaultConfig }
 ```
 `ItemSummary`/`ItemView` never contain `password`, `totpSeed`, card number/cvv/pin or note body; those are fetched with `reveal`. `fields` in `ItemView` contains non-secret standard fields only (e.g. title, username, cardHolder, cardExpiry).
 
@@ -130,6 +131,11 @@ Core defines `trait QuickUnlockProvider { fn kind(); fn available(); fn seal(&se
 
 ## 7. Versioning
 `API_VERSION` constant in the ffi crate, exposed via `info()`; the Dart side asserts equality at startup (generated bindings and native library must match; a mismatch is a fatal developer error screen).
+
+### 7.2 `lockOnMinimize` (`API_VERSION` 5)
+`AppSettings` gains `lockOnMinimize: bool`, default **false**: lock the vault when the window is minimised. The app already reacts to the platform's minimise event; this is the stored switch for it (Settings > Security, next to "When the computer sleeps").
+
+Storage compatibility: the settings record keeps its length and `VERSION`; the flag takes the spare bit 3 of the existing flags byte (bits 0-2 are `lockOnSleep`, `lockOnScreenLock`, `blockScreenCapture`). A vault written before this change has bit 3 clear, so it reads as `false`; an older build ignores the bit. No migration. Not synced, not exported.
 
 ### 7.1 Quick-unlock denial mapping (`API_VERSION` 3)
 `unlockQuick` maps the core's reason (`QuickUnlockDenied`, `core/crates/session/src/quick/mod.rs`) to a code; the `message` stays the secret-free text of the reason:
