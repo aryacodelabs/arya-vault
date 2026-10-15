@@ -712,3 +712,50 @@ fn the_cursor_rejects_misuse_with_validation_and_the_field() {
         (AppErrorCode::Validation, Some("page.after".to_owned()))
     );
 }
+
+#[test]
+fn import_reports_never_carry_file_content() {
+    let _g = serial();
+    let _f = unlocked();
+    // Canary text in every place a report could be tempted to quote: names, values, folder
+    // names, unknown item types, broken rows.
+    let bitwarden = br#"{
+      "encrypted": false,
+      "folders": [
+        { "id": "f1", "name": "CANARY-folder\u0000bad" },
+        { "id": "f2", "name": "" },
+        { "name": "CANARY-folder-without-id" }
+      ],
+      "items": [
+        { "id": "a", "type": 99, "name": "CANARY-unknown-type-name", "notes": "CANARY-notes" },
+        { "id": "b", "type": 1, "name": "CANARY-login", "folderId": "missing-CANARY-folder",
+          "login": { "username": "CANARY-user", "password": "CANARY-pw",
+                     "uris": [ { "uri": "CANARY-not a url \u0007" } ], "totp": "CANARY-totp" },
+          "fields": [ { "name": "CANARY-label", "value": "CANARY-value", "type": 7 } ],
+          "attachments": [ { "fileName": "CANARY-file.bin" } ] },
+        "CANARY-a string where an item should be",
+        { "type": 1 }
+      ]
+    }"#;
+    let csv = "name,url,username,password,note\n\
+               CANARY-ok,https://x.test,CANARY-u,CANARY-p,CANARY-n\n\
+               CANARY-short-row\n\
+               \"CANARY-unterminated,quote\n\
+               a,b,c,d,e,f,CANARY-extra-column\n";
+
+    for (format, bytes) in [
+        (ImportFormat::BitwardenJson, bitwarden.to_vec()),
+        (ImportFormat::Csv, csv.as_bytes().to_vec()),
+    ] {
+        match transfer::import_preview(format, bytes) {
+            Ok(p) => {
+                let all = format!("{:?} {:?} {}", p.warnings, p.skipped, p.format);
+                assert!(!all.contains("CANARY"), "{format:?}: {all}");
+            }
+            Err(e) => {
+                let all = format!("{e:?} {e} {}", e.message);
+                assert!(!all.contains("CANARY"), "{format:?}: {all}");
+            }
+        }
+    }
+}
