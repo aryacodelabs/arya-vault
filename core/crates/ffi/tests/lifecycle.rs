@@ -288,3 +288,39 @@ fn quick_unlock_with_the_fake_provider() {
     lifecycle::unlock(pw(PASSWORD)).unwrap();
     lifecycle::quick_unlock_disable().unwrap();
 }
+
+#[test]
+fn quick_unlock_failures_carry_their_own_codes() {
+    use arya_vault_session::quick::fake::Behavior;
+    let _g = serial();
+    let _f = fresh();
+    let (provider, handle) = FakeProvider::new();
+    arya_vault_ffi::register_quick_unlock_provider(Box::new(provider)).unwrap();
+    lifecycle::unlock(pw(PASSWORD)).unwrap();
+    lifecycle::quick_unlock_enable().unwrap();
+
+    // The user closes the prompt: its own code, and quick unlock stays on.
+    lifecycle::lock().unwrap();
+    handle.script(&[Behavior::Cancel]);
+    assert_eq!(
+        code(lifecycle::unlock_quick()),
+        AppErrorCode::QuickUnlockCancelled
+    );
+    assert!(lifecycle::status().unwrap().quick_unlock.enabled);
+
+    // A plain failure stays the generic code.
+    handle.script(&[Behavior::Fail]);
+    assert_eq!(
+        code(lifecycle::unlock_quick()),
+        AppErrorCode::QuickUnlockUnavailable
+    );
+
+    // The platform key was invalidated: its own code, and the core turned quick unlock off.
+    handle.script(&[Behavior::Invalidate]);
+    assert_eq!(
+        code(lifecycle::unlock_quick()),
+        AppErrorCode::QuickUnlockInvalidated
+    );
+    assert!(!lifecycle::status().unwrap().quick_unlock.enabled);
+    lifecycle::unlock(pw(PASSWORD)).unwrap();
+}

@@ -332,9 +332,11 @@ fn quick_unlock_is_switched_off_by_a_rotation_and_a_stale_blob_cannot_come_back(
     // as if the process had died right after the commit, before the files were deleted
     fs::write(dir.join(BLOB_FILE), &stale_blob).unwrap();
     fs::write(dir.join(POLICY_FILE), &stale_policy).unwrap();
+    // The stale blob does not authenticate (BlobRejected): the core turns quick unlock off, which
+    // the app reports as "invalidated" (docs/14 section 7.1).
     assert_eq!(
         s.unlock_quick().unwrap_err().code().as_str(),
-        "quickUnlockUnavailable"
+        "quickUnlockInvalidated"
     );
     assert_eq!(
         s.state(),

@@ -27,8 +27,15 @@ enum AppErrorCode {
   /// The vault is newer than this app understands ("update required").
   unsupportedFormat,
 
-  /// Hardware/OS key missing, policy expired or invalidated; use the password.
+  /// Quick unlock cannot be used now (no provider, policy expired, provider failed); use the
+  /// password.
   quickUnlockUnavailable,
+
+  /// The user dismissed the system prompt: stay on the lock screen and show nothing.
+  quickUnlockCancelled,
+
+  /// The platform key is gone or changed; the core turned quick unlock off.
+  quickUnlockInvalidated,
 
   /// Something already exists (for example a vault in the target folder).
   alreadyExists,

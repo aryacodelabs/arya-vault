@@ -139,6 +139,10 @@ class FakeVaultApi implements VaultApi {
   /// Test hook: make `unlockQuick` fail with `quickUnlockUnavailable`.
   bool quickUnlockUsable = true;
 
+  /// Test hook: make the next `unlockQuick` fail with this code (`quickUnlockCancelled` keeps
+  /// quick unlock on; `quickUnlockInvalidated` turns it off, like the core does).
+  AppErrorCode? quickUnlockFailsWith;
+
   /// Test hook: the profile passed to the last `createVault`.
   KdfProfile? lastProfile;
 
@@ -398,6 +402,14 @@ class FakeVaultApi implements VaultApi {
   Future<void> unlockQuick() async {
     if (!_exists) {
       throw const AppError(AppErrorCode.notFound, 'there is no vault');
+    }
+    final AppErrorCode? forced = quickUnlockFailsWith;
+    if (_quick.enabled && forced != null) {
+      quickUnlockFailsWith = null;
+      if (forced == AppErrorCode.quickUnlockInvalidated) {
+        _quick = _quick.copyWith(enabled: false);
+      }
+      throw AppError(forced, 'quick unlock failed');
     }
     if (!_quick.enabled || !quickUnlockUsable) {
       throw const AppError(

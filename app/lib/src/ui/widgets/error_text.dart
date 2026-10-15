@@ -30,6 +30,9 @@ String errorMessage(
   AppErrorCode.corruptVault => l10n.errCorruptVault,
   AppErrorCode.unsupportedFormat => l10n.errUnsupportedFormat,
   AppErrorCode.quickUnlockUnavailable => l10n.errQuickUnlockUnavailable,
+  // Callers skip this one on the lock screen; the text is for any place that shows it anyway.
+  AppErrorCode.quickUnlockCancelled => l10n.errQuickUnlockCancelled,
+  AppErrorCode.quickUnlockInvalidated => l10n.errQuickUnlockInvalidated,
   AppErrorCode.alreadyExists => l10n.errAlreadyExists,
   AppErrorCode.io => l10n.errIo,
   AppErrorCode.busy => l10n.errBusy,

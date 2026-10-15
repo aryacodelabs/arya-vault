@@ -43,7 +43,8 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     try {
       await action();
     } on AppError catch (e) {
-      if (mounted) {
+      // The user closed the system prompt: nothing went wrong, so show nothing.
+      if (mounted && e.code != AppErrorCode.quickUnlockCancelled) {
         setState(() => _error = errorMessage(l10n, e));
       }
     } finally {

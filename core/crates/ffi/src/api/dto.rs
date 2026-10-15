@@ -33,6 +33,10 @@ pub enum AppErrorCode {
     UnsupportedFormat,
     /// Quick unlock cannot be used; fall back to the password.
     QuickUnlockUnavailable,
+    /// The user dismissed the platform prompt: stay on the lock screen, show nothing.
+    QuickUnlockCancelled,
+    /// The platform key is gone or changed; quick unlock was turned off.
+    QuickUnlockInvalidated,
     /// The target already exists.
     AlreadyExists,
     /// Filesystem failure.
