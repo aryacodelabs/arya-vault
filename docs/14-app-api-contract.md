@@ -43,14 +43,14 @@ ItemType      = login | note | card | identity
 StdField      = title | username | password | notes | body | totpSeed | cardHolder | cardNumber | cardExpiry
                 | cardCvv | cardPin | ... (exactly the core `StdField` set; see core/crates/vault/src/model.rs)
 
-ItemSummary   { id, type, title, subtitle(username/holder/first-line), favorite, folderId?, tags[], updatedAt,
+ItemSummary   { id, type, title, subtitle(username/holder/first-line), favorite, folderId?, tags[], updatedAt, cursor,
                 hasTotp: bool, deleted: bool }                                   // NO secrets
 ItemView      { id, type, title, folderId?, favorite, tags[], urls[UrlView{id,url}], custom[CustomView{id,label,
                 kind: text|hidden|url|date, valueIfNotHidden?}], fields: Map<StdField,String?> (non-secret ones
                 only), secretFieldsPresent: Set<StdField>, createdAt, updatedAt, otherVersions: bool }
 NewItem       { type, title, fields: Map<StdField,String>, urls[], tags[], folderId?, custom[...] }
 ListFilter    { types?, folderId?, tag?, favoritesOnly, includeTrash }
-Page          { offset, limit }                          // limit <= 200
+Page          { offset, limit, after: Cursor? }          // limit <= 200; Cursor = opaque String (section 4.2.1)
 SearchQuery   { text, filter: ListFilter, page: Page }
 Folder        { id, name, parentId? }
 TrashEntry    { summary: ItemSummary, deletedAt, purgesAt }
@@ -90,6 +90,17 @@ AppSettings   { autoLockMinutes: int (1-60; no "never" in v1), lockOnSleep, lock
 `deleteItem(id)` (-> trash) · `restoreItem(id)` · `purgeItem(id)` · `listTrash()` · `emptyTrash()` · `purgeExpired()` ·
 `history(id, StdField) -> List<VersionInfo>` · `revealVersion(id, StdField, hlcMs) -> Uint8List?` · `restoreVersion(id, StdField, hlcMs)` ·
 `createFolder/renameFolder/deleteFolder/listFolders`.
+
+### 4.2.1 List cursor (`API_VERSION` 4)
+`offset` paging re-reads and skips every earlier row on each call, and it skips or repeats rows when the list changes between pages. `list` therefore also accepts a **keyset cursor**:
+
+- Every `ItemSummary` carries `cursor`: an **opaque** string naming that row's position in the list order (`updatedAt` descending, then `id`). The app must not parse it, store it across sessions, or compare it; it is only handed back.
+- `Page.after = c` returns the rows **strictly after** the position `c`, at most `limit`, in the same order. When `after` is set, `offset` **must be 0**, else `validation` (`field = "page.offset"`).
+- A cursor names a *position*, not a row: it still works if that item has since been edited, moved or deleted (rows that moved are simply listed at their new position), so the pages never repeat or skip a row that did not change.
+- A malformed or foreign cursor is `validation` (`field = "page.after"`); it never panics and never leaks. A cursor from one filter is meaningful for another filter (it is only a position), but the app should use a cursor only with the filter that produced it.
+- `after` is accepted by `list` only. `search` ranks by relevance for small results, so it keeps `offset` and rejects `after` with `validation` (`field = "page.after"`); `list` with `includeTrash = true` rejects it too (the trash view is its own call, `listTrash`).
+- The cost of a page no longer depends on how far down the list it is. Measured with `offset` at 20,000 items: 4.9 ms for the first page, 14.8 ms for the last (`docs/reviews/m2-windows-evidence.md`); the cursor target is the first-page cost at any depth.
+- `offset` paging stays for callers that need random access (and for `search`).
 
 ### 4.3 Generator, strength, health
 `generatePassword(PasswordOptions) -> Uint8List` · `generatePassphrase(PassphraseOptions) -> Uint8List` ·
