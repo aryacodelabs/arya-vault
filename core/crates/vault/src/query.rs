@@ -86,11 +86,25 @@ impl Vault {
     /// Storage errors.
     pub fn list(&mut self, filter: &ListFilter, page: Page) -> Result<Vec<ItemSummary>> {
         self.db.with_read(|tx| {
-            let rows = tx.list_items(ItemFilter {
-                include_deleted: true,
-                item_type: filter.item_type.map(ItemType::as_str),
-                folder_id: filter.folder_id,
-            })?;
+            // Only type/folder filters: one index range read of exactly the page (docs/05
+            // section 5.1). Tag and favorites filters need the bulk field scans and page here.
+            let paged_in_sql = !filter.favorites_only && filter.tag.is_none();
+            let (rows, offset) = if paged_in_sql {
+                let rows = tx.list_visible_items(
+                    filter.item_type.map(ItemType::as_str),
+                    filter.folder_id,
+                    page.offset,
+                    page.limit,
+                )?;
+                (rows, 0)
+            } else {
+                let rows = tx.list_items(ItemFilter {
+                    include_deleted: true,
+                    item_type: filter.item_type.map(ItemType::as_str),
+                    folder_id: filter.folder_id,
+                })?;
+                (rows, page.offset)
+            };
             let bulk =
                 filter.favorites_only || filter.tag.is_some() || page.limit > BULK_PAGE_THRESHOLD;
             let (titles, favorites): (HashMap<Id, String>, HashSet<Id>) = if bulk {
@@ -127,7 +141,7 @@ impl Vault {
                 let Some(item_type) = ItemType::parse(&row.item_type) else {
                     continue;
                 };
-                if row.deleted && !engine::is_visible(&engine::load_regs(tx, &row.id)?) {
+                if !row.visible {
                     continue;
                 }
                 if filter.favorites_only && !favorites.contains(&row.id) {
@@ -136,7 +150,7 @@ impl Vault {
                 if tagged.as_ref().is_some_and(|s| !s.contains(&row.id)) {
                     continue;
                 }
-                if skipped < page.offset {
+                if skipped < offset {
                     skipped += 1;
                     continue;
                 }

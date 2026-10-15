@@ -145,3 +145,21 @@ tombstones/tag/favorite filter, with the tombstone check kept for the rest; (3) 
 list in the unlocked session and invalidate on write. For the UI, calling `list` once per scroll
 page of 50 means every page pays this price, so (1) plus (2) is the likely fix. Search is not
 affected the same way (31-86 ms, one full-text query).
+
+## After schema 3: list paging measured (2026-10-15)
+
+Same machine and `l02_bench` as above, after migration v003 (`item.visible` plus the index
+`item_visible_updated`, docs/05 section 5.1). 20,000 items, optimised test profile.
+
+| `list` | Before | After |
+|---|---|---|
+| limit 1 | 119 ms | 0.3 ms |
+| limit 10 | 113 ms | 1.1 ms |
+| limit 50 (first page) | 75-122 ms | 4.9 ms |
+| limit 50 (last page, offset 19,950) | 73 ms | 14.8 ms |
+| limit 200 | 195 ms | 26 ms |
+
+The 16 ms bar for a page of 50 is met, but the last page (a deep OFFSET still walks the index past
+19,950 entries) is close to it. Scrolling an infinite list reaches deep offsets only at the very
+end; a keyset cursor (`updated_hlc, id` of the last row) would remove that, and is not done.
+Search and `item_count` were not changed (search 56-60 ms in this run, `item_count` 125 ms).

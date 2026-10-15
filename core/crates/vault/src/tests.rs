@@ -371,6 +371,7 @@ fn hard_item_limit() {
                     deleted: false,
                     deleted_hlc: None,
                     updated_hlc: 1,
+                    visible: true,
                 })?;
             }
             Ok(())
@@ -1900,4 +1901,169 @@ fn settings_round_trip_and_stay_in_their_namespace() {
     ));
     // The vault still opens: the setting did not touch `device_id`.
     assert_eq!(e.v.device_id(), [0xB2; 16]);
+}
+
+// ------------------------------------------------------------------ item.visible (docs/05 5.1)
+
+/// What `list` must return, computed from the registers alone (the rule of doc 06 section 5.2),
+/// newest first, ties by id.
+fn reference_list(v: &mut Vault, folder: Option<Id>) -> Vec<Id> {
+    let mut rows: Vec<(i64, Id)> =
+        v.db.with_read(|tx| -> Result<Vec<(i64, Id)>> {
+            let mut out = Vec::new();
+            for row in tx.list_items(arya_vault_storage::ItemFilter {
+                include_deleted: true,
+                ..Default::default()
+            })? {
+                let regs = engine::load_regs(tx, &row.id)?;
+                if engine::is_visible(&regs) && (folder.is_none() || row.folder_id == folder) {
+                    out.push((row.updated_hlc, row.id));
+                }
+            }
+            Ok(out)
+        })
+        .unwrap();
+    rows.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    rows.into_iter().map(|(_, id)| id).collect()
+}
+
+fn paged_ids(v: &mut Vault, filter: &ListFilter, offset: usize, limit: usize) -> Vec<Id> {
+    v.list(filter, Page { offset, limit })
+        .unwrap()
+        .into_iter()
+        .map(|s| s.id)
+        .collect()
+}
+
+/// Every stored `visible` equals the rule applied to the registers.
+fn assert_visible_column_matches_registers(v: &mut Vault) {
+    v.db.with_read(|tx| -> Result<()> {
+        for row in tx.list_items(arya_vault_storage::ItemFilter {
+            include_deleted: true,
+            ..Default::default()
+        })? {
+            let regs = engine::load_regs(tx, &row.id)?;
+            assert_eq!(
+                row.visible,
+                engine::is_visible(&regs),
+                "item.visible is out of step with the registers"
+            );
+        }
+        Ok(())
+    })
+    .unwrap();
+}
+
+#[test]
+fn visible_column_and_paged_list_follow_every_kind_of_write() {
+    let mut e = env();
+    let v = &mut e.v;
+    let folder = v.create_folder("Work", None).unwrap();
+    let mut ids = Vec::new();
+    for n in 0..24 {
+        e.clock.advance(1_000);
+        let id = login(v, &format!("Item {n:02}"));
+        if n % 3 == 0 {
+            v.move_to_folder(&id, Some(folder)).unwrap();
+        }
+        ids.push(id);
+    }
+    assert_visible_column_matches_registers(v);
+
+    // Delete a few (local), purge one, delete and restore one.
+    for &i in &[1usize, 5, 9, 13] {
+        e.clock.advance(1_000);
+        v.delete_item(&ids[i]).unwrap();
+    }
+    e.clock.advance(1_000);
+    v.delete_item(&ids[17]).unwrap();
+    v.restore_item(&ids[17]).unwrap();
+    v.purge_item(&ids[5]).unwrap();
+    assert_visible_column_matches_registers(v);
+
+    // A remote edit made after a deletion revives it; one made before does not.
+    let deleted = |v: &mut Vault, id: &Id| {
+        Hlc::from_i64(
+            v.db.with_read(|tx| tx.get_item(id))
+                .unwrap()
+                .unwrap()
+                .deleted_hlc
+                .unwrap(),
+        )
+        .unwrap()
+    };
+    let d1 = deleted(v, &ids[1]);
+    remote(
+        v,
+        &ids[1],
+        "notes",
+        rtext("late"),
+        h(d1.pt() + 5, 0),
+        0xC3,
+        None,
+    );
+    let d9 = deleted(v, &ids[9]);
+    remote(
+        v,
+        &ids[9],
+        "notes",
+        rtext("early"),
+        h(d9.pt() - 5, 0),
+        0xC3,
+        None,
+    );
+    assert_visible_column_matches_registers(v);
+    let revived = v.get_item(&ids[1]).is_ok();
+    assert!(revived, "the late edit revives the item");
+
+    // Equal timestamps: ties are ordered by id.
+    for n in 0..3 {
+        let id = login(v, &format!("Same time {n}"));
+        ids.push(id);
+    }
+    assert_visible_column_matches_registers(v);
+
+    for folder_filter in [None, Some(folder)] {
+        let filter = ListFilter {
+            folder_id: folder_filter,
+            ..Default::default()
+        };
+        let want = reference_list(v, folder_filter);
+        assert!(!want.is_empty());
+        for offset in 0..want.len() + 2 {
+            for limit in [0usize, 1, 2, 5, 7, 100] {
+                let got = paged_ids(v, &filter, offset, limit);
+                let expected: Vec<Id> = want.iter().skip(offset).take(limit).copied().collect();
+                assert_eq!(got, expected, "offset {offset} limit {limit}");
+            }
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(60))]
+
+    // Whatever mix of deletes, edits and arrival orders the registers end up in, the stored
+    // `visible` equals the rule, and the item is listed exactly when the rule says so.
+    #[test]
+    fn visible_column_equals_the_rule_for_any_arrival_order(ops in arb_ops(), seed in any::<u64>()) {
+        let n = ops.len();
+        let mut order: Vec<usize> = (0..n).collect();
+        let mut s = seed | 1;
+        for i in (1..n).rev() {
+            s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            order.swap(i, (s >> 33) as usize % (i + 1));
+        }
+        let mut e = env_with(0xEE);
+        let id = [0x77; 16];
+        remote(&mut e.v, &id, "type", rtext("login"), h(1, 0), 9, None);
+        for &i in &order {
+            let (k, val, hlc, dev, base) = to_remote(&ops[i]);
+            remote(&mut e.v, &id, &k, val, hlc, dev, base);
+            assert_visible_column_matches_registers(&mut e.v);
+        }
+        let listed = paged_ids(&mut e.v, &ListFilter::default(), 0, 10).contains(&id);
+        let regs = e.v.db.with_read(|tx| engine::load_regs(tx, &id)).unwrap();
+        prop_assert_eq!(listed, engine::is_visible(&regs));
+    }
 }

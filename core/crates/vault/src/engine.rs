@@ -134,6 +134,7 @@ pub(crate) fn apply_op(s: &impl Store, op: &Op, cfg: &VaultConfig) -> Result<()>
             deleted: false,
             deleted_hlc: None,
             updated_hlc: op.hlc.to_i64(),
+            visible: true,
         })?;
         fault::point()?;
     }
@@ -243,6 +244,7 @@ pub(crate) fn item_row(id: &Id, regs: &Regs) -> ItemRow {
         deleted: bool_of(regs, keys::DELETED),
         deleted_hlc: find(regs, keys::DELETED).map(|r| r.hlc.to_i64()),
         updated_hlc: regs.iter().map(|(_, r)| r.hlc.to_i64()).max().unwrap_or(0),
+        visible: is_visible(regs),
     }
 }
 
