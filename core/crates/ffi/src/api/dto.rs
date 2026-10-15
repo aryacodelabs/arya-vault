@@ -653,6 +653,8 @@ pub struct AppSettings {
     pub lock_on_sleep: bool,
     /// Lock when the screen locks.
     pub lock_on_screen_lock: bool,
+    /// Lock when the window is minimised (docs/14 section 7.2); off by default.
+    pub lock_on_minimize: bool,
     /// Clear the clipboard after this many seconds (5-120).
     pub clipboard_clear_seconds: u32,
     /// Block screen capture of vault screens.

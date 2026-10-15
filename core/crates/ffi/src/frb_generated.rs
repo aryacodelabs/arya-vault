@@ -2294,6 +2294,7 @@ impl SseDecode for crate::api::dto::AppSettings {
         let mut var_autoLockMinutes = <u32>::sse_decode(deserializer);
         let mut var_lockOnSleep = <bool>::sse_decode(deserializer);
         let mut var_lockOnScreenLock = <bool>::sse_decode(deserializer);
+        let mut var_lockOnMinimize = <bool>::sse_decode(deserializer);
         let mut var_clipboardClearSeconds = <u32>::sse_decode(deserializer);
         let mut var_blockScreenCapture = <bool>::sse_decode(deserializer);
         let mut var_revealHideSeconds = <u32>::sse_decode(deserializer);
@@ -2302,6 +2303,7 @@ impl SseDecode for crate::api::dto::AppSettings {
             auto_lock_minutes: var_autoLockMinutes,
             lock_on_sleep: var_lockOnSleep,
             lock_on_screen_lock: var_lockOnScreenLock,
+            lock_on_minimize: var_lockOnMinimize,
             clipboard_clear_seconds: var_clipboardClearSeconds,
             block_screen_capture: var_blockScreenCapture,
             reveal_hide_seconds: var_revealHideSeconds,
@@ -3500,6 +3502,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::AppSettings {
             self.auto_lock_minutes.into_into_dart().into_dart(),
             self.lock_on_sleep.into_into_dart().into_dart(),
             self.lock_on_screen_lock.into_into_dart().into_dart(),
+            self.lock_on_minimize.into_into_dart().into_dart(),
             self.clipboard_clear_seconds.into_into_dart().into_dart(),
             self.block_screen_capture.into_into_dart().into_dart(),
             self.reveal_hide_seconds.into_into_dart().into_dart(),
@@ -4412,6 +4415,7 @@ impl SseEncode for crate::api::dto::AppSettings {
         <u32>::sse_encode(self.auto_lock_minutes, serializer);
         <bool>::sse_encode(self.lock_on_sleep, serializer);
         <bool>::sse_encode(self.lock_on_screen_lock, serializer);
+        <bool>::sse_encode(self.lock_on_minimize, serializer);
         <u32>::sse_encode(self.clipboard_clear_seconds, serializer);
         <bool>::sse_encode(self.block_screen_capture, serializer);
         <u32>::sse_encode(self.reveal_hide_seconds, serializer);

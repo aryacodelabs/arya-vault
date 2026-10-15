@@ -1366,6 +1366,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get secLockOnScreenLock => 'When the screen locks';
 
   @override
+  String get secLockOnMinimize => 'When the window is minimised';
+
+  @override
   String get secLockOnSleep => 'When the computer sleeps';
 
   @override

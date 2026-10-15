@@ -275,8 +275,11 @@ void main() {
         autoLockMinutes: 15,
         lockOnSleep: false,
         lockOnScreenLock: true,
+        lockOnMinimize: true,
       ),
     );
+    expect(c.lockOnMinimize, isTrue);
+    expect(autoLockConfigFor(const AppSettings()).lockOnMinimize, isFalse);
     expect(c.timeout, const Duration(minutes: 15));
     expect(c.lockOnSleep, isFalse);
     expect(c.lockOnScreenLock, isTrue);

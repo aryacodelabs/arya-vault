@@ -28,6 +28,7 @@ impl Default for AppSettings {
             auto_lock_minutes: 5,
             lock_on_sleep: true,
             lock_on_screen_lock: true,
+            lock_on_minimize: false,
             clipboard_clear_seconds: 30,
             block_screen_capture: true,
             reveal_hide_seconds: 15,
@@ -70,7 +71,8 @@ impl AppSettings {
         out.push(
             u8::from(self.lock_on_sleep)
                 | u8::from(self.lock_on_screen_lock) << 1
-                | u8::from(self.block_screen_capture) << 2,
+                | u8::from(self.block_screen_capture) << 2
+                | u8::from(self.lock_on_minimize) << 3,
         );
         out.extend(self.clipboard_clear_seconds.to_le_bytes());
         out.extend(self.reveal_hide_seconds.to_le_bytes());
@@ -102,6 +104,7 @@ impl AppSettings {
             lock_on_sleep: flags & 1 != 0,
             lock_on_screen_lock: flags & 2 != 0,
             block_screen_capture: flags & 4 != 0,
+            lock_on_minimize: flags & 8 != 0,
             clipboard_clear_seconds: u32_at(6),
             reveal_hide_seconds: u32_at(10),
             vault_config: VaultConfigDto {
@@ -177,6 +180,30 @@ mod tests {
         assert_eq!(c.vault_config.trash_days, 1);
         assert_eq!(c.vault_config.tombstone_days, 30);
         assert_eq!(AppSettings::decode(&c.encode()), c);
+    }
+
+    #[test]
+    fn lock_on_minimize_uses_the_spare_flag_bit_and_old_records_read_false() {
+        assert!(!AppSettings::default().lock_on_minimize);
+        let on = AppSettings {
+            lock_on_minimize: true,
+            ..AppSettings::default()
+        };
+        let bytes = on.encode();
+        assert_eq!(bytes.len(), LEN, "the record keeps its length");
+        assert_eq!(bytes[0], VERSION, "and its version");
+        assert_eq!(bytes[5] & 8, 8);
+        assert!(AppSettings::decode(&bytes).lock_on_minimize);
+        // A record written before the field existed has bit 3 clear.
+        let mut old = AppSettings::default().encode();
+        old[5] &= 0b0111;
+        assert!(!AppSettings::decode(&old).lock_on_minimize);
+        // The other three flags are untouched by it.
+        let mut both = on.encode();
+        both[5] |= 0b0111;
+        let s = AppSettings::decode(&both);
+        assert!(s.lock_on_sleep && s.lock_on_screen_lock && s.block_screen_capture);
+        assert!(s.lock_on_minimize);
     }
 
     #[test]

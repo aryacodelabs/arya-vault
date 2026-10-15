@@ -84,9 +84,18 @@ void main() {
         tester,
         find.widgetWithText(SwitchListTile, l10n.secLockOnSleep),
       );
+      await tapOn(
+        tester,
+        find.widgetWithText(SwitchListTile, l10n.secLockOnMinimize),
+      );
       final AppSettings s = await api.getSettings();
       expect(s.lockOnScreenLock, isFalse);
       expect(s.lockOnSleep, isFalse);
+      expect(
+        s.lockOnMinimize,
+        isTrue,
+        reason: 'off by default, now switched on',
+      );
     });
 
     testWidgets('settings persist across leaving and reopening', (

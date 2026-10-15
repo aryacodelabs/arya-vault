@@ -1807,6 +1807,7 @@ class FakeVaultApi implements VaultApi {
       autoLockMinutes: settings.autoLockMinutes.clamp(1, 60),
       lockOnSleep: settings.lockOnSleep,
       lockOnScreenLock: settings.lockOnScreenLock,
+      lockOnMinimize: settings.lockOnMinimize,
       clipboardClearSeconds: settings.clipboardClearSeconds.clamp(5, 120),
       blockScreenCapture: settings.blockScreenCapture,
       revealHideSeconds: settings.revealHideSeconds.clamp(1, 15),

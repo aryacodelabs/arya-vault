@@ -487,6 +487,7 @@ class AppSettings {
     this.autoLockMinutes = 5,
     this.lockOnSleep = true,
     this.lockOnScreenLock = true,
+    this.lockOnMinimize = false,
     this.clipboardClearSeconds = 30,
     this.blockScreenCapture = true,
     this.revealHideSeconds = 15,
@@ -495,6 +496,7 @@ class AppSettings {
   final int autoLockMinutes;
   final bool lockOnSleep;
   final bool lockOnScreenLock;
+  final bool lockOnMinimize;
   final int clipboardClearSeconds;
   final bool blockScreenCapture;
   final int revealHideSeconds;
@@ -504,6 +506,7 @@ class AppSettings {
     int? autoLockMinutes,
     bool? lockOnSleep,
     bool? lockOnScreenLock,
+    bool? lockOnMinimize,
     int? clipboardClearSeconds,
     bool? blockScreenCapture,
     int? revealHideSeconds,
@@ -512,6 +515,7 @@ class AppSettings {
     autoLockMinutes: autoLockMinutes ?? this.autoLockMinutes,
     lockOnSleep: lockOnSleep ?? this.lockOnSleep,
     lockOnScreenLock: lockOnScreenLock ?? this.lockOnScreenLock,
+    lockOnMinimize: lockOnMinimize ?? this.lockOnMinimize,
     clipboardClearSeconds: clipboardClearSeconds ?? this.clipboardClearSeconds,
     blockScreenCapture: blockScreenCapture ?? this.blockScreenCapture,
     revealHideSeconds: revealHideSeconds ?? this.revealHideSeconds,

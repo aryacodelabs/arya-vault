@@ -2361,16 +2361,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return AppSettings(
       autoLockMinutes: dco_decode_u_32(arr[0]),
       lockOnSleep: dco_decode_bool(arr[1]),
       lockOnScreenLock: dco_decode_bool(arr[2]),
-      clipboardClearSeconds: dco_decode_u_32(arr[3]),
-      blockScreenCapture: dco_decode_bool(arr[4]),
-      revealHideSeconds: dco_decode_u_32(arr[5]),
-      vaultConfig: dco_decode_vault_config(arr[6]),
+      lockOnMinimize: dco_decode_bool(arr[3]),
+      clipboardClearSeconds: dco_decode_u_32(arr[4]),
+      blockScreenCapture: dco_decode_bool(arr[5]),
+      revealHideSeconds: dco_decode_u_32(arr[6]),
+      vaultConfig: dco_decode_vault_config(arr[7]),
     );
   }
 
@@ -3226,6 +3227,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_autoLockMinutes = sse_decode_u_32(deserializer);
     var var_lockOnSleep = sse_decode_bool(deserializer);
     var var_lockOnScreenLock = sse_decode_bool(deserializer);
+    var var_lockOnMinimize = sse_decode_bool(deserializer);
     var var_clipboardClearSeconds = sse_decode_u_32(deserializer);
     var var_blockScreenCapture = sse_decode_bool(deserializer);
     var var_revealHideSeconds = sse_decode_u_32(deserializer);
@@ -3234,6 +3236,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       autoLockMinutes: var_autoLockMinutes,
       lockOnSleep: var_lockOnSleep,
       lockOnScreenLock: var_lockOnScreenLock,
+      lockOnMinimize: var_lockOnMinimize,
       clipboardClearSeconds: var_clipboardClearSeconds,
       blockScreenCapture: var_blockScreenCapture,
       revealHideSeconds: var_revealHideSeconds,
@@ -4249,6 +4252,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.autoLockMinutes, serializer);
     sse_encode_bool(self.lockOnSleep, serializer);
     sse_encode_bool(self.lockOnScreenLock, serializer);
+    sse_encode_bool(self.lockOnMinimize, serializer);
     sse_encode_u_32(self.clipboardClearSeconds, serializer);
     sse_encode_bool(self.blockScreenCapture, serializer);
     sse_encode_u_32(self.revealHideSeconds, serializer);
