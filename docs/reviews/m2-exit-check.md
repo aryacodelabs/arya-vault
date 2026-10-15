@@ -146,7 +146,7 @@ Taken from the PR descriptions of A00-A04, B01-B03 and L01. None is silently res
 | B03 | If the clipboard fingerprint is null after our write, the manager clears unconditionally | Accepted; Windows now supplies the sequence number |
 | B03 | `windowMinimized`/`windowRestored` events exist; lock-on-minimise has **no settings UI** | Open |
 | B03 | docs/07 lists an "immediately" auto-lock; docs/14 allows 1-60 min only | Open |
-| B03 | Import warnings are shown as written, assumed secret-free | Open (needs a test) |
+| B03 | Import warnings are shown as written, assumed secret-free | **Tested** (`import_reports_never_carry_file_content`: hostile Bitwarden JSON and CSV with canaries in names, values, folder names and broken rows; no report or error contains them) |
 | B03 | Whether generator calls work while locked is unspecified (fake allows it) | Open |
 | L01 | Hello failures all show one message | **Resolved** in code (docs/14 section 7.1, `API_VERSION` 3, PR #60): cancel is silent, invalidated says quick unlock was turned off. Still only tested with the fake provider; two-maintainer review pending |
 | L01 | Print on Windows | Decided against: the spooler would keep a copy of the recovery key; the button is hidden (PR for `PrintService.isAvailable`) |
