@@ -755,6 +755,7 @@
     }
   },
   "secLockOnScreenLock": "When the screen locks",
+  "secLockOnMinimize": "When the window is minimised",
   "secLockOnSleep": "When the computer sleeps",
   "secAutoLockNote": "There is no \"never\": a vault left open is the biggest risk.",
   "secClipboardTitle": "Clipboard",

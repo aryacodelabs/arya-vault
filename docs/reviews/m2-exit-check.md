@@ -59,7 +59,7 @@ Per-check detail of the Windows work lives in `docs/reviews/m2-windows-evidence.
 | US-08 instant offline search | Verified for the core; UI not measured | Search 31-60 ms on 20,000 items (section 4). |
 | US-09 import CSV / Bitwarden JSON / KDBX; export | Partially verified | CSV, Bitwarden, AryaVault import/export verified in `vault` tests and the CLI e2e; **KDBX is not implemented** (deferred since M1). The export dialogs on Windows: save dialog checked by the owner for the recovery key only. |
 | US-13 change master password without re-encrypting | Verified | `sec_a05_change_password_without_the_recovery_key`, `sec_c12_*`. |
-| US-15 auto-lock on timeout, sleep, screen lock | Partially verified | Logic tests; owner checked lock on workstation lock and sleep (not itemised). App-switch/minimise: event exists, **no settings UI**. |
+| US-15 auto-lock on timeout, sleep, screen lock | Partially verified | Logic tests; owner checked lock on workstation lock and sleep (not itemised). Lock on minimise: switch added in Settings (docs/14 section 7.2, API v5; default off), tested with the fake and the settings record; not yet seen on a real minimise. |
 | Usability test, 5 users | **Not verified** | Item 1. |
 | SEC-A*, SEC-S*, SEC-H01-H03 on Windows | See section 5 | |
 
@@ -144,7 +144,7 @@ Taken from the PR descriptions of A00-A04, B01-B03 and L01. None is silently res
 | B03 | Export asks for the master password first (docs/14 says re-auth; the task prompt did not) | Accepted |
 | B03 | "View recovery key" cannot show it (never stored); offers regeneration | Accepted |
 | B03 | If the clipboard fingerprint is null after our write, the manager clears unconditionally | Accepted; Windows now supplies the sequence number |
-| B03 | `windowMinimized`/`windowRestored` events exist; lock-on-minimise has **no settings UI** | Open |
+| B03 | `windowMinimized`/`windowRestored` events exist; lock-on-minimise had no settings UI | **Resolved** in code (`lockOnMinimize`, docs/14 section 7.2, API v5); needs a manual check on Windows |
 | B03 | docs/07 lists an "immediately" auto-lock; docs/14 allows 1-60 min only | Open |
 | B03 | Import warnings are shown as written, assumed secret-free | **Tested** (`import_reports_never_carry_file_content`: hostile Bitwarden JSON and CSV with canaries in names, values, folder names and broken rows; no report or error contains them) |
 | B03 | Whether generator calls work while locked is unspecified (fake allows it) | Open |

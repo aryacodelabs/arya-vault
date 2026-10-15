@@ -42,6 +42,7 @@ AutoLockConfig autoLockConfigFor(AppSettings? s) => s == null
         timeout: Duration(minutes: s.autoLockMinutes),
         lockOnSleep: s.lockOnSleep,
         lockOnScreenLock: s.lockOnScreenLock,
+        lockOnMinimize: s.lockOnMinimize,
       );
 
 /// The auto-lock controller. `SecurityScope` arms it and feeds it input.

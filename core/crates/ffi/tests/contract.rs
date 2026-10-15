@@ -170,8 +170,8 @@ fn every_contract_name_occurs_in_docs_14_section_4() {
 }
 
 #[test]
-fn api_version_is_four() {
-    assert_eq!(arya_vault_ffi::API_VERSION, 4);
+fn api_version_is_five() {
+    assert_eq!(arya_vault_ffi::API_VERSION, 5);
 }
 
 /// Compile-time: adding a field to either type breaks these destructurings, which forces the

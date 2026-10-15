@@ -118,6 +118,9 @@ class AppSettings {
   /// Lock when the screen locks.
   final bool lockOnScreenLock;
 
+  /// Lock when the window is minimised (docs/14 section 7.2); off by default.
+  final bool lockOnMinimize;
+
   /// Clear the clipboard after this many seconds (5-120).
   final int clipboardClearSeconds;
 
@@ -134,6 +137,7 @@ class AppSettings {
     required this.autoLockMinutes,
     required this.lockOnSleep,
     required this.lockOnScreenLock,
+    required this.lockOnMinimize,
     required this.clipboardClearSeconds,
     required this.blockScreenCapture,
     required this.revealHideSeconds,
@@ -145,6 +149,7 @@ class AppSettings {
       autoLockMinutes.hashCode ^
       lockOnSleep.hashCode ^
       lockOnScreenLock.hashCode ^
+      lockOnMinimize.hashCode ^
       clipboardClearSeconds.hashCode ^
       blockScreenCapture.hashCode ^
       revealHideSeconds.hashCode ^
@@ -158,6 +163,7 @@ class AppSettings {
           autoLockMinutes == other.autoLockMinutes &&
           lockOnSleep == other.lockOnSleep &&
           lockOnScreenLock == other.lockOnScreenLock &&
+          lockOnMinimize == other.lockOnMinimize &&
           clipboardClearSeconds == other.clipboardClearSeconds &&
           blockScreenCapture == other.blockScreenCapture &&
           revealHideSeconds == other.revealHideSeconds &&

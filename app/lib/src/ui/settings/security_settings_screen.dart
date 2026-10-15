@@ -161,6 +161,13 @@ class _Body extends ConsumerWidget {
               onChanged: (bool v) =>
                   _save(context, ref, s.copyWith(lockOnSleep: v)),
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.secLockOnMinimize),
+              value: s.lockOnMinimize,
+              onChanged: (bool v) =>
+                  _save(context, ref, s.copyWith(lockOnMinimize: v)),
+            ),
           ],
         ),
         ToolSection(

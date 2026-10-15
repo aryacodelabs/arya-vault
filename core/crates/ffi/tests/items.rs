@@ -556,6 +556,7 @@ fn settings_are_clamped_persisted_and_apply_retention() {
         reveal_hide_seconds: 3_600,
         lock_on_sleep: false,
         block_screen_capture: false,
+        lock_on_minimize: true,
         vault_config: VaultConfig {
             trash_days: 0,
             ..d.vault_config
@@ -574,6 +575,10 @@ fn settings_are_clamped_persisted_and_apply_retention() {
         (1, 120, 15, 1)
     );
     assert!(!s.lock_on_sleep && !s.block_screen_capture && s.lock_on_screen_lock);
+    assert!(
+        s.lock_on_minimize,
+        "the new switch is stored with the others"
+    );
     // Persisted in the vault: survives lock/unlock.
     lifecycle::lock().unwrap();
     lifecycle::unlock(pw(PASSWORD)).unwrap();

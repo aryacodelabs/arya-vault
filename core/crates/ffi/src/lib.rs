@@ -42,7 +42,7 @@ pub use api::items::MAX_PAGE_LIMIT;
 
 /// The version of the Dart <-> Rust contract. Bump on any change to [`api`]; `info()` returns it
 /// and the Dart side asserts equality at start-up (docs/14 §7).
-pub const API_VERSION: u32 = 4;
+pub const API_VERSION: u32 = 5;
 
 /// Registers the platform's quick-unlock provider (docs/14 §6). **Rust-side only**: it is not
 /// part of [`api`] and Dart cannot call it. The platform glue (e.g. the Windows Hello crate,

@@ -2356,6 +2356,12 @@ abstract class AppLocalizations {
   /// **'When the screen locks'**
   String get secLockOnScreenLock;
 
+  /// No description provided for @secLockOnMinimize.
+  ///
+  /// In en, this message translates to:
+  /// **'When the window is minimised'**
+  String get secLockOnMinimize;
+
   /// No description provided for @secLockOnSleep.
   ///
   /// In en, this message translates to:
