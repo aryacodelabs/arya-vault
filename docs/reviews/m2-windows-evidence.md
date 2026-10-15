@@ -38,14 +38,13 @@ The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was delet
 
 ## Not verified yet (L01 goals still open)
 
+(Closed since this list was written: default vault folder ACL, single instance, window title and the text-level disk scan; see the sections below. File History exclusion is by design not applicable, see `dir_security.rs`.)
+
 - Windows Hello: the reboot requirement of the policy (password required after a reboot), cancelling the prompt, a removed or reset credential and "Hello not set up" are not verified. The app shows one message for every quick-unlock failure.
 - Print on Windows (the recovery sheet's Print button still reports "unavailable").
 - PrintScreen and Teams/Zoom share results for capture exclusion, and the cloud-clipboard check from spike S5.
-- Default vault location ACL (current user only), exclusion from indexing and File History, WER dump exclusion, single-instance mutex.
 - What uninstalling a *signed* MSIX does to the vault data (an unsigned one cannot be installed); a DLL search-path hijack test; code signing.
-- Disk scan with canary secrets over `%LOCALAPPDATA%`, temp and crash-dump folders; the scan above looked at file headers only, not at the text of the owner's items.
 - Memory with the 20,000-item vault *unlocked*, and scrolling that list in the UI (the core-side numbers and the lock-screen start numbers are in the next sections).
-- Window title still `arya_vault`.
 
 ## 20,000-item core measurements and text-level canary scan (2026-10-14)
 
