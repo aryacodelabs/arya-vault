@@ -41,7 +41,7 @@ fn status_error(status: KeyCredentialStatus) -> HelloError {
 /// through the `windows` crate's public paths.
 macro_rules! wait {
     ($op:expr) => {
-        $op.and_then(|o| o.get()).map_err(|_| HelloError::Failed)
+        $op.and_then(|o| o.join()).map_err(|_| HelloError::Failed)
     };
 }
 
