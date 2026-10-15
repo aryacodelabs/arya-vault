@@ -29,6 +29,9 @@ pub struct ItemRow {
     pub deleted_hlc: Option<i64>,
     /// Max of the field HLCs, for sorting.
     pub updated_hlc: i64,
+    /// Whether the item is listed: not deleted, or revived after its deletion (docs/05 section
+    /// 5.1). Derived from the registers by the vault layer.
+    pub visible: bool,
 }
 
 /// A field register, also used for `field_history` rows.
@@ -176,6 +179,16 @@ pub trait Store {
     /// List items, newest first (`updated_hlc` descending).
     fn list_items(&self, filter: ItemFilter<'_>) -> Result<Vec<ItemRow>>;
 
+    /// Visible items only (docs/05 section 5.1), newest first, rows `[offset, offset + limit)`.
+    /// One index range read when `item_type` and `folder_id` are the only filters.
+    fn list_visible_items(
+        &self,
+        item_type: Option<&str>,
+        folder_id: Option<Id>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<ItemRow>>;
+
     /// Insert or replace a field register.
     fn put_field(&self, field: &FieldRow) -> Result<()>;
     /// Fetch one register.
@@ -281,6 +294,7 @@ fn item_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<ItemRow> {
         deleted: r.get::<_, i64>(3)? != 0,
         deleted_hlc: r.get(4)?,
         updated_hlc: r.get(5)?,
+        visible: r.get::<_, i64>(6)? != 0,
     })
 }
 
@@ -328,20 +342,21 @@ impl Store for Tx<'_> {
         // gives an `item` (BLOB primary key) a new rowid and silently orphans its FTS5 entry.
         self.conn
             .prepare(
-                "INSERT INTO item(id, type, folder_id, deleted, deleted_hlc, updated_hlc) VALUES (?1,?2,?3,?4,?5,?6)
+                "INSERT INTO item(id, type, folder_id, deleted, deleted_hlc, updated_hlc, visible) VALUES (?1,?2,?3,?4,?5,?6,?7)
                  ON CONFLICT(id) DO UPDATE SET type = excluded.type, folder_id = excluded.folder_id,
-                   deleted = excluded.deleted, deleted_hlc = excluded.deleted_hlc, updated_hlc = excluded.updated_hlc",
+                   deleted = excluded.deleted, deleted_hlc = excluded.deleted_hlc, updated_hlc = excluded.updated_hlc,
+                   visible = excluded.visible",
             )?
-            .execute(params![&i.id[..], i.item_type, i.folder_id.as_ref().map(|f| &f[..]), i64::from(i.deleted), i.deleted_hlc, i.updated_hlc])?;
+            .execute(params![&i.id[..], i.item_type, i.folder_id.as_ref().map(|f| &f[..]), i64::from(i.deleted), i.deleted_hlc, i.updated_hlc, i64::from(i.visible)])?;
         Ok(())
     }
     fn get_item(&self, id: &Id) -> Result<Option<ItemRow>> {
-        Ok(self.conn.prepare("SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc FROM item WHERE id = ?1")?
+        Ok(self.conn.prepare("SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc, visible FROM item WHERE id = ?1")?
             .query_row([&id[..]], item_row).optional()?)
     }
     fn list_items(&self, f: ItemFilter<'_>) -> Result<Vec<ItemRow>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc FROM item
+            "SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc, visible FROM item
              WHERE (?1 = 1 OR deleted = 0) AND (?2 IS NULL OR type = ?2) AND (?3 IS NULL OR folder_id = ?3)
              ORDER BY updated_hlc DESC, id")?;
         let rows = stmt.query_map(
@@ -349,6 +364,31 @@ impl Store for Tx<'_> {
                 i64::from(f.include_deleted),
                 f.item_type,
                 f.folder_id.as_ref().map(|x| &x[..])
+            ],
+            item_row,
+        )?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    fn list_visible_items(
+        &self,
+        item_type: Option<&str>,
+        folder_id: Option<Id>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<ItemRow>> {
+        let clamp = |n: usize| i64::try_from(n).unwrap_or(i64::MAX);
+        let mut stmt = self.conn.prepare(
+            "SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc, visible FROM item
+             WHERE visible = 1 AND (?1 IS NULL OR type = ?1) AND (?2 IS NULL OR folder_id = ?2)
+             ORDER BY updated_hlc DESC, id LIMIT ?3 OFFSET ?4",
+        )?;
+        let rows = stmt.query_map(
+            params![
+                item_type,
+                folder_id.as_ref().map(|x| &x[..]),
+                clamp(limit),
+                clamp(offset)
             ],
             item_row,
         )?;

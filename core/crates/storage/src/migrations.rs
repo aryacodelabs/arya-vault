@@ -32,6 +32,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 2,
         sql: include_str!("migrations/v002_title_favorite_indexes.sql"),
     },
+    Migration {
+        version: 3,
+        sql: include_str!("migrations/v003_item_visible.sql"),
+    },
 ];
 
 /// Highest schema version this build writes.

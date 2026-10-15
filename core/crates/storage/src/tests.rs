@@ -35,6 +35,7 @@ fn item(n: u8) -> ItemRow {
         deleted: false,
         deleted_hlc: None,
         updated_hlc: i64::from(n),
+        visible: true,
     }
 }
 fn field(n: u8, k: &str, v: &[u8], hlc: i64) -> FieldRow {
@@ -1125,8 +1126,9 @@ fn plan(db: &Db, sql: &str) -> String {
 fn v1_fixture_migrates_to_v2_with_an_encrypted_backup_and_the_indexes() {
     let (d, p) = fixture_copy();
     let mut db = Db::open(&p, fixture_key()).unwrap();
-    assert_eq!(db.schema_version().unwrap(), 2);
-    assert_eq!(latest_schema_version(), 2);
+    // Open migrates all the way (2 is checked here, 3 in the next test): v1 -> latest.
+    assert_eq!(db.schema_version().unwrap(), latest_schema_version());
+    assert_eq!(latest_schema_version(), 3);
     assert_fixture(&mut db);
     assert!(index_names(&db).contains(&"field_title_cover".to_owned()));
     assert!(index_names(&db).contains(&"field_favorite_cover".to_owned()));
@@ -1400,4 +1402,76 @@ fn remove_all_backups_removes_only_this_databases_backups_whatever_their_age() {
         assert!(t.path().join(n).exists(), "{n}");
     }
     assert_eq!(crate::remove_all_backups(&db), 0);
+}
+
+#[test]
+fn migration_to_v3_stores_visibility_for_tombstones_and_adds_the_index() {
+    let (_d, p) = fixture_copy();
+    {
+        // A schema-2 database with the four kinds of item the rule distinguishes.
+        let db = Db::open_with(&p, fixture_key(), &MIGRATIONS[..2]).unwrap();
+        assert_eq!(db.schema_version().unwrap(), 2);
+        db.conn
+            .execute_batch(
+                "INSERT INTO item(id, type, deleted, deleted_hlc, updated_hlc) VALUES
+                   (x'a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1', 'login', 0, NULL, 10),
+                   (x'a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2', 'login', 1, 20, 20),
+                   (x'a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3', 'login', 1, 20, 30),
+                   (x'a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4', 'login', 1, 20, 40);
+                 INSERT INTO field(item_id, key, value, hlc, device_id) VALUES
+                   (x'a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2', 'deleted', x'f5', 20, x'01010101010101010101010101010101'),
+                   (x'a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2', 'deleted_at', x'00', 25, x'01010101010101010101010101010101'),
+                   (x'a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2', 'title', x'60', 10, x'01010101010101010101010101010101'),
+                   (x'a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3', 'deleted', x'f5', 20, x'01010101010101010101010101010101'),
+                   (x'a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3', 'notes', x'60', 30, x'01010101010101010101010101010101'),
+                   (x'a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4', 'deleted', x'f5', 20, x'01010101010101010101010101010101'),
+                   (x'a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4', 'notes', x'60', 20, x'01010101010101010101010101010101');",
+            )
+            .unwrap();
+        db.close().unwrap();
+    }
+    let mut db = Db::open(&p, fixture_key()).unwrap();
+    assert_eq!(db.schema_version().unwrap(), 3);
+    let visible = |db: &mut Db, b: u8| -> bool {
+        db.with_read(|tx| tx.get_item(&[b; 16]))
+            .unwrap()
+            .unwrap()
+            .visible
+    };
+    assert!(visible(&mut db, 0xa1), "a live item is visible");
+    assert!(
+        !visible(&mut db, 0xa2),
+        "only deletion bookkeeping and an older edit: still deleted"
+    );
+    assert!(visible(&mut db, 0xa3), "a newer edit revives the item");
+    assert!(
+        !visible(&mut db, 0xa4),
+        "an edit at the same time as the deletion does not revive it"
+    );
+    // The index exists and a page comes out in order without touching the hidden rows.
+    let page = db
+        .with_read(|tx| tx.list_visible_items(None, None, 0, 10))
+        .unwrap();
+    let ids: Vec<u8> = page
+        .iter()
+        .map(|r| r.id[0])
+        .filter(|b| *b >= 0xa0)
+        .collect();
+    assert_eq!(ids, [0xa3, 0xa1]);
+    let has_index: bool = db
+        .conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='index' AND name='item_visible_updated')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(has_index);
+    // The page query reads that index in order: no sort step, no table scan.
+    let p = plan(
+        &db,
+        "SELECT id FROM item WHERE visible = 1 ORDER BY updated_hlc DESC, id LIMIT 50 OFFSET 0",
+    );
+    assert!(p.contains("item_visible_updated"), "{p}");
+    assert!(!p.contains("TEMP B-TREE"), "{p}");
 }
