@@ -534,6 +534,9 @@ class ItemSummary {
   /// Last change, ms since the Unix epoch.
   final PlatformInt64 updatedAt;
 
+  /// Opaque position of this row in the list order, for `Page.after` (docs/14 section 4.2.1).
+  final String cursor;
+
   /// A TOTP seed is set.
   final bool hasTotp;
 
@@ -549,6 +552,7 @@ class ItemSummary {
     this.folderId,
     required this.tags,
     required this.updatedAt,
+    required this.cursor,
     required this.hasTotp,
     required this.deleted,
   });
@@ -563,6 +567,7 @@ class ItemSummary {
       folderId.hashCode ^
       tags.hashCode ^
       updatedAt.hashCode ^
+      cursor.hashCode ^
       hasTotp.hashCode ^
       deleted.hashCode;
 
@@ -579,6 +584,7 @@ class ItemSummary {
           folderId == other.folderId &&
           tags == other.tags &&
           updatedAt == other.updatedAt &&
+          cursor == other.cursor &&
           hasTotp == other.hasTotp &&
           deleted == other.deleted;
 }
@@ -861,18 +867,22 @@ class OldPassword {
           ageDays == other.ageDays;
 }
 
-/// `Page { offset, limit }`; `limit` is at most [`MAX_PAGE_LIMIT`](crate::MAX_PAGE_LIMIT).
+/// `Page { offset, limit, after }`; `limit` is at most [`MAX_PAGE_LIMIT`](crate::MAX_PAGE_LIMIT).
 class Page {
-  /// Rows to skip.
+  /// Rows to skip. Must be 0 when `after` is set.
   final int offset;
 
   /// Rows to return.
   final int limit;
 
-  const Page({required this.offset, required this.limit});
+  /// `list` only (docs/14 section 4.2.1): rows strictly after the position of this
+  /// [`ItemSummary::cursor`].
+  final String? after;
+
+  const Page({required this.offset, required this.limit, this.after});
 
   @override
-  int get hashCode => offset.hashCode ^ limit.hashCode;
+  int get hashCode => offset.hashCode ^ limit.hashCode ^ after.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -880,7 +890,8 @@ class Page {
       other is Page &&
           runtimeType == other.runtimeType &&
           offset == other.offset &&
-          limit == other.limit;
+          limit == other.limit &&
+          after == other.after;
 }
 
 /// `PassphraseOptions` (mirrors the generator).

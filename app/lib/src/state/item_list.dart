@@ -73,7 +73,7 @@ class ItemListNotifier extends AsyncNotifier<ItemListState> {
       );
     }
     try {
-      final List<ItemSummary> page = await _fetch(query, 0);
+      final List<ItemSummary> page = await _fetch(query, const <ItemSummary>[]);
       return _withTags(
         ItemListState(items: page, hasMore: page.length == kPageSize),
         page,
@@ -89,14 +89,27 @@ class ItemListNotifier extends AsyncNotifier<ItemListState> {
     return s.copyWith(knownTags: _known);
   }
 
-  Future<List<ItemSummary>> _fetch(ListQuery query, int offset) {
-    final Page page = Page(offset: offset, limit: kPageSize);
+  /// The page after [loaded]. A plain list pages by cursor (cost independent of depth, no
+  /// skipped or repeated rows when the list changes); search ranks results, so it pages by offset.
+  Future<List<ItemSummary>> _fetch(ListQuery query, List<ItemSummary> loaded) {
     final ListFilter filter = query.toFilter();
-    return query.search.isEmpty
-        ? _api.list(filter, page)
-        : _api.search(
-            SearchQuery(text: query.search, filter: filter, page: page),
-          );
+    if (query.search.isNotEmpty) {
+      return _api.search(
+        SearchQuery(
+          text: query.search,
+          filter: filter,
+          page: Page(offset: loaded.length, limit: kPageSize),
+        ),
+      );
+    }
+    return _api.list(
+      filter,
+      Page(
+        offset: 0,
+        limit: kPageSize,
+        after: loaded.isEmpty ? null : loaded.last.cursor,
+      ),
+    );
   }
 
   /// Loads the next page; no-op while loading or at the end.
@@ -111,7 +124,7 @@ class ItemListNotifier extends AsyncNotifier<ItemListState> {
       current.copyWith(loadingMore: true, loadMoreError: null),
     );
     try {
-      final List<ItemSummary> page = await _fetch(query, current.items.length);
+      final List<ItemSummary> page = await _fetch(query, current.items);
       if (token != _token) {
         return; // the query changed meanwhile; this page belongs to the old one
       }

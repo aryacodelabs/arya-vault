@@ -147,6 +147,63 @@ void runContractSuite(String name, Future<VaultApi> Function() open) {
       expect(found.map((ItemSummary s) => s.id), contains(itemId));
     });
 
+    test('list cursor: a walk equals the list, misuse is validation (docs/14 4.2.1)', () async {
+      // Several items so that more than one page exists.
+      for (int n = 0; n < 5; n++) {
+        await api.createItem(
+          NewItem(type: ItemType.login, title: 'Cursor walk $n'),
+        );
+      }
+      final List<ItemSummary> all = await api.list(
+        const ListFilter(),
+        const Page(offset: 0, limit: 200),
+      );
+      expect(all.length, greaterThan(3));
+      expect(all.every((ItemSummary s) => s.cursor.isNotEmpty), isTrue);
+      final List<String> walked = <String>[];
+      String? cursor;
+      while (true) {
+        final List<ItemSummary> page = await api.list(
+          const ListFilter(),
+          Page(offset: 0, limit: 2, after: cursor),
+        );
+        if (page.isEmpty) break;
+        cursor = page.last.cursor;
+        walked.addAll(page.map((ItemSummary s) => s.id));
+      }
+      expect(walked, all.map((ItemSummary s) => s.id).toList());
+
+      final String good = all.first.cursor;
+      await expectLater(
+        api.list(const ListFilter(), Page(offset: 1, limit: 10, after: good)),
+        throwsA(
+          isA<AppError>()
+              .having((AppError e) => e.code, 'code', AppErrorCode.validation)
+              .having((AppError e) => e.field, 'field', 'page.offset'),
+        ),
+      );
+      for (final String bad in <String>['', 'garbage', '${good}00']) {
+        await expectLater(
+          api.list(const ListFilter(), Page(offset: 0, limit: 10, after: bad)),
+          throwsA(
+            isA<AppError>()
+                .having((AppError e) => e.code, 'code', AppErrorCode.validation)
+                .having((AppError e) => e.field, 'field', 'page.after'),
+          ),
+          reason: bad,
+        );
+      }
+      await expectLater(
+        api.search(
+          SearchQuery(
+            text: 'Cursor',
+            page: Page(offset: 0, limit: 10, after: good),
+          ),
+        ),
+        throwsCode(AppErrorCode.validation),
+      );
+    });
+
     test('setField writes history and toggleFavorite flips', () async {
       await api.setField(itemId, StdField.password, 'CANARY-item-secret-2');
       final List<VersionInfo> h = await api.history(itemId, StdField.password);

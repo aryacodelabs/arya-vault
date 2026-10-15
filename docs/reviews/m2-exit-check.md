@@ -72,7 +72,7 @@ One Windows 11 development laptop, not a reference device (`docs/11` section 6).
 | Measure | Result | Target / note |
 |---|---|---|
 | `list`, page of 50, first page | 4.9 ms (was 75-122 ms before schema 3) | under 16 ms (owner decision, docs/05 5.1): **met** |
-| `list`, page of 50, last page (offset 19,950) | 14.8 ms | close to 16 ms; a keyset cursor would remove the deep-offset cost (not built) |
+| `list`, page of 50, last page (offset 19,950) | 13-15 ms by offset; **3.7 ms by cursor** | the app's list pages by cursor since API v4 |
 | `list`, 1 / 10 / 200 rows | 0.3 / 1.1 / 26 ms | |
 | Search: exact title / prefix / no match | 56 / 60 / 1.5 ms (earlier quiet run: 34 / 31 / 0.9 ms) | under 100 ms: met on this machine |
 | Unlock with 20,000 items (Low profile, includes Argon2id) | 155-216 ms | **Default** profile unlock on this machine not measured in this run |
@@ -153,7 +153,7 @@ Taken from the PR descriptions of A00-A04, B01-B03 and L01. None is silently res
 | L01 | Default vault location is `%LOCALAPPDATA%\AryaVault\vault`; File History and OneDrive are not touched by the app | Documented (`dir_security.rs`) |
 | L01 | Rust crate licence text and artwork are placeholders; MSIX tiles are generic | Open |
 | L02 | docs/05 section 5.1 open questions: debug assertion on every write for `item.visible`; should search and trash use it | Open |
-| L02 | Keyset cursor for the list (deep offsets) | Not built |
+| L02 | Keyset cursor for the list (deep offsets) | **Built** (docs/14 section 4.2.1, API v4); search still pages by offset |
 | M1 carry-over | KDBX import, 1 h fuzz runs in CI, coverage gate | Unchanged from `m1-exit-check.md` unless noted there |
 
 ---

@@ -11,7 +11,7 @@ import 'dtos.dart';
 
 /// Expected `info().apiVersion` (docs/14 §7). The app asserts equality at
 /// startup; a mismatch is a fatal developer error screen.
-const int expectedApiVersion = 3;
+const int expectedApiVersion = 4;
 
 abstract interface class VaultApi {
   // -------------------------------------------------- 4.1 lifecycle, credentials

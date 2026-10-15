@@ -1450,7 +1450,7 @@ fn migration_to_v3_stores_visibility_for_tombstones_and_adds_the_index() {
     );
     // The index exists and a page comes out in order without touching the hidden rows.
     let page = db
-        .with_read(|tx| tx.list_visible_items(None, None, 0, 10))
+        .with_read(|tx| tx.list_visible_items(None, None, None, 0, 10))
         .unwrap();
     let ids: Vec<u8> = page
         .iter()

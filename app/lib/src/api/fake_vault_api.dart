@@ -868,6 +868,7 @@ class FakeVaultApi implements VaultApi {
       folderId: i.folderId,
       tags: List<String>.unmodifiable(i.tags),
       updatedAt: i.updatedAt,
+      cursor: _cursorOf(i),
       hasTotp: i.fields.containsKey(StdField.totpSeed),
       deleted: i.deletedAt != null,
     );
@@ -882,8 +883,23 @@ class FakeVaultApi implements VaultApi {
     return true;
   }
 
-  /// [items] must already be in newest-first order.
-  List<ItemSummary> _paged(Iterable<_FakeItem> items, Page page) {
+  static String _cursorOf(_FakeItem i) => 'fake1.${i.updatedAt}.${i.id}';
+
+  /// (updatedAt, id) of a cursor this fake produced, or null.
+  static (int, String)? _parseCursor(String text) {
+    final List<String> p = text.split('.');
+    if (p.length != 3 || p[0] != 'fake1') return null;
+    final int? at = int.tryParse(p[1]);
+    final bool idOk = RegExp(r'^[0-9a-f]{32}$').hasMatch(p[2]);
+    return at == null || !idOk ? null : (at, p[2]);
+  }
+
+  /// [items] must already be in newest-first order. [allowCursor] is false for `search`.
+  List<ItemSummary> _paged(
+    Iterable<_FakeItem> items,
+    Page page, {
+    bool allowCursor = false,
+  }) {
     if (page.limit > 200 || page.limit < 1 || page.offset < 0) {
       throw const AppError(
         AppErrorCode.validation,
@@ -891,7 +907,38 @@ class FakeVaultApi implements VaultApi {
         field: 'page',
       );
     }
-    return items
+    Iterable<_FakeItem> rows = items;
+    final String? after = page.after;
+    if (after != null) {
+      if (!allowCursor) {
+        throw const AppError(
+          AppErrorCode.validation,
+          'a cursor cannot be used here',
+          field: 'page.after',
+        );
+      }
+      if (page.offset != 0) {
+        throw const AppError(
+          AppErrorCode.validation,
+          'offset must be 0 when after is set',
+          field: 'page.offset',
+        );
+      }
+      final (int, String)? at = _parseCursor(after);
+      if (at == null) {
+        throw const AppError(
+          AppErrorCode.validation,
+          'not a list cursor',
+          field: 'page.after',
+        );
+      }
+      rows = rows.where(
+        (_FakeItem i) =>
+            i.updatedAt < at.$1 ||
+            (i.updatedAt == at.$1 && i.id.compareTo(at.$2) > 0),
+      );
+    }
+    return rows
         .skip(page.offset)
         .take(page.limit)
         .map(_summary)
@@ -901,7 +948,18 @@ class FakeVaultApi implements VaultApi {
   @override
   Future<List<ItemSummary>> list(ListFilter filter, Page page) async {
     _requireUnlocked();
-    return _paged(_byNewest.where((_FakeItem i) => _matches(i, filter)), page);
+    if (page.after != null && filter.includeTrash) {
+      throw const AppError(
+        AppErrorCode.validation,
+        'a cursor cannot be used with includeTrash',
+        field: 'page.after',
+      );
+    }
+    return _paged(
+      _byNewest.where((_FakeItem i) => _matches(i, filter)),
+      page,
+      allowCursor: true,
+    );
   }
 
   @override

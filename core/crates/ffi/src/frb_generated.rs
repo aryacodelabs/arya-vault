@@ -2534,6 +2534,7 @@ impl SseDecode for crate::api::dto::ItemSummary {
         let mut var_folderId = <Option<String>>::sse_decode(deserializer);
         let mut var_tags = <Vec<String>>::sse_decode(deserializer);
         let mut var_updatedAt = <i64>::sse_decode(deserializer);
+        let mut var_cursor = <String>::sse_decode(deserializer);
         let mut var_hasTotp = <bool>::sse_decode(deserializer);
         let mut var_deleted = <bool>::sse_decode(deserializer);
         return crate::api::dto::ItemSummary {
@@ -2545,6 +2546,7 @@ impl SseDecode for crate::api::dto::ItemSummary {
             folder_id: var_folderId,
             tags: var_tags,
             updated_at: var_updatedAt,
+            cursor: var_cursor,
             has_totp: var_hasTotp,
             deleted: var_deleted,
         };
@@ -2979,9 +2981,11 @@ impl SseDecode for crate::api::dto::Page {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_offset = <u32>::sse_decode(deserializer);
         let mut var_limit = <u32>::sse_decode(deserializer);
+        let mut var_after = <Option<String>>::sse_decode(deserializer);
         return crate::api::dto::Page {
             offset: var_offset,
             limit: var_limit,
+            after: var_after,
         };
     }
 }
@@ -3771,6 +3775,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::ItemSummary {
             self.folder_id.into_into_dart().into_dart(),
             self.tags.into_into_dart().into_dart(),
             self.updated_at.into_into_dart().into_dart(),
+            self.cursor.into_into_dart().into_dart(),
             self.has_totp.into_into_dart().into_dart(),
             self.deleted.into_into_dart().into_dart(),
         ]
@@ -3932,6 +3937,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::Page {
         [
             self.offset.into_into_dart().into_dart(),
             self.limit.into_into_dart().into_dart(),
+            self.after.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4592,6 +4598,7 @@ impl SseEncode for crate::api::dto::ItemSummary {
         <Option<String>>::sse_encode(self.folder_id, serializer);
         <Vec<String>>::sse_encode(self.tags, serializer);
         <i64>::sse_encode(self.updated_at, serializer);
+        <String>::sse_encode(self.cursor, serializer);
         <bool>::sse_encode(self.has_totp, serializer);
         <bool>::sse_encode(self.deleted, serializer);
     }
@@ -4946,6 +4953,7 @@ impl SseEncode for crate::api::dto::Page {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.offset, serializer);
         <u32>::sse_encode(self.limit, serializer);
+        <Option<String>>::sse_encode(self.after, serializer);
     }
 }
 

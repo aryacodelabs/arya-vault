@@ -49,7 +49,7 @@ fn has_other_versions(v: &mut cv::Vault, view: &cv::ItemView) -> ApiResult<bool>
     Ok(false)
 }
 
-fn check_page(page: Page) -> ApiResult<(usize, usize)> {
+fn check_page(page: &Page) -> ApiResult<(usize, usize)> {
     if page.limit > MAX_PAGE_LIMIT {
         return Err(AppError::validation("limit", "the page limit is 200"));
     }
@@ -57,6 +57,23 @@ fn check_page(page: Page) -> ApiResult<(usize, usize)> {
         to_usize(page.offset, "offset")?,
         to_usize(page.limit, "limit")?,
     ))
+}
+
+/// The cursor of `page`, for the calls that accept one (`list`): `after` needs `offset == 0` and a
+/// cursor this build produced.
+fn cursor_of(page: &Page) -> ApiResult<Option<cv::ListCursor>> {
+    let Some(text) = page.after.as_deref() else {
+        return Ok(None);
+    };
+    if page.offset != 0 {
+        return Err(AppError::validation(
+            "page.offset",
+            "offset must be 0 when after is set",
+        ));
+    }
+    cv::ListCursor::decode(text)
+        .map(Some)
+        .ok_or_else(|| AppError::validation("page.after", "not a list cursor"))
 }
 
 fn core_filter(f: &ListFilter, t: Option<ItemType>) -> ApiResult<cv::ListFilter> {
@@ -88,8 +105,15 @@ fn summarize(
 }
 
 /// The rows of `filter` in `[offset, offset + limit)`, newest first, trash included on request.
-fn list_in(v: &mut cv::Vault, filter: &ListFilter, page: Page) -> ApiResult<Vec<ItemSummary>> {
+fn list_in(v: &mut cv::Vault, filter: &ListFilter, page: &Page) -> ApiResult<Vec<ItemSummary>> {
     let (offset, limit) = check_page(page)?;
+    let after = cursor_of(page)?;
+    if after.is_some() && filter.include_trash {
+        return Err(AppError::validation(
+            "page.after",
+            "a cursor cannot be used with includeTrash",
+        ));
+    }
     let types: Vec<Option<ItemType>> = match &filter.types {
         None => vec![None],
         Some(t) => t.iter().copied().map(Some).collect(),
@@ -108,7 +132,11 @@ fn list_in(v: &mut cv::Vault, filter: &ListFilter, page: Page) -> ApiResult<Vec<
             offset: src_offset,
             limit: src_limit,
         };
-        rows.extend(v.list(&f, page)?.into_iter().map(|s| (s, false)));
+        rows.extend(
+            v.list_after(&f, page, after)?
+                .into_iter()
+                .map(|s| (s, false)),
+        );
     }
     let mut out = summarize_rows(v, &rows)?;
     if filter.include_trash {
@@ -120,7 +148,11 @@ fn list_in(v: &mut cv::Vault, filter: &ListFilter, page: Page) -> ApiResult<Vec<
         }
     }
     if !single {
-        out.sort_by_key(|s| (Reverse(s.updated_at), s.id.clone()));
+        // The list order of the core: full-resolution timestamp (inside the cursor), then id.
+        out.sort_by_key(|s| {
+            let hlc = cv::ListCursor::decode(&s.cursor).map_or(i64::MIN, |c| c.hlc);
+            (Reverse(hlc), s.id.clone())
+        });
         out = out.into_iter().skip(offset).take(limit).collect();
     }
     Ok(out)
@@ -142,7 +174,7 @@ fn summarize_rows(
 /// # Errors
 /// `locked`, `validation` (`limit` above 200, bad ids).
 pub fn list(filter: ListFilter, page: Page) -> Result<Vec<ItemSummary>, AppError> {
-    host::call(|h| h.vault(|v| list_in(v, &filter, page)))
+    host::call(|h| h.vault(|v| list_in(v, &filter, &page)))
 }
 
 /// `search(SearchQuery)`: prefix full-text search over non-secret fields; trash is not searched
@@ -153,7 +185,13 @@ pub fn list(filter: ListFilter, page: Page) -> Result<Vec<ItemSummary>, AppError
 pub fn search(query: SearchQuery) -> Result<Vec<ItemSummary>, AppError> {
     host::call(|h| {
         h.vault(|v| {
-            let (offset, limit) = check_page(query.page)?;
+            if query.page.after.is_some() {
+                return Err(AppError::validation(
+                    "page.after",
+                    "search pages with offset, not a cursor",
+                ));
+            }
+            let (offset, limit) = check_page(&query.page)?;
             let filter = core_filter(&query.filter, None)?;
             let wanted = query.filter.types.as_deref();
             let q = cv::SearchQuery {

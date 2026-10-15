@@ -73,7 +73,11 @@ fn twenty_thousand_items() {
     println!("create {N} items: {:?}", t.elapsed());
 
     let filter = ListFilter::default;
-    let page = |offset| Page { offset, limit: 50 };
+    let page = |offset| Page {
+        offset,
+        limit: 50,
+        after: None,
+    };
     let t = Instant::now();
     let first = items::list(filter(), page(0)).unwrap();
     println!("list first page ({} rows): {:?}", first.len(), t.elapsed());
@@ -81,9 +85,36 @@ fn twenty_thousand_items() {
     let deep = items::list(filter(), page(N - 50)).unwrap();
     println!("list last page ({} rows): {:?}", deep.len(), t.elapsed());
 
+    // The same deep page by cursor: its cost must not depend on the depth.
+    let near_end = items::list(filter(), page(N - 100)).unwrap();
+    let cursor = near_end[49].cursor.clone();
+    let t = Instant::now();
+    let by_cursor = items::list(
+        filter(),
+        Page {
+            offset: 0,
+            limit: 50,
+            after: Some(cursor),
+        },
+    )
+    .unwrap();
+    println!(
+        "list deep page by cursor ({} rows): {:?}",
+        by_cursor.len(),
+        t.elapsed()
+    );
+
     for limit in [1u32, 10, 50, 200] {
         let t = Instant::now();
-        let rows = items::list(filter(), Page { offset: 0, limit }).unwrap();
+        let rows = items::list(
+            filter(),
+            Page {
+                offset: 0,
+                limit,
+                after: None,
+            },
+        )
+        .unwrap();
         println!(
             "list limit {limit}: {} rows in {:?}",
             rows.len(),

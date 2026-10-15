@@ -97,3 +97,10 @@ path = "fuzz_targets/fuzz_vault_value_decode.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "fuzz_list_cursor"
+path = "fuzz_targets/fuzz_list_cursor.rs"
+test = false
+doc = false
+bench = false

@@ -181,10 +181,13 @@ pub trait Store {
 
     /// Visible items only (docs/05 section 5.1), newest first, rows `[offset, offset + limit)`.
     /// One index range read when `item_type` and `folder_id` are the only filters.
+    /// With `after = Some((updated_hlc, id))` only rows strictly after that position in the list
+    /// order (`updated_hlc` descending, then `id`); `offset` then counts from there.
     fn list_visible_items(
         &self,
         item_type: Option<&str>,
         folder_id: Option<Id>,
+        after: Option<(i64, Id)>,
         offset: usize,
         limit: usize,
     ) -> Result<Vec<ItemRow>>;
@@ -374,25 +377,41 @@ impl Store for Tx<'_> {
         &self,
         item_type: Option<&str>,
         folder_id: Option<Id>,
+        after: Option<(i64, Id)>,
         offset: usize,
         limit: usize,
     ) -> Result<Vec<ItemRow>> {
         let clamp = |n: usize| i64::try_from(n).unwrap_or(i64::MAX);
-        let mut stmt = self.conn.prepare(
-            "SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc, visible FROM item
-             WHERE visible = 1 AND (?1 IS NULL OR type = ?1) AND (?2 IS NULL OR folder_id = ?2)
-             ORDER BY updated_hlc DESC, id LIMIT ?3 OFFSET ?4",
-        )?;
-        let rows = stmt.query_map(
-            params![
-                item_type,
-                folder_id.as_ref().map(|x| &x[..]),
-                clamp(limit),
-                clamp(offset)
-            ],
-            item_row,
-        )?;
-        Ok(rows.collect::<rusqlite::Result<_>>()?)
+        let folder = folder_id.as_ref().map(|x| &x[..]);
+        match after {
+            None => {
+                let mut stmt = self.conn.prepare(
+                    "SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc, visible FROM item
+                     WHERE visible = 1 AND (?1 IS NULL OR type = ?1) AND (?2 IS NULL OR folder_id = ?2)
+                     ORDER BY updated_hlc DESC, id LIMIT ?3 OFFSET ?4",
+                )?;
+                let rows = stmt.query_map(
+                    params![item_type, folder, clamp(limit), clamp(offset)],
+                    item_row,
+                )?;
+                Ok(rows.collect::<rusqlite::Result<_>>()?)
+            }
+            Some((hlc, id)) => {
+                // `updated_hlc <= ?5` is the index range; the second term keeps only the rows
+                // after `id` among equal timestamps.
+                let mut stmt = self.conn.prepare(
+                    "SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc, visible FROM item
+                     WHERE visible = 1 AND updated_hlc <= ?5 AND (updated_hlc < ?5 OR id > ?6)
+                       AND (?1 IS NULL OR type = ?1) AND (?2 IS NULL OR folder_id = ?2)
+                     ORDER BY updated_hlc DESC, id LIMIT ?3 OFFSET ?4",
+                )?;
+                let rows = stmt.query_map(
+                    params![item_type, folder, clamp(limit), clamp(offset), hlc, &id[..]],
+                    item_row,
+                )?;
+                Ok(rows.collect::<rusqlite::Result<_>>()?)
+            }
+        }
     }
 
     fn put_field(&self, f: &FieldRow) -> Result<()> {

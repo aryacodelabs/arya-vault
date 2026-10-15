@@ -135,6 +135,7 @@ class ItemSummary {
     required this.favorite,
     required this.tags,
     required this.updatedAt,
+    required this.cursor,
     required this.hasTotp,
     required this.deleted,
     this.folderId,
@@ -148,6 +149,10 @@ class ItemSummary {
   final String? folderId;
   final List<String> tags;
   final int updatedAt;
+
+  /// Opaque position of this row in the list order; hand it back as `Page.after`
+  /// (docs/14 section 4.2.1). Never parse or store it.
+  final String cursor;
   final bool hasTotp;
   final bool deleted;
 }
@@ -253,9 +258,12 @@ class ListFilter {
 
 /// `limit` must be at most 200 (docs/14 §3).
 class Page {
-  const Page({required this.offset, required this.limit});
+  const Page({required this.offset, required this.limit, this.after});
   final int offset;
   final int limit;
+
+  /// `list` only: rows strictly after this [ItemSummary.cursor]; [offset] must be 0.
+  final String? after;
 }
 
 class SearchQuery {

@@ -12,7 +12,11 @@ use arya_vault_ffi::api::{diagnostics, items, lifecycle, settings, tools, transf
 use common::*;
 
 fn page(limit: u32) -> Page {
-    Page { offset: 0, limit }
+    Page {
+        offset: 0,
+        limit,
+        after: None,
+    }
 }
 
 fn login(title: &str, user: &str, password: &str) -> NewItem {
@@ -255,6 +259,7 @@ fn list_search_filters_and_summaries_are_secret_free() {
         Page {
             offset: 1,
             limit: 1,
+            after: None,
         },
     )
     .unwrap();
@@ -269,6 +274,7 @@ fn list_search_filters_and_summaries_are_secret_free() {
         Page {
             offset: 1,
             limit: 1,
+            after: None,
         },
     )
     .unwrap();
@@ -599,4 +605,110 @@ fn info_and_diagnostics_have_the_version_and_no_ids() {
     assert!(json.starts_with("{\"apiVersion\":"));
     assert!(json.contains("\"header\":{"));
     assert!(!json.contains("CANARY"));
+}
+
+// ------------------------------------------------------------------ list cursor (docs/14 4.2.1)
+
+fn after(cursor: &str, limit: u32) -> Page {
+    Page {
+        offset: 0,
+        limit,
+        after: Some(cursor.to_owned()),
+    }
+}
+
+fn field_of<T>(r: Result<T, arya_vault_ffi::AppError>) -> (AppErrorCode, Option<String>) {
+    let e = r.err().expect("expected an error");
+    (e.code, e.field)
+}
+
+#[test]
+fn a_cursor_walk_equals_the_list_and_never_repeats_a_row() {
+    let _g = serial();
+    let _f = unlocked();
+    for n in 0..25 {
+        items::create_item(login(&format!("Item {n:02}"), "u", "CANARY-pw")).unwrap();
+    }
+    let all = items::list(ListFilter::default(), page(200)).unwrap();
+    assert_eq!(all.len(), 25);
+    assert!(all.iter().all(|s| !s.cursor.is_empty()));
+    for size in [1u32, 4, 10, 25, 200] {
+        let mut walked: Vec<String> = Vec::new();
+        let mut cursor: Option<String> = None;
+        loop {
+            let p = match &cursor {
+                None => page(size),
+                Some(c) => after(c, size),
+            };
+            let got = items::list(ListFilter::default(), p).unwrap();
+            if got.is_empty() {
+                break;
+            }
+            cursor = got.last().map(|s| s.cursor.clone());
+            walked.extend(got.into_iter().map(|s| s.id));
+        }
+        let want: Vec<String> = all.iter().map(|s| s.id.clone()).collect();
+        assert_eq!(walked, want, "page size {size}");
+    }
+}
+
+#[test]
+fn the_cursor_rejects_misuse_with_validation_and_the_field() {
+    let _g = serial();
+    let _f = unlocked();
+    items::create_item(login("A", "u", "CANARY-pw")).unwrap();
+    let good = items::list(ListFilter::default(), page(10)).unwrap()[0]
+        .cursor
+        .clone();
+
+    // offset together with after
+    let both = Page {
+        offset: 1,
+        limit: 10,
+        after: Some(good.clone()),
+    };
+    assert_eq!(
+        field_of(items::list(ListFilter::default(), both)),
+        (AppErrorCode::Validation, Some("page.offset".to_owned()))
+    );
+    // not a cursor: wrong text, upper case, too short, too long, hostile
+    for bad in [
+        "".to_owned(),
+        "garbage".to_owned(),
+        good.to_uppercase(),
+        good[..good.len() - 1].to_owned(),
+        format!("{good}00"),
+        format!("{}\u{0}", &good[..good.len() - 1]),
+        "CANARY-LEAK-cursor".to_owned(),
+    ] {
+        let (code, field) = field_of(items::list(ListFilter::default(), after(&bad, 10)));
+        assert_eq!(
+            (code, field),
+            (AppErrorCode::Validation, Some("page.after".to_owned())),
+            "{bad:?}"
+        );
+    }
+    // the error never echoes the cursor
+    let e = items::list(ListFilter::default(), after("CANARY-LEAK-cursor", 10))
+        .err()
+        .unwrap();
+    assert!(!format!("{e:?} {e}").contains("CANARY"));
+    // search and includeTrash do not take one
+    let q = SearchQuery {
+        text: "a".into(),
+        filter: ListFilter::default(),
+        page: after(&good, 10),
+    };
+    assert_eq!(
+        field_of(items::search(q)),
+        (AppErrorCode::Validation, Some("page.after".to_owned()))
+    );
+    let with_trash = ListFilter {
+        include_trash: true,
+        ..Default::default()
+    };
+    assert_eq!(
+        field_of(items::list(with_trash, after(&good, 10))),
+        (AppErrorCode::Validation, Some("page.after".to_owned()))
+    );
 }

@@ -2616,8 +2616,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ItemSummary dco_decode_item_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return ItemSummary(
       id: dco_decode_String(arr[0]),
       itemType: dco_decode_item_type(arr[1]),
@@ -2627,8 +2627,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       folderId: dco_decode_opt_String(arr[5]),
       tags: dco_decode_list_String(arr[6]),
       updatedAt: dco_decode_i_64(arr[7]),
-      hasTotp: dco_decode_bool(arr[8]),
-      deleted: dco_decode_bool(arr[9]),
+      cursor: dco_decode_String(arr[8]),
+      hasTotp: dco_decode_bool(arr[9]),
+      deleted: dco_decode_bool(arr[10]),
     );
   }
 
@@ -2886,11 +2887,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Page dco_decode_page(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return Page(
       offset: dco_decode_u_32(arr[0]),
       limit: dco_decode_u_32(arr[1]),
+      after: dco_decode_opt_String(arr[2]),
     );
   }
 
@@ -3496,6 +3498,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_folderId = sse_decode_opt_String(deserializer);
     var var_tags = sse_decode_list_String(deserializer);
     var var_updatedAt = sse_decode_i_64(deserializer);
+    var var_cursor = sse_decode_String(deserializer);
     var var_hasTotp = sse_decode_bool(deserializer);
     var var_deleted = sse_decode_bool(deserializer);
     return ItemSummary(
@@ -3507,6 +3510,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       folderId: var_folderId,
       tags: var_tags,
       updatedAt: var_updatedAt,
+      cursor: var_cursor,
       hasTotp: var_hasTotp,
       deleted: var_deleted,
     );
@@ -3913,7 +3917,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_offset = sse_decode_u_32(deserializer);
     var var_limit = sse_decode_u_32(deserializer);
-    return Page(offset: var_offset, limit: var_limit);
+    var var_after = sse_decode_opt_String(deserializer);
+    return Page(offset: var_offset, limit: var_limit, after: var_after);
   }
 
   @protected
@@ -4475,6 +4480,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.folderId, serializer);
     sse_encode_list_String(self.tags, serializer);
     sse_encode_i_64(self.updatedAt, serializer);
+    sse_encode_String(self.cursor, serializer);
     sse_encode_bool(self.hasTotp, serializer);
     sse_encode_bool(self.deleted, serializer);
   }
@@ -4838,6 +4844,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.offset, serializer);
     sse_encode_u_32(self.limit, serializer);
+    sse_encode_opt_String(self.after, serializer);
   }
 
   @protected

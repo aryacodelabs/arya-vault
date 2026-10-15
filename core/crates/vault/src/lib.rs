@@ -9,6 +9,7 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
+mod cursor;
 mod engine;
 mod error;
 mod fault;
@@ -26,6 +27,7 @@ mod views;
 #[cfg(test)]
 mod tests;
 
+pub use cursor::ListCursor;
 pub use error::{Result, VaultError};
 pub use hlc::{
     Clock, Hlc, HlcClock, HlcError, MAX_PT, ManualClock, SKEW_CORRUPT_MS, SKEW_FLAG_MS, Skew,

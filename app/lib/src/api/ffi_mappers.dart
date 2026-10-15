@@ -67,6 +67,7 @@ ItemSummary summaryFromRust(r.ItemSummary v) => ItemSummary(
   folderId: v.folderId,
   tags: v.tags,
   updatedAt: v.updatedAt,
+  cursor: v.cursor,
   hasTotp: v.hasTotp,
   deleted: v.deleted,
 );
@@ -122,7 +123,8 @@ r.ListFilter filterToRust(ListFilter v) => r.ListFilter(
   includeTrash: v.includeTrash,
 );
 
-r.Page pageToRust(Page v) => r.Page(offset: v.offset, limit: v.limit);
+r.Page pageToRust(Page v) =>
+    r.Page(offset: v.offset, limit: v.limit, after: v.after);
 
 r.SearchQuery searchToRust(SearchQuery v) => r.SearchQuery(
   text: v.text,

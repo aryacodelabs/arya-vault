@@ -61,6 +61,7 @@ fn calls_from_many_threads_are_serialised_without_losing_writes() {
         Page {
             offset: 0,
             limit: 200,
+            after: None,
         },
     )
     .unwrap();
@@ -159,6 +160,7 @@ fn a_vault_made_by_the_session_library_opens_through_the_api_and_back() {
         Page {
             offset: 0,
             limit: 10,
+            after: None,
         },
     )
     .unwrap();

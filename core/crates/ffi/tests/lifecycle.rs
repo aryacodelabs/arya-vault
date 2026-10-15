@@ -95,6 +95,7 @@ fn page() -> arya_vault_ffi::api::dto::Page {
     arya_vault_ffi::api::dto::Page {
         offset: 0,
         limit: 50,
+        after: None,
     }
 }
 

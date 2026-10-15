@@ -170,8 +170,8 @@ fn every_contract_name_occurs_in_docs_14_section_4() {
 }
 
 #[test]
-fn api_version_is_three() {
-    assert_eq!(arya_vault_ffi::API_VERSION, 3);
+fn api_version_is_four() {
+    assert_eq!(arya_vault_ffi::API_VERSION, 4);
 }
 
 /// Compile-time: adding a field to either type breaks these destructurings, which forces the
@@ -188,6 +188,7 @@ fn summary_and_view_have_exactly_these_fields() {
             folder_id: _,
             tags: _,
             updated_at: _,
+            cursor: _,
             has_totp: _,
             deleted: _,
         } = s;
