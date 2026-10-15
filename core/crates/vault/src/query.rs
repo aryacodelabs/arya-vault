@@ -208,15 +208,10 @@ impl Vault {
     pub fn list_trash(&mut self) -> Result<Vec<TrashEntry>> {
         self.db.with_read(|tx| {
             let mut out = Vec::new();
-            let rows = tx.list_items(ItemFilter {
-                include_deleted: true,
-                ..Default::default()
-            })?;
-            for row in rows.iter().filter(|r| r.deleted) {
+            // Only the hidden rows (docs/05 section 5.1), not every item of the vault.
+            let rows = tx.list_hidden_items()?;
+            for row in &rows {
                 let regs = engine::load_regs(tx, &row.id)?;
-                if engine::is_visible(&regs) {
-                    continue;
-                }
                 let Some(summary) = summary_of(&row.id, &regs) else {
                     continue;
                 };

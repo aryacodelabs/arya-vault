@@ -205,6 +205,11 @@ pub trait Store {
     fn fields_with_key_prefix(&self, prefix: &str) -> Result<Vec<FieldRow>>;
     /// Number of item rows, including tombstones.
     fn count_items(&self) -> Result<u64>;
+    /// Number of listed items (`visible = 1`), from the `item_visible_updated` index.
+    fn count_visible_items(&self) -> Result<u64>;
+    /// The items that are in the trash or purged (`visible = 0`, i.e. deleted and not revived),
+    /// in no particular order.
+    fn list_hidden_items(&self) -> Result<Vec<ItemRow>>;
 
     /// Add a history version (idempotent on the primary key).
     fn add_history(&self, row: &FieldHistoryRow) -> Result<()>;
@@ -455,6 +460,24 @@ impl Store for Tx<'_> {
         let rows = stmt.query_map([prefix], field_row)?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
+    fn count_visible_items(&self) -> Result<u64> {
+        let n: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM item WHERE visible = 1", [], |r| {
+                    r.get(0)
+                })?;
+        Ok(u64::try_from(n).unwrap_or(0))
+    }
+
+    fn list_hidden_items(&self) -> Result<Vec<ItemRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, type, folder_id, deleted, deleted_hlc, updated_hlc, visible FROM item
+             WHERE visible = 0",
+        )?;
+        let rows = stmt.query_map([], item_row)?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     fn count_items(&self) -> Result<u64> {
         let n: i64 = self
             .conn

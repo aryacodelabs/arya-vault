@@ -179,3 +179,5 @@ Real-core contract suite, ffi tests (walk equals the list for page sizes 1 to 20
 `validation` with `page.offset` / `page.after`, no echo of the input), vault tests (walk equals
 the list for every filter, a cursor survives an edit of its own row), a fuzz target
 `fuzz_list_cursor` (only compiled here; not run for long).
+
+`itemCount` (and the trash view) now read the stored `visible` column: `item_count` at 20,000 items went from 125 ms to 11 ms (one run, with a package build running at the same time).

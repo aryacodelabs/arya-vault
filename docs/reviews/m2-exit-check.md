@@ -76,7 +76,7 @@ One Windows 11 development laptop, not a reference device (`docs/11` section 6).
 | `list`, 1 / 10 / 200 rows | 0.3 / 1.1 / 26 ms | |
 | Search: exact title / prefix / no match | 56 / 60 / 1.5 ms (earlier quiet run: 34 / 31 / 0.9 ms) | under 100 ms: met on this machine |
 | Unlock with 20,000 items (Low profile, includes Argon2id) | 155-216 ms | **Default** profile unlock on this machine not measured in this run |
-| `item_count` | 125 ms | not optimised; scans |
+| `item_count` | 11 ms (was 125 ms; index count of `visible = 1`) | measured while a package build was running, so likely a little pessimistic |
 | Build 20,000 items one by one | 65 s | write path, not a target |
 | Packaged app start (extracted zip, 20,000-item vault): window exists | 3.3 s first launch after extracting, 1.6-1.8 s warm | "window exists", not first frame: a lower bound |
 | Working set on the lock screen | about 205-219 MB | unlocked memory **not measured** |

@@ -47,8 +47,10 @@ Future<void> main() async {
       overrides: [
         vaultApiProvider.overrideWithValue(api),
         // Clipboard hygiene, capture exclusion and lock/sleep events come from the
-        // Windows runner (app/windows/runner/platform_channel.cpp).
-        if (defaultTargetPlatform == TargetPlatform.windows) ...[
+        // native side of the shared channel: the Windows runner
+        // (app/windows/runner/platform_channel.cpp) or Android's PlatformChannel.kt.
+        if (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.android) ...[
           clipboardPlatformProvider.overrideWithValue(
             const WindowsClipboardPlatform(),
           ),
@@ -56,10 +58,12 @@ Future<void> main() async {
             const WindowsCaptureProtection(),
           ),
           platformEventsProvider.overrideWithValue(WindowsPlatformEvents()),
+        ],
+        // Android has no file.save / file.pick yet (storage access framework).
+        if (defaultTargetPlatform == TargetPlatform.windows)
           filePickerServiceProvider.overrideWithValue(
             const WindowsFilePickerService(),
           ),
-        ],
       ],
       child: const AryaVaultApp(),
     ),

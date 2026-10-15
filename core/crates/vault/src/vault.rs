@@ -145,6 +145,15 @@ impl Vault {
             .with_read(|tx| Ok::<_, VaultError>(tx.count_items()?))
     }
 
+    /// Number of listed items (the trash and purged tombstones excluded), from an index.
+    ///
+    /// # Errors
+    /// Storage errors.
+    pub fn visible_item_count(&mut self) -> Result<u64> {
+        self.db
+            .with_read(|tx| Ok::<_, VaultError>(tx.count_visible_items()?))
+    }
+
     /// Whether the vault reached the soft target of 20,000 items (docs/05 section 10).
     ///
     /// # Errors
