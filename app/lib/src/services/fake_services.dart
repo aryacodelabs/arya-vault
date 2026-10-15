@@ -173,6 +173,11 @@ class FakeFilePickerService implements FilePickerService {
 
 class FakePrintService implements PrintService {
   bool fail = false;
+
+  /// Test hook: pretend the platform has no printing (the Print button then disappears).
+  bool available = true;
+  @override
+  bool get isAvailable => available;
   final List<({String title, String body})> printed =
       <({String title, String body})>[];
 

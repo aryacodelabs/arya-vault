@@ -23,7 +23,7 @@ Per-check detail of the Windows work lives in `docs/reviews/m2-windows-evidence.
 | 5 | **Crash path of the unlocked app** (SEC-S02, SEC-H06) | The app sets Windows Error Reporting flags, but a machine-wide `LocalDumps` policy (present on the test PC) is not overridden. A crash while unlocked can write a full dump containing keys. No crash was provoked. Locking zeroes keys, so exposure is the unlocked time. | **Not verified** |
 | 6 | **Memory of the unlocked app, UI scrolling of a 20,000-item vault, cold start to first frame** (L02 benchmarks) | Core-side numbers exist (section 4). App memory unlocked, widget scroll smoothness and time to first frame were **not** measured. Start-up to "window exists" and lock-screen memory were. | **Partially verified** |
 | 7 | **MSIX** (roadmap: "MSIX build (unsigned dev)") | The package builds but **cannot be installed unsigned** on this Windows (0x80073D2C, then 0x80073D2B: unsigned packages may not contain executable activations). What uninstall does to vault data is unanswered. The portable zip is the shippable artefact. | **Not verified** (portable zip: verified to run) |
-| 8 | **Screen-share and PrintScreen behaviour of capture exclusion** (SEC-H02), cloud-clipboard check, Print on Windows | Capture exclusion blocking and unblocking was checked by the owner, not itemised. Teams/Zoom share, PrintScreen and the cloud clipboard were not. The recovery sheet's **Print is not implemented on Windows**. | **Partially verified** |
+| 8 | **Screen-share and PrintScreen behaviour of capture exclusion** (SEC-H02), cloud-clipboard check, Print on Windows | Capture exclusion blocking and unblocking was checked by the owner, not itemised. Teams/Zoom share, PrintScreen and the cloud clipboard were not. **Print is deliberately not offered on Windows** (the Print button is hidden when the platform has no print service): sending the recovery key to the print spooler leaves a copy on disk in the spool folder, which sits badly with SEC-S02. "Save as file" and manual copy remain. | **Partially verified** |
 | 9 | **Code signing** | None; SmartScreen will warn. Planned for M9. | **Not verified** |
 | 10 | **Coverage gate** | CI's coverage job is informational. | **Not enforced** |
 | 11 | **`integration_test` in CI** | The Windows integration test passes locally only; CI does not run it (no Windows desktop runner with the built app). | **Verified locally** |
@@ -148,8 +148,8 @@ Taken from the PR descriptions of A00-A04, B01-B03 and L01. None is silently res
 | B03 | docs/07 lists an "immediately" auto-lock; docs/14 allows 1-60 min only | Open |
 | B03 | Import warnings are shown as written, assumed secret-free | Open (needs a test) |
 | B03 | Whether generator calls work while locked is unspecified (fake allows it) | Open |
-| L01 | Hello failures all show one message (cancelled, invalidated, unavailable) | Open: needs a docs/14 error code and an `ffi` change (two-maintainer) |
-| L01 | Print on Windows | Not built |
+| L01 | Hello failures all show one message | **Resolved** in code (docs/14 section 7.1, `API_VERSION` 3, PR #60): cancel is silent, invalidated says quick unlock was turned off. Still only tested with the fake provider; two-maintainer review pending |
+| L01 | Print on Windows | Decided against: the spooler would keep a copy of the recovery key; the button is hidden (PR for `PrintService.isAvailable`) |
 | L01 | Default vault location is `%LOCALAPPDATA%\AryaVault\vault`; File History and OneDrive are not touched by the app | Documented (`dir_security.rs`) |
 | L01 | Rust crate licence text and artwork are placeholders; MSIX tiles are generic | Open |
 | L02 | docs/05 section 5.1 open questions: debug assertion on every write for `item.visible`; should search and trash use it | Open |

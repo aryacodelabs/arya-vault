@@ -41,7 +41,7 @@ The test vault lived in a temp profile (`LOCALAPPDATA` overridden) and was delet
 (Closed since this list was written: default vault folder ACL, single instance, window title and the text-level disk scan; see the sections below. File History exclusion is by design not applicable, see `dir_security.rs`.)
 
 - Windows Hello: the reboot requirement of the policy (password required after a reboot), cancelling the prompt, a removed or reset credential and "Hello not set up" are not verified. The app shows one message for every quick-unlock failure.
-- Print on Windows (the recovery sheet's Print button still reports "unavailable").
+- Print on Windows: not offered by design (the print spooler would keep a copy of the recovery key on disk); the button is hidden. Save as file and manual copy remain.
 - PrintScreen and Teams/Zoom share results for capture exclusion, and the cloud-clipboard check from spike S5.
 - What uninstalling a *signed* MSIX does to the vault data (an unsigned one cannot be installed); a DLL search-path hijack test; code signing.
 - Memory with the 20,000-item vault *unlocked*, and scrolling that list in the UI (the core-side numbers and the lock-screen start numbers are in the next sections).

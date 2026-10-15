@@ -49,6 +49,10 @@ abstract interface class FilePickerService {
 
 /// Printing of the recovery sheet.
 abstract interface class PrintService {
+  /// Whether this platform can print. When false the app does not offer a Print button
+  /// (Windows has none: the print spooler would keep a copy of the recovery key on disk).
+  bool get isAvailable;
+
   /// Prints [body] (UTF-8 text) under [title].
   Future<void> printText({required String title, required Uint8List body});
 }
@@ -118,6 +122,8 @@ class UnavailableFilePickerService implements FilePickerService {
 
 class UnavailablePrintService implements PrintService {
   const UnavailablePrintService();
+  @override
+  bool get isAvailable => false;
   @override
   Future<void> printText({
     required String title,
