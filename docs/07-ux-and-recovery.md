@@ -78,7 +78,7 @@ Copy guidelines for step E (draft):
 ## 7. Security UX details
 - Password fields default masked; reveal auto-hides after 15 s or on lock.
 - Clipboard toast: "Copied — clears in 30 s".
-- Auto-lock options: immediately, 1, 5 (default), 15, 60 min, on screen lock, on sleep.
+- Auto-lock options: 1, 5 (default), 15, 60 min, plus the switches on screen lock, on sleep and on minimise. There is no "immediately" timeout: it would lock between keystrokes, and lock-on-minimise and lock-on-screen-lock cover the intent (matches `docs/14` §4.5, 1-60 min).
 - Mobile app-switcher preview blurred; screenshots blocked (toggle for users with accessibility needs, default on).
 - Weak master password: block below minimum; warn under 16 chars with passphrase suggestion.
 - Sync warnings use plain language: "Another device's data looks incomplete. Your local data is safe. [Details]".

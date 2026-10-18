@@ -76,7 +76,7 @@ AppSettings   { autoLockMinutes: int (1-60; no "never" in v1), lockOnSleep, lock
 | `unlock` | `Future<void> unlock(Uint8List password)` | Throws `wrongCredentials`; applies local failure-delay (cosmetic, doc 07 §4) |
 | `unlockQuick` | `Future<void> unlockQuick()` | Uses the platform quick-unlock provider **inside Rust** (the raw vault key never reaches Dart); throws `quickUnlockUnavailable` |
 | `lock` | `Future<void> lock()` | Zeroizes keys, closes DB. Idempotent |
-| `changePassword` | `Future<void> changePassword({Uint8List oldPassword, Uint8List newPassword, bool rotateKeys})` | `rotateKeys=true` = "Change password and rotate keys" (SEC-A06) |
+| `changePassword` | `Future<RecoveryKeyResult?> changePassword({Uint8List oldPassword, Uint8List newPassword, bool rotateKeys})` | `rotateKeys=true` = "Change password and rotate keys" (SEC-A06); returns the rotation's new pending recovery key (§7.3). `null` when `rotateKeys=false` |
 | `recoverWithKey` | `Future<void> recoverWithKey({Uint8List recoveryKey, Uint8List newPassword})` | Leaves vault unlocked; doc 04 §9 |
 | `regenerateRecoveryKey` | `Future<RecoveryKeyResult> regenerateRecoveryKey({Uint8List password, bool rotateKeys})` | Sets `onboardingComplete=false` until confirmed again; returns a new pending key and its `challenge` |
 | `quickUnlockEnable` / `quickUnlockDisable` | `Future<void> quickUnlockEnable()` ... | Requires unlocked; user presence prompt shown by the platform |
@@ -106,6 +106,7 @@ AppSettings   { autoLockMinutes: int (1-60; no "never" in v1), lockOnSleep, lock
 ### 4.3 Generator, strength, health
 `generatePassword(PasswordOptions) -> Uint8List` · `generatePassphrase(PassphraseOptions) -> Uint8List` ·
 `entropyBits(options) -> double` · `strength(Uint8List) -> Strength` · `checkMasterPassword(Uint8List) -> PolicyResult` (works **while locked**, used in onboarding) ·
+`generatePassword`, `generatePassphrase`, `entropyBits` and `strength` also work **while locked**: they read no vault state and use only the OS CSPRNG (§7.4). 
 `healthReport() -> HealthReport` (unlocked).
 
 ### 4.4 Import / export
@@ -131,6 +132,16 @@ Core defines `trait QuickUnlockProvider { fn kind(); fn available(); fn seal(&se
 
 ## 7. Versioning
 `API_VERSION` constant in the ffi crate, exposed via `info()`; the Dart side asserts equality at startup (generated bindings and native library must match; a mismatch is a fatal developer error screen).
+
+### 7.3 `changePassword` returns the rotation's recovery key (`API_VERSION` 6)
+**Problem.** With `rotateKeys=true` the core creates a new recovery key inside the rotation (`RotationOutcome.recovery_key`) but `changePassword` returned nothing, so the app dropped it and called `regenerateRecoveryKey(rotateKeys=false)`, which makes and wraps a *second* key and discards the rotation's. That is an extra re-wrap, and the key the rotation committed is never the one the user saves.
+
+**Change.** `changePassword` returns `RecoveryKeyResult?`: the pending key and `challenge` of the rotation when `rotateKeys=true`, `null` otherwise. After a rotation `status().onboardingComplete` is `false` until `confirmRecoveryKey` passes, as for `regenerateRecoveryKey`. The app no longer calls `regenerateRecoveryKey` after a rotation. The key is returned once and never stored, same rules as §3 (bytes, wiped after display). A plain password change (no rotation) leaves the recovery key and `onboardingComplete` unchanged.
+
+Compatibility: Dart return type and generated bindings change, so `API_VERSION` goes from 5 to 6 in the same change (ffi, bindings, `expectedApiVersion`, `FakeVaultApi`). No on-disk change.
+
+### 7.4 Generator calls while locked (proposal, no version change)
+`generatePassword`, `generatePassphrase`, `entropyBits` and `strength` take no vault state, so they are allowed in any session state (they never return `locked`). `healthReport` and every item call still require unlocked. Reason: the generator sheet is reachable from onboarding and the master-password fields before a vault is unlocked, and locking it gains nothing. `FakeVaultApi` already behaves this way; the ffi must match, with a contract test for each state.
 
 ### 7.2 `lockOnMinimize` (`API_VERSION` 5)
 `AppSettings` gains `lockOnMinimize: bool`, default **false**: lock the vault when the window is minimised. The app already reacts to the platform's minimise event; this is the stored switch for it (Settings > Security, next to "When the computer sleeps").

@@ -140,14 +140,14 @@ Taken from the PR descriptions of A00-A04, B01-B03 and L01. None is silently res
 | A04 (PR #21) | 62 functions (61 + a bootstrap `initCore`), listed deviations | Contract updated by #26 |
 | B01 (PR #24, #26, #31) | `recoveryChallenge` missing from the contract and ffi | **Resolved** (docs/14, ffi, app; `API_VERSION` 2) |
 | B02 (PR #25) | The count line shows the loaded count, `itemCount` unused | Open (minor) |
-| B03 (PR #27) | `changePassword` returns nothing; after rotation the app fetches a fresh key rather than the rotation's | Open |
+| B03 (PR #27) | `changePassword` returns nothing; after rotation the app fetches a fresh key rather than the rotation's | Spec change proposed (docs/14 §7.3, `API_VERSION` 6); code follows once approved |
 | B03 | Export asks for the master password first (docs/14 says re-auth; the task prompt did not) | Accepted |
 | B03 | "View recovery key" cannot show it (never stored); offers regeneration | Accepted |
 | B03 | If the clipboard fingerprint is null after our write, the manager clears unconditionally | Accepted; Windows now supplies the sequence number |
 | B03 | `windowMinimized`/`windowRestored` events exist; lock-on-minimise had no settings UI | **Resolved** in code (`lockOnMinimize`, docs/14 section 7.2, API v5); needs a manual check on Windows |
-| B03 | docs/07 lists an "immediately" auto-lock; docs/14 allows 1-60 min only | Open |
+| B03 | docs/07 lists an "immediately" auto-lock; docs/14 allows 1-60 min only | Spec change proposed: drop "immediately" from docs/07 §7 |
 | B03 | Import warnings are shown as written, assumed secret-free | **Tested** (`import_reports_never_carry_file_content`: hostile Bitwarden JSON and CSV with canaries in names, values, folder names and broken rows; no report or error contains them) |
-| B03 | Whether generator calls work while locked is unspecified (fake allows it) | Open |
+| B03 | Whether generator calls work while locked is unspecified (fake allows it) | Spec change proposed (docs/14 §4.3, §7.4): allowed while locked |
 | L01 | Hello failures all show one message | **Resolved** in code (docs/14 section 7.1, `API_VERSION` 3, PR #60): cancel is silent, invalidated says quick unlock was turned off. Still only tested with the fake provider; two-maintainer review pending |
 | L01 | Print on Windows | Decided against: the spooler would keep a copy of the recovery key; the button is hidden (PR for `PrintService.isAvailable`) |
 | L01 | Default vault location is `%LOCALAPPDATA%\AryaVault\vault`; File History and OneDrive are not touched by the app | Documented (`dir_security.rs`) |
