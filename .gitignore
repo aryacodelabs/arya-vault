@@ -55,3 +55,6 @@ client_secret*.json
 
 # Packaging output (tools/package)
 dist/
+
+# Locally built Rust FFI libraries for Android (cargo-ndk output)
+app/android/app/src/main/jniLibs/
