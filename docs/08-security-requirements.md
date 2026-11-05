@@ -16,7 +16,7 @@ Verification keys: **UT** unit test · **PT** property test · **FZ** fuzz · **
 | SEC-C07 | MUST pass published test vectors (RFC 9106, 8439/xchacha, 5869) | 6 | UT |
 | SEC-C08 | MUST open all golden vault files from previous releases | 19 | IT (CI) |
 | SEC-C09 | Password generation MUST be unbiased (rejection sampling) | 6 | PT (chi-square), UT |
-| SEC-C10 | NFKD normalization MUST be identical on all platforms; normalization library version pinned, vectors fail CI on change | 6 | UT vectors |
+| SEC-C10 | NFKD normalization MUST be identical on all platforms; normalization library version pinned (currently Unicode 18.0.0, see docs/04 §3 bump policy), vectors fail CI on change | 6 | UT vectors |
 | SEC-C11 | Client MUST enforce Argon2 parameter floors **and ceilings** (m 64-1024 MiB, t 3-10, p 1-8) before running the KDF | 5 | UT |
 | SEC-C12 | Wrap AADs MUST NOT include `header_version`; password change MUST succeed without the recovery key | 6 | UT, IT |
 | SEC-C13 | SQLCipher settings MUST be pinned explicitly and verified on open | 8 | UT |
