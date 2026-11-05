@@ -44,7 +44,20 @@ mod tests {
     // dependency bump, STOP: normalization output may have changed (see module docs).
     #[test]
     fn sec_c10_unicode_version_is_pinned() {
-        assert_eq!(unicode_normalization::UNICODE_VERSION, (17, 0, 0));
+        assert_eq!(unicode_normalization::UNICODE_VERSION, (18, 0, 0));
+    }
+
+    // SEC-C10: characters newly assigned in Unicode 18.0 (unassigned in 17.0, so they passed
+    // through NFKD unchanged before). Pinned so a future bump cannot silently change them; see
+    // the 17.0 -> 18.0 audit in docs/04 section 3. Expected values come from the audit dump.
+    #[test]
+    fn sec_c10_unicode_18_newly_assigned_characters() {
+        // U+209D -> U+0077 ("w")
+        assert_eq!(nfkd_hex("\u{209d}"), "77");
+        // U+0558 -> U+0567 (UTF-8 d5 a7)
+        assert_eq!(nfkd_hex("\u{558}"), "d5a7");
+        // U+1B123 -> U+3053 U+3068 (UTF-8 e3 81 93 e3 81 a8)
+        assert_eq!(nfkd_hex("\u{1b123}"), "e38193e381a8");
     }
 
     // SEC-C10 vectors. Expected values were derived by hand from the Unicode
