@@ -1,0 +1,3 @@
+# Mirrors the temporary ignore in core/deny.toml (see the comment there). Re-check by 2026-12-16.
+[advisories]
+ignore = ["RUSTSEC-2026-0459"]
