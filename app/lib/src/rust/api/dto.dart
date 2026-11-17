@@ -9,7 +9,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dto.freezed.dart';
 
-
 /// The user has been told that a CSV export is unencrypted and confirmed.
 class AcknowledgePlaintextRisk {
   /// Must be `true`.
