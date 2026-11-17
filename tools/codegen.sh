@@ -30,6 +30,11 @@ fi
 
 (cd app && flutter_rust_bridge_codegen generate)
 
+# The codegen writes a comment listing std-trait methods it ignored (clone, eq, fmt, ...). Its
+# length varies between runs on the same Rust version (35 vs 42 `assert_fields_are_eq` seen in
+# CI), carries no information, and made --check fail without any source change. Drop it.
+find app/lib/src/rust -name '*.dart' -exec sed -i.bak '/^\/\/ These function are ignored because they are on traits/{N;d}' {} +   && find app/lib/src/rust -name '*.bak' -delete
+
 if [ "$mode" = "check" ]; then
   if ! git diff --exit-code -- app/lib/src/rust core/crates/ffi/src/frb_generated.rs; then
     echo "error: the generated bindings are out of date; run tools/codegen.sh and commit" >&2
