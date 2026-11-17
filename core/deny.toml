@@ -4,6 +4,15 @@ all-features = true
 
 [advisories]
 version = 2
+# Temporary, re-check by 2026-12-16 (or when libsqlite3-sys > 0.39.1 / rusqlite fixes sqlcipher-src).
+# RUSTSEC-2026-0459: the fix needs rusqlite 0.41 / libsqlite3-sys 0.39, which vendors SQLCipher via
+# sqlcipher-src =419.0.6; that crate is itself affected (RUSTSEC-2026-0502, fixed in 420.0.0) and
+# its license set is not yet allowed. So upgrading does not clear the bug. We stay on rusqlite 0.40
+# and accept the risk until upstream ships a fixed sqlcipher-src. The WAL read path is in use
+# (storage/src/db.rs), so this is a known, tracked exposure, not "not applicable".
+ignore = [
+  { id = "RUSTSEC-2026-0459", reason = "no complete fix yet: upgrade path hits RUSTSEC-2026-0502; re-check by 2026-12-16" },
+]
 
 [licenses]
 version = 2
